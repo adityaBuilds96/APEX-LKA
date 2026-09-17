@@ -1,0 +1,46 @@
+# ============================================================
+# Lane Keep Assist (LKA) - Requirements
+# Python 3.10+
+# ============================================================
+
+# Core ML
+torch>=2.0.0
+torchvision>=0.15.0
+
+# Computer Vision
+opencv-python>=4.8.0
+Pillow>=10.0.0
+
+# Data & Science
+numpy>=1.24.0
+pandas>=2.0.0
+scipy>=1.10.0
+scikit-learn>=1.3.0
+
+# Augmentation
+albumentations>=1.3.0
+
+# Visualization & Dashboard
+matplotlib>=3.7.0
+streamlit>=1.28.0
+
+# Training Utilities
+tqdm>=4.65.0
+PyYAML>=6.0
+
+# Logging & CLI
+rich>=13.0.0
+click>=8.1.0
+
+# Experiment Tracking
+tensorboard>=2.13.0
+
+# Notebook support
+jupyter>=1.0.0
+ipykernel>=6.25.0
+
+# Optional: YOLO (only if selected architecture uses it)
+# ultralytics>=8.0.0
+
+# Testing
+pytest>=7.4.0

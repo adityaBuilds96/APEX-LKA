@@ -1,0 +1,154 @@
+# =============================================================
+# Lane Keep Assist (LKA) - Master Project Configuration
+# =============================================================
+# This file controls ALL tunable parameters.
+# Never hardcode parameters inside scripts.
+
+project:
+  name: "LaneKeepAssist"
+  version: "1.0.0"
+  description: "Portfolio-grade Lane Detection and LKA System"
+
+# ------- Paths (relative to project root) --------------------
+paths:
+  raw_videos:     "data/raw_videos"
+  raw_frames:     "data/raw_frames"
+  annotated:      "data/annotated"
+  train:          "data/train"
+  val:            "data/val"
+  test:           "data/test"
+  annotations:    "annotations"
+  models:         "models"
+  checkpoints:    "models/checkpoints"
+  exported:       "models/exported"
+  logs:           "logs"
+  results:        "results"
+
+# ------- Data Collection (Frame Extraction) ------------------
+data_collection:
+  target_fps: 5           # Extract this many frames per second
+  source_fps: null        # null = auto-detect from video
+  duplicate_threshold: 0.98  # Skip frame if structural similarity > this
+  resize_on_extract: false   # Resize during extraction (saves disk)
+  output_format: "jpg"    # jpg or png
+  jpeg_quality: 95
+
+# ------- Preprocessing ---------------------------------------
+preprocessing:
+  image_width: 640
+  image_height: 360
+  normalize_mean: [0.485, 0.456, 0.406]   # ImageNet means (RGB)
+  normalize_std:  [0.229, 0.224, 0.225]   # ImageNet stds  (RGB)
+  # Region of Interest: crop bottom portion of frame
+  # [y_start_fraction, y_end_fraction] — 0.0=top, 1.0=bottom
+  roi_y_start: 0.35
+  roi_y_end:   1.0
+
+# ------- Dataset Split ---------------------------------------
+dataset:
+  train_ratio: 0.70
+  val_ratio:   0.15
+  test_ratio:  0.15
+  random_seed: 42
+
+# ------- Augmentation ----------------------------------------
+augmentation:
+  enabled: true
+  # Geometric (apply carefully — must preserve lane geometry)
+  horizontal_flip: false       # NEVER flip: it mirrors the road incorrectly
+  random_rotate_limit: 5       # Max rotation in degrees (small!)
+  random_translate_x: 0.05    # Max horizontal translate fraction
+  random_translate_y: 0.02    # Max vertical translate fraction
+  # Photometric (safe — does not distort geometry)
+  brightness_limit: 0.3
+  contrast_limit:   0.3
+  blur_limit:       3
+  gaussian_noise_std: 0.02
+  # Synthetic effects
+  shadow_simulation: true
+  rain_simulation:   false     # Use only if you have rain data to match
+
+# ------- Model (Semantic Segmentation) -----------------------
+model:
+  architecture: "LaneSegNet"   # Custom lightweight segmentation model
+  backbone: "mobilenetv3"      # Lightweight backbone for real-time
+  num_classes: 3               # 0=background, 1=left_lane, 2=right_lane
+  pretrained_backbone: true
+  input_channels: 3            # RGB
+  # Checkpoint
+  best_model_metric: "val_mean_iou"
+  save_every_n_epochs: 5
+
+# ------- Training --------------------------------------------
+training:
+  epochs: 50
+  batch_size: 8
+  learning_rate: 0.001
+  lr_scheduler: "cosine"       # cosine | step | plateau
+  weight_decay: 0.0001
+  optimizer: "adam"            # adam | sgd | adamw
+  loss: "combined"             # combined = dice + cross_entropy
+  dice_weight: 0.5
+  ce_weight: 0.5
+  num_workers: 0               # Set to 0 on Windows to avoid multiprocessing issues
+  pin_memory: false
+  early_stopping_patience: 10  # Stop if val_iou doesn't improve for N epochs
+  gradient_clip: 1.0
+
+# ------- Evaluation Metrics ----------------------------------
+evaluation:
+  primary_metric: "mean_iou"
+  metrics:
+    - "mean_iou"
+    - "dice_coefficient"
+    - "pixel_accuracy"
+    - "precision"
+    - "recall"
+    - "f1_score"
+  iou_threshold: 0.5
+
+# ------- Lane Geometry ---------------------------------------
+lane_geometry:
+  # Polynomial degree for lane curve fitting
+  poly_degree: 2
+  # Minimum number of lane pixels to consider it a valid detection
+  min_lane_pixels: 50
+  # Perspective transform ROI (fraction of image)
+  # [top_left, top_right, bottom_right, bottom_left] in (x_frac, y_frac)
+  perspective_src:
+    - [0.43, 0.60]
+    - [0.57, 0.60]
+    - [0.90, 1.00]
+    - [0.10, 1.00]
+  perspective_dst:
+    - [0.25, 0.00]
+    - [0.75, 0.00]
+    - [0.75, 1.00]
+    - [0.25, 1.00]
+
+# ------- Steering Controller (Proportional-Derivative) -------
+steering:
+  # Coordinate convention:
+  #   lateral_error > 0  → vehicle is RIGHT of lane center → steer LEFT
+  #   lateral_error < 0  → vehicle is LEFT  of lane center → steer RIGHT
+  Kp: 0.5           # Proportional gain
+  Kd: 0.1           # Derivative gain
+  # Thresholds
+  keep_center_threshold: 0.05   # |error| < this → KEEP CENTER (normalized units)
+  low_confidence_iou: 0.30      # IoU below this → LOW CONFIDENCE warning
+  # Saturation
+  max_steering_command: 1.0     # Normalized [-1, 1]
+
+# ------- Inference -------------------------------------------
+inference:
+  device: "cpu"               # cpu | cuda | mps
+  confidence_threshold: 0.50  # Minimum model confidence to trust output
+  target_fps: 15              # Target real-time FPS
+  show_overlay: true
+  show_fps: true
+  log_to_csv: true
+  log_path: "logs/inference/inference_log.csv"
+  # Camera
+  webcam_id: 0
+  webcam_width: 1280
+  webcam_height: 720

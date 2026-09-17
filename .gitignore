@@ -1,0 +1,66 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.Python
+env/
+venv/
+.venv/
+pip-wheel-metadata/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Data (large files)
+data/raw_videos/*.mp4
+data/raw_videos/*.avi
+data/raw_videos/*.mov
+data/raw_videos/*.mkv
+data/raw_frames/
+data/train/
+data/val/
+data/test/
+data/recordings/*
+!data/recordings/.gitkeep
+
+# Models (large checkpoints)
+models/checkpoints/*.pth
+models/exported/*.pth
+models/exported/*.onnx
+
+# Logs & Runtime
+logs/
+*.log
+.lka_pid
+.lka_server.log
+
+# Results (keep selected ones)
+results/plots/
+results/metrics/
+
+# Tests & Cache
+.pytest_cache/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# TensorBoard
+runs/
+
+# Temp
+*.tmp
+*.bak
