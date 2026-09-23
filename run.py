@@ -187,6 +187,41 @@ def cmd_dashboard(args):
     )
 
 
+def cmd_ingest(args):
+    """Ingest and validate road dataset from ZIP or directory."""
+    from src.dataset.ingestion import DatasetIngestor
+    source = args.zip or args.dir or args.source
+    if not source:
+        console.print("[red]Please specify dataset source via --zip <path> or --dir <path>[/red]")
+        return
+    ingestor = DatasetIngestor(base_dir=PROJECT_ROOT)
+    target = Path(args.target) if args.target else None
+    report = ingestor.ingest(source, target_dir=target)
+
+    console.print(
+        Panel(
+            f"[bold cyan]APEX-RLP Dataset Ingestion: {report.mode}[/bold cyan]\n"
+            f"Status: {report.status_message}",
+            border_style="cyan",
+        )
+    )
+
+    table = Table(title="Dataset Ingestion Summary", show_lines=True)
+    table.add_column("Metric", style="cyan")
+    table.add_column("Value", justify="right")
+    table.add_row("Total Images", str(report.total_images))
+    table.add_row("Valid Images", f"[green]{report.valid_images}[/green]")
+    table.add_row("Corrupted Images", f"[red]{report.corrupted_images}[/red]" if report.corrupted_images else "0")
+    table.add_row("Exact Duplicates", str(report.exact_duplicates))
+    table.add_row("Near Duplicates", str(report.near_duplicates))
+    table.add_row("Masks Found", "YES" if report.masks_found else "[yellow]NO[/yellow]")
+    table.add_row("Matched Pairs", f"[green]{report.matched_pairs}[/green]" if report.matched_pairs else "0")
+    table.add_row("Workflow Mode", f"[bold green]{report.mode}[/bold green]" if report.mode == "MODE_A_LABELED" else f"[bold yellow]{report.mode}[/bold yellow]")
+    table.add_row("Supervised Training Ready", "[green]YES[/green]" if report.can_train_supervised else "[red]NO (Annotation Required)[/red]")
+    console.print(table)
+    console.print("[green]Full report written -> results/metrics/dataset_report.json and .md[/green]")
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="LKA (Lane Keep Assist) — Master Entry Point",
@@ -227,6 +262,13 @@ def main():
     # dashboard
     sub.add_parser("dashboard", help="Launch Streamlit dashboard")
 
+    # ingest
+    p_ingest = sub.add_parser("ingest", help="Ingest and validate dataset from ZIP or directory")
+    p_ingest.add_argument("--zip", type=str, help="Path to road_dataset.zip")
+    p_ingest.add_argument("--dir", type=str, help="Path to extracted dataset directory")
+    p_ingest.add_argument("--source", type=str, help="Alias for --zip or --dir")
+    p_ingest.add_argument("--target", type=str, default=None, help="Target destination (default: data/annotated)")
+
     args = parser.parse_args()
 
     if args.command is None:
@@ -236,14 +278,12 @@ def main():
                 "Run [bold]python run.py --help[/bold] for available commands.\n\n"
                 "[bold]Quick start:[/bold]\n"
                 "  1. [cyan]python run.py env[/cyan]              — Check environment\n"
-                "  2. Copy video to data/raw_videos/\n"
-                "  3. [cyan]python run.py collect --fps 5[/cyan]  — Extract frames\n"
-                "  4. [cyan]python run.py inspect[/cyan]          — Inspect frames\n"
-                "  5. Annotate frames (see README.md)\n"
-                "  6. [cyan]python run.py split[/cyan]            — Split dataset\n"
-                "  7. [cyan]python run.py train[/cyan]            — Train model\n"
-                "  8. [cyan]python run.py evaluate[/cyan]         — Evaluate\n"
-                "  9. [cyan]python run.py infer --source webcam[/cyan] — Live demo",
+                "  2. [cyan]python run.py ingest --zip road.zip[/cyan] — Ingest dataset\n"
+                "  3. [cyan]python run.py inspect[/cyan]          — Inspect frames\n"
+                "  4. [cyan]python run.py split[/cyan]            — Split dataset\n"
+                "  5. [cyan]python run.py train[/cyan]            — Train model\n"
+                "  6. [cyan]python run.py evaluate[/cyan]         — Evaluate\n"
+                "  7. [cyan]python run.py infer --source webcam[/cyan] — Live demo",
                 title="[bold green]Welcome",
                 border_style="green",
             )
@@ -259,6 +299,7 @@ def main():
         "evaluate":  cmd_evaluate,
         "infer":     cmd_infer,
         "dashboard": cmd_dashboard,
+        "ingest":    cmd_ingest,
     }
     dispatch[args.command](args)
 

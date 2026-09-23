@@ -1,0 +1,13 @@
+{
+  "last_updated": "2026-09-23T09:29:19.153175",
+  "total_images": 2,
+  "completed_masks": 0,
+  "pending_images": 2,
+  "orphaned_masks": 0,
+  "progress_percent": 0.0,
+  "completed_stems": [],
+  "pending_stems": [
+    "highway_lane_02",
+    "straight_road_01"
+  ]
+}

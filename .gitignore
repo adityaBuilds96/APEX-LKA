@@ -23,6 +23,11 @@ data/raw_videos/*.avi
 data/raw_videos/*.mov
 data/raw_videos/*.mkv
 data/raw_frames/
+data/staging/
+data/annotated/images/*
+!data/annotated/images/.gitkeep
+data/annotated/masks/*
+!data/annotated/masks/.gitkeep
 data/train/
 data/val/
 data/test/

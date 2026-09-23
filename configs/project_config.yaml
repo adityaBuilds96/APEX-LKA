@@ -70,9 +70,11 @@ augmentation:
 
 # ------- Model (Semantic Segmentation) -----------------------
 model:
+  model_name: "APEX-RLP"       # Configurable model name
   architecture: "LaneSegNet"   # Custom lightweight segmentation model
   backbone: "mobilenetv3"      # Lightweight backbone for real-time
-  num_classes: 3               # 0=background, 1=left_lane, 2=right_lane
+  num_classes: 3               # 0=background, 1=left_lane, 2=right_lane (baseline)
+  target_num_classes: 4        # 0=background, 1=road, 2=left_lane, 3=right_lane (dynamic)
   pretrained_backbone: true
   input_channels: 3            # RGB
   # Checkpoint

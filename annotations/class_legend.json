@@ -1,0 +1,56 @@
+{
+  "version": "1.0.0",
+  "model_name": "APEX-RLP",
+  "classes": [
+    {
+      "id": 0,
+      "name": "background",
+      "color_rgb": [
+        0,
+        0,
+        0
+      ],
+      "hex": "#000000",
+      "description": "Environment, sky, vegetation, vehicles, curbs, non-road surfaces"
+    },
+    {
+      "id": 1,
+      "name": "road",
+      "color_rgb": [
+        128,
+        64,
+        128
+      ],
+      "hex": "#804080",
+      "description": "Drivable road asphalt / surface within travel boundaries"
+    },
+    {
+      "id": 2,
+      "name": "left_lane",
+      "color_rgb": [
+        0,
+        255,
+        0
+      ],
+      "hex": "#00FF00",
+      "description": "Left lane boundary marking (solid or dashed)"
+    },
+    {
+      "id": 3,
+      "name": "right_lane",
+      "color_rgb": [
+        255,
+        100,
+        0
+      ],
+      "hex": "#FF6400",
+      "description": "Right lane boundary marking (solid or dashed)"
+    }
+  ],
+  "deterministic_mapping": {
+    "0": "background",
+    "1": "road",
+    "2": "left_lane",
+    "3": "right_lane"
+  }
+}
