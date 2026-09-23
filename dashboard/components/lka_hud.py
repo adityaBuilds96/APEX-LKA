@@ -41,23 +41,8 @@ def draw_hud_overlay(
     mode_label: str = "LIVE",
 ) -> np.ndarray:
     """
-    Renders an automotive engineering HUD onto the camera viewport image.
-
-    Parameters
-    ----------
-    image_bgr : np.ndarray
-        Input BGR frame (will be copied).
-    telemetry : LKATelemetry | None
-        Runtime LKA analysis metrics.
-    perf : PerformanceStats | None
-        Measured framerate, latency, and system performance.
-    mode_label : str
-        "LIVE", "IMAGE", "VIDEO", or "REPLAY".
-
-    Returns
-    -------
-    np.ndarray
-        Annotated BGR frame with crisp HUD overlays.
+    Renders a minimal, clean automotive HUD onto the camera viewport image.
+    Maintains road view visual dominance without cluttering boxes.
     """
     if image_bgr is None or image_bgr.size == 0:
         return image_bgr
@@ -65,31 +50,55 @@ def draw_hud_overlay(
     canvas = image_bgr.copy()
     h, w = canvas.shape[:2]
 
-    # ── 1. Top-Left: Live Performance Badge ───────────────────────────────
+    # ── 1. Minimal Corner Performance Badge ───────────────────────────────
     fps_val = perf.camera_fps if (perf and perf.camera_fps > 0) else (perf.ui_fps if perf else 0.0)
-    lat_val = perf.pipeline_latency_ms if perf else (telemetry.total_ms if telemetry else 0.0)
-    inf_val = perf.inference_latency_ms if perf else (telemetry.inference_ms if telemetry else 0.0)
+    lat_val = perf.pipeline_latency_ms if (perf and perf.pipeline_latency_ms > 0) else (telemetry.total_ms if telemetry else 0.0)
 
-    _draw_perf_badge(canvas, mode_label, fps_val, lat_val, inf_val, x=14, y=14)
+    _draw_minimal_corner_badge(canvas, mode_label, fps_val, lat_val, x=14, y=14)
 
-    # ── 2. Top-Right: LKA Status HUD ──────────────────────────────────────
+    # ── 2. Road Reticle & Trajectory Look-Ahead ───────────────────────────
     if telemetry is not None:
-        _draw_lka_badge(canvas, telemetry, x=w - 230, y=14)
-
-        # ── 3. Look-Ahead Point on Trajectory ──────────────────────────────
         if (
             telemetry.stability_state in (LaneStabilityState.STABLE, LaneStabilityState.UNCERTAIN)
             and telemetry.lane_center_x is not None
         ):
             _draw_lookahead_reticle(canvas, telemetry, h, w)
 
-        # ── 4. LDW Warning Banner ──────────────────────────────────────────
+        # ── 3. Critical LDW Warning Banner (Active departure only) ─────────
         if telemetry.ldw_state in (LDWState.WARNING, LDWState.DRIFT_LEFT, LDWState.DRIFT_RIGHT):
             _draw_ldw_banner(canvas, telemetry.ldw_state, w, h)
-        elif telemetry.failure_condition not in (FailureCondition.NONE, FailureCondition.BOTH_BOUNDARIES_MISSING):
-            _draw_diag_banner(canvas, telemetry.failure_condition, w, h)
 
     return canvas
+
+
+def _draw_minimal_corner_badge(
+    canvas: np.ndarray,
+    mode: str,
+    fps: float,
+    latency_ms: float,
+    x: int = 14,
+    y: int = 14,
+) -> None:
+    """Minimal, non-intrusive corner performance badge."""
+    bw, bh = 142, 54
+    _draw_semi_trans_box(canvas, x, y, bw, bh, alpha=0.82)
+
+    # Dot + Mode label
+    dot_color = COLOR_GREEN if mode in ("LIVE", "REPLAY") else COLOR_CYAN
+    cv2.circle(canvas, (x + 12, y + 15), 4, dot_color, -1, cv2.LINE_AA)
+    cv2.putText(canvas, mode, (x + 22, y + 18),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.40, COLOR_TEXT_MAIN, 1, cv2.LINE_AA)
+
+    # FPS
+    fps_str = f"FPS  {fps:.1f}" if fps > 0 else "FPS  --"
+    cv2.putText(canvas, fps_str, (x + 12, y + 33),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.36, COLOR_TEXT_MUTED, 1, cv2.LINE_AA)
+
+    # Latency
+    lat_str = f"LAT  {latency_ms:.0f} ms" if latency_ms > 0 else "LAT  --"
+    cv2.putText(canvas, lat_str, (x + 12, y + 47),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.36, COLOR_CYAN, 1, cv2.LINE_AA)
+
 
 
 # ═══════════════════════════════════════════════════════════════════════════

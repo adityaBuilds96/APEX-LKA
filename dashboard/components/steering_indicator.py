@@ -91,11 +91,11 @@ def _render_svg(
     cmd_str = f"{command:+.3f}" if not no_data else "---"
 
     svg = f"""
-    <div style="display:flex; flex-direction:column; align-items:center; gap:6px;">
-      <div style="font-size:0.65rem; color:#4a6178; letter-spacing:0.15em; text-transform:uppercase;">
-        STEERING COMMAND
+    <div style="display:flex; flex-direction:column; align-items:center; gap:4px; padding:6px 0;">
+      <div style="font-family:'JetBrains Mono', monospace; font-size:0.58rem; color:#4a6178; letter-spacing:0.15em; text-transform:uppercase;">
+        STEERING RECOMMENDATION
       </div>
-      <svg viewBox="-60 -65 120 120" width="180" height="180"
+      <svg viewBox="-60 -65 120 120" width="110" height="110"
            style="overflow:visible;">
         <!-- Background ring -->
         <circle cx="0" cy="0" r="50"

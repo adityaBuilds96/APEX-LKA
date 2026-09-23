@@ -23,6 +23,10 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from dashboard.camera_stream import get_stream_manager
 from dashboard.components.event_log import render_event_log
+from dashboard.components.pipeline_status import render_pipeline_status
+from dashboard.components.offset_chart import render_offset_chart
+from dashboard.components.steering_indicator import render_steering_indicator
+
 
 
 st.set_page_config(
@@ -182,6 +186,24 @@ with col_right:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
+# ── Pipeline Architecture & Offset History ────────────────────────────────
+c_diag_left, c_diag_right = st.columns([1, 1])
+
+with c_diag_left:
+    st.subheader("🔄 Pipeline Stage Flow")
+    render_pipeline_status(res, camera_active=stream_mgr.is_running)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.subheader("🧭 Software Steering Recommendation")
+    render_steering_indicator(res.offset if res else None, telemetry=telem)
+
+with c_diag_right:
+    st.subheader("📈 Lateral Offset History")
+    render_offset_chart()
+
+st.markdown("<br>", unsafe_allow_html=True)
+
 # ── Event Log ──────────────────────────────────────────────────────────────
 st.subheader("📜 System Event Stream")
-render_event_log(max_rows=20)
+render_event_log(max_rows=25)
+

@@ -18,7 +18,8 @@ import time
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import List
+from typing import List, Optional
+
 
 import streamlit as st
 
@@ -118,3 +119,13 @@ def render_event_log(max_rows: int = 12) -> None:
         f'<div class="event-log">{rows_html}</div>',
         unsafe_allow_html=True,
     )
+
+
+def get_last_event() -> Optional[dict]:
+    """Retrieve the most recent event or None."""
+    _ensure_log()
+    events = st.session_state.apex_event_log
+    if not events:
+        return None
+    return events[-1]
+
