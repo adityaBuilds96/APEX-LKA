@@ -134,11 +134,8 @@ def draw_overlay(
             C_ERROR_ARROW, 2, cv2.LINE_AA, tipLength=0.25,
         )
 
-    # ── HUD panel ──────────────────────────────────────────────────────────
-    canvas = _draw_hud(canvas, prediction, geometry, offset)
-
-    # ── Backend watermark ──────────────────────────────────────────────────
-    _draw_watermark(canvas, prediction.backend_name, prediction.model_status)
+    # ── Compact backend tag (bottom-left, resolution-scaled) ─────────────
+    _draw_backend_tag(canvas, prediction.model_status)
 
     return canvas
 
@@ -164,7 +161,7 @@ def draw_no_detection(
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7,
                     (0, 180, 255), 2, cv2.LINE_AA)
 
-    _draw_watermark(canvas, prediction.backend_name, prediction.model_status)
+    _draw_backend_tag(canvas, prediction.model_status)
     return canvas
 
 
@@ -314,16 +311,20 @@ def _draw_hud(
     return canvas
 
 
-def _draw_watermark(
+def _draw_backend_tag(
     canvas: np.ndarray,
-    backend_name: str,
     model_status: ModelStatus,
 ) -> None:
-    """Draw backend label in bottom-left corner."""
+    """Draw a compact, resolution-scaled backend tag in the bottom-left corner."""
     h, w = canvas.shape[:2]
-    label = f"[{model_status.value}]  {backend_name}"
-    color = (80, 80, 230) if "CLASSICAL" in model_status.value else (100, 230, 100)
-    cv2.putText(canvas, label, (10, h - 12),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.40, (0, 0, 0), 3, cv2.LINE_AA)
-    cv2.putText(canvas, label, (10, h - 12),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.40, color,   1, cv2.LINE_AA)
+    # Scale font relative to image width so it never overflows on any resolution
+    scale = max(0.28, min(0.44, w / 1600.0))
+    thickness = 1
+    label = "CV" if "CLASSICAL" in model_status.value else "ML"
+    color = (120, 200, 255) if "CLASSICAL" in model_status.value else (100, 230, 100)
+    pad_x, pad_y = 8, 10
+    # Stroke for legibility
+    cv2.putText(canvas, label, (pad_x, h - pad_y),
+                cv2.FONT_HERSHEY_SIMPLEX, scale, (0, 0, 0), 3, cv2.LINE_AA)
+    cv2.putText(canvas, label, (pad_x, h - pad_y),
+                cv2.FONT_HERSHEY_SIMPLEX, scale, color, thickness, cv2.LINE_AA)

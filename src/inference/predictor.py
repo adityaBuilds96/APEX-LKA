@@ -313,25 +313,36 @@ class MLSegmentationPredictor(BaseLanePredictor):
 # Factory
 # ═══════════════════════════════════════════════════════════════════════════
 
-def get_predictor(backend: str = "classical_cv") -> BaseLanePredictor:
+def get_predictor(backend: str = "auto") -> BaseLanePredictor:
     """
     Return the requested lane detection backend.
 
     Parameters
     ----------
-    backend : "classical_cv" | "ml_segmentation"
+    backend : "auto" | "classical_cv" | "ml_segmentation"
+
+    ``"auto"`` (default) — checks whether ``models/exported/best_model.pth``
+    exists.  If it does, the ML segmentation predictor is returned; otherwise
+    the always-functional classical CV predictor is used.
 
     The classical_cv backend is always functional.
     The ml_segmentation backend requires a trained model file.
     """
     from src.inference.classical_cv import ClassicalCVPredictor  # local import to avoid circular
 
-    if backend == "classical_cv":
+    if backend == "auto":
+        model_path = PROJECT_ROOT / "models" / "exported" / "best_model.pth"
+        if model_path.exists():
+            ml = MLSegmentationPredictor()
+            if ml.model_status == ModelStatus.READY:
+                return ml
+        return ClassicalCVPredictor()
+    elif backend == "classical_cv":
         return ClassicalCVPredictor()
     elif backend == "ml_segmentation":
         return MLSegmentationPredictor()
     else:
         raise ValueError(
             f"Unknown backend: '{backend}'. "
-            "Choose 'classical_cv' or 'ml_segmentation'."
+            "Choose 'auto', 'classical_cv' or 'ml_segmentation'."
         )

@@ -476,33 +476,81 @@ def _run_live_camera(frame_container) -> None:
 
 def _run_image_mode(frame_container) -> None:
     backend = st.session_state.backend
-    c_up, c_test = st.columns([1, 1])
 
-    with c_up:
-        uploaded = st.file_uploader("Upload road image", type=["jpg", "jpeg", "png", "bmp"], key="up_img")
-        if uploaded and st.button("▶ RUN PERCEPTION ON UPLOAD", type="primary", use_container_width=True):
+    # ── Premium glassmorphic upload zone ──────────────────────────────────
+    st.markdown(
+        """
+        <style>
+        .img-upload-zone {
+            background: rgba(15,23,42,0.75);
+            border: 1.5px dashed rgba(56,189,248,0.35);
+            border-radius: 14px;
+            padding: 20px 24px 16px;
+            margin-bottom: 18px;
+            transition: border-color 0.25s;
+        }
+        .img-upload-zone:hover { border-color: rgba(56,189,248,0.65); }
+        .zone-label {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.72rem;
+            letter-spacing: 0.10em;
+            color: #64748b;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+        </style>
+        <div class="img-upload-zone">
+          <div class="zone-label">⬆ Drop image to analyse</div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    uploaded = st.file_uploader(
+        "Upload road image",
+        type=["jpg", "jpeg", "png", "bmp"],
+        key="up_img",
+        label_visibility="collapsed",
+    )
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    # Auto-trigger perception the moment a file lands (no button click needed)
+    if uploaded:
+        # Only reprocess if the file identity changed
+        if st.session_state.get("_last_img_name") != uploaded.name:
+            st.session_state["_last_img_name"] = uploaded.name
             img_bytes = uploaded.read()
-            with st.spinner("Processing..."):
+            with st.spinner("Running perception…"):
                 res = run_pipeline(img_bytes, backend=backend, reset_pd_state=True)
                 tracker = LKAStateTracker()
                 telem = tracker.update(res)
             _handle_result(res, telem, source="image")
 
-    with c_test:
-        test_dir = PROJECT_ROOT / "data" / "test_images"
-        test_files = sorted(f.name for f in test_dir.iterdir() if f.suffix.lower() in {".jpg", ".jpeg", ".png"}) if test_dir.exists() else []
-        if test_files:
-            chosen = st.selectbox("Select Test Benchmark Image", test_files, key="sel_test_img")
-            if st.button("▶ RUN BENCHMARK IMAGE", type="primary", use_container_width=True):
-                with st.spinner("Processing..."):
-                    res = run_pipeline(test_dir / chosen, backend=backend, reset_pd_state=True)
-                    tracker = LKAStateTracker()
-                    telem = tracker.update(res)
-                _handle_result(res, telem, source="test")
-        else:
-            st.info("Place images in data/test_images/")
+    # ── Benchmark selector ────────────────────────────────────────────────
+    test_dir = PROJECT_ROOT / "data" / "test_images"
+    test_files = (
+        sorted(f.name for f in test_dir.iterdir() if f.suffix.lower() in {".jpg", ".jpeg", ".png"})
+        if test_dir.exists() else []
+    )
+    if test_files:
+        st.markdown(
+            "<div class='zone-label' style='margin-top:6px;'>📂 Benchmark images</div>",
+            unsafe_allow_html=True,
+        )
+        chosen = st.selectbox(
+            "Select Test Benchmark Image",
+            ["— select —"] + test_files,
+            key="sel_test_img",
+            label_visibility="collapsed",
+        )
+        if chosen != "— select —" and st.session_state.get("_last_bench") != chosen:
+            st.session_state["_last_bench"] = chosen
+            with st.spinner("Running benchmark perception…"):
+                res = run_pipeline(test_dir / chosen, backend=backend, reset_pd_state=True)
+                tracker = LKAStateTracker()
+                telem = tracker.update(res)
+            _handle_result(res, telem, source="test")
 
-    # Display image in hero viewport
+    # ── Hero viewport ─────────────────────────────────────────────────────
     r = st.session_state.last_result
     t = st.session_state.last_telemetry
     if r and r.annotated_bgr is not None:
