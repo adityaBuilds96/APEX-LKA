@@ -1,0 +1,48 @@
+{
+  "img1": {
+    "stem": "img1",
+    "image_name": "img1.jpg",
+    "mask_name": "img1.png",
+    "confidence": 0.827,
+    "confidence_tier": "HIGH",
+    "road_coverage": 0.417,
+    "left_detected": true,
+    "right_detected": true,
+    "lane_width_px": 411.8,
+    "width_plausible": false,
+    "r2_score": 0.85,
+    "classes_present": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "status": "AUTO-GENERATED / NEEDS REVIEW",
+    "verified_by_human": true,
+    "generated_at": "2026-09-29T15:25:54.052294",
+    "notice": "DO NOT USE FOR SUPERVISED TRAINING WITHOUT HUMAN APPROVAL"
+  },
+  "img2": {
+    "stem": "img2",
+    "image_name": "img2.jpg",
+    "mask_name": "img2.png",
+    "confidence": 0.827,
+    "confidence_tier": "HIGH",
+    "road_coverage": 0.417,
+    "left_detected": true,
+    "right_detected": true,
+    "lane_width_px": 411.8,
+    "width_plausible": false,
+    "r2_score": 0.85,
+    "classes_present": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "status": "AUTO-GENERATED / NEEDS REVIEW",
+    "verified_by_human": true,
+    "generated_at": "2026-09-29T15:25:54.111432",
+    "notice": "DO NOT USE FOR SUPERVISED TRAINING WITHOUT HUMAN APPROVAL"
+  }
+}

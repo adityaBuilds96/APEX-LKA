@@ -16,7 +16,7 @@ Performs:
 import hashlib
 import re
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 
 import cv2
 import numpy as np
@@ -195,8 +195,37 @@ class DatasetValidator:
             return match.group(1)
 
         # Fallback to parent directory name if meaningful
-        parent = path.parent.name
-        if parent not in {"images", "raw_frames", "data", "annotated", "train", "val", "test"}:
-            return parent
-
         return "default_sequence"
+
+    def evaluate_mask_quality(
+        self,
+        image_or_path: Union[np.ndarray, Path, str],
+        mask_or_path: Union[np.ndarray, Path, str],
+        stem: Optional[str] = None,
+    ):
+        """
+        Evaluate full 9-check annotation quality on an image-mask pair using QualityScorer.
+
+        Returns:
+            QualityReport with overall_score, tier, and list of QualityIssues.
+        """
+        from src.dataset.quality_scorer import QualityScorer
+
+        scorer = QualityScorer()
+
+        if isinstance(image_or_path, (str, Path)):
+            img = cv2.imread(str(image_or_path))
+            if stem is None:
+                stem = Path(image_or_path).stem
+        else:
+            img = image_or_path
+
+        if isinstance(mask_or_path, (str, Path)):
+            mask = cv2.imread(str(mask_or_path), cv2.IMREAD_GRAYSCALE)
+        else:
+            mask = mask_or_path
+
+        if img is None or mask is None:
+            raise ValueError("Could not decode image or mask for quality evaluation")
+
+        return scorer.evaluate(img, mask, stem=stem)

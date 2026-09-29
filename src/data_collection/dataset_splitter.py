@@ -20,6 +20,7 @@ import random
 import shutil
 import sys
 from pathlib import Path
+from typing import Optional
 
 from rich.console import Console
 from rich.panel import Panel
@@ -63,6 +64,61 @@ def copy_pairs(pairs: list[tuple[Path, Path]], img_out: Path, mask_out: Path,
             shutil.copy2(mask_path, mask_out / mask_path.name)
 
     return len(pairs)
+
+
+class DatasetSplitter:
+    """
+    Object-oriented dataset splitter for programmatic and pipeline execution.
+    """
+
+    def __init__(
+        self,
+        source_dir: Optional[Path] = None,
+        train_ratio: float = 0.70,
+        val_ratio: float = 0.15,
+        test_ratio: float = 0.15,
+        seed: int = 42,
+    ):
+        self.source_dir = Path(source_dir) if source_dir else PATHS.annotated
+        self.train_ratio = train_ratio
+        self.val_ratio = val_ratio
+        self.test_ratio = test_ratio
+        self.seed = seed
+
+    def split(self, dry_run: bool = False) -> dict[str, list[tuple[Path, Path]]]:
+        """
+        Split annotated pairs into train, val, and test partitions.
+        """
+        img_dir = self.source_dir / "images"
+        mask_dir = self.source_dir / "masks"
+        pairs = find_pairs(img_dir, mask_dir)
+
+        if not pairs:
+            return {"train": [], "val": [], "test": []}
+
+        rng = random.Random(self.seed)
+        shuffled = list(pairs)
+        rng.shuffle(shuffled)
+
+        n = len(shuffled)
+        n_train = int(n * self.train_ratio)
+        n_val = int(n * self.val_ratio)
+
+        train_pairs = shuffled[:n_train]
+        val_pairs = shuffled[n_train:n_train + n_val]
+        test_pairs = shuffled[n_train + n_val:]
+
+        if not dry_run:
+            for split, split_pairs in [("train", train_pairs), ("val", val_pairs), ("test", test_pairs)]:
+                img_out = getattr(PATHS, split) / "images"
+                mask_out = getattr(PATHS, split) / "masks"
+                copy_pairs(split_pairs, img_out, mask_out)
+
+        return {
+            "train": train_pairs,
+            "val": val_pairs,
+            "test": test_pairs,
+        }
 
 
 def main():

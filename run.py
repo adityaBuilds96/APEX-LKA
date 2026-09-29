@@ -219,7 +219,190 @@ def cmd_ingest(args):
     table.add_row("Workflow Mode", f"[bold green]{report.mode}[/bold green]" if report.mode == "MODE_A_LABELED" else f"[bold yellow]{report.mode}[/bold yellow]")
     table.add_row("Supervised Training Ready", "[green]YES[/green]" if report.can_train_supervised else "[red]NO (Annotation Required)[/red]")
     console.print(table)
-    console.print("[green]Full report written -> results/metrics/dataset_report.json and .md[/green]")
+def cmd_auto_annotate(args):
+    """Generate pseudo-masks for all unannotated frames via Classical CV."""
+    import cv2
+    from src.config import PATHS
+    from src.dataset.auto_annotator import ClassicalAutoAnnotator
+
+    img_dir = PATHS.annotated / "images"
+    mask_dir = PATHS.annotated / "masks"
+    mask_dir.mkdir(parents=True, exist_ok=True)
+
+    img_exts = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
+    images = [f for f in sorted(img_dir.iterdir()) if f.is_file() and f.suffix.lower() in img_exts] if img_dir.exists() else []
+
+    if not images:
+        console.print(f"[yellow]No images found in {img_dir}. Ingest or stage frames first.[/yellow]")
+        return
+
+    annotator = ClassicalAutoAnnotator()
+    force = getattr(args, "force", False)
+    conf_thresh = getattr(args, "confidence_threshold", 0.70)
+
+    n_high = 0
+    n_med = 0
+    n_low = 0
+    total_gen = 0
+
+    with console.status("[bold cyan]Generating pseudo-masks via Classical CV...[/bold cyan]"):
+        for img_path in images:
+            stem = img_path.stem
+            out_mask_path = mask_dir / f"{stem}.png"
+            if out_mask_path.exists() and not force:
+                continue
+
+            bgr = cv2.imread(str(img_path))
+            if bgr is None:
+                continue
+
+            mask, meta = annotator.generate_pseudo_mask(img_path)
+            cv2.imwrite(str(out_mask_path), mask)
+            total_gen += 1
+            conf = meta.confidence
+
+            if conf >= conf_thresh:
+                n_high += 1
+            elif conf >= 0.40:
+                n_med += 1
+            else:
+                n_low += 1
+
+    console.print(
+        Panel(
+            f"[bold green]Auto-Annotation Complete[/bold green]\n\n"
+            f"Generated [bold cyan]{total_gen}[/bold cyan] masks: "
+            f"[green]{n_high} HIGH[/green], [yellow]{n_med} MEDIUM[/yellow], [red]{n_low} LOW[/red]\n"
+            f"Destination: [cyan]{mask_dir}[/cyan]",
+            border_style="green",
+        )
+    )
+
+
+def cmd_quality_check(args):
+    """Run QA validation on all annotated image-mask pairs."""
+    import json
+    import cv2
+    from src.config import PATHS
+    from src.dataset.quality_scorer import QualityScorer, QualityTier, Severity
+
+    img_dir = PATHS.annotated / "images"
+    mask_dir = PATHS.annotated / "masks"
+
+    if not img_dir.exists() or not mask_dir.exists():
+        console.print("[red]Annotated images or masks directory missing.[/red]")
+        return
+
+    scorer = QualityScorer()
+    img_exts = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
+    images = [f for f in sorted(img_dir.iterdir()) if f.is_file() and f.suffix.lower() in img_exts]
+
+    reports = []
+    has_critical = False
+
+    table = Table(title="Annotation Quality Assurance Summary", show_lines=True)
+    table.add_column("Stem", style="cyan")
+    table.add_column("Tier")
+    table.add_column("Score", justify="right")
+    table.add_column("Issues Flagged")
+
+    with console.status("[bold cyan]Auditing annotations with 9-check QA system...[/bold cyan]"):
+        for img_p in images:
+            stem = img_p.stem
+            mask_p = mask_dir / f"{stem}.png"
+            if not mask_p.exists():
+                continue
+
+            img_bgr = cv2.imread(str(img_p))
+            mask = cv2.imread(str(mask_p), cv2.IMREAD_GRAYSCALE)
+            if img_bgr is None or mask is None:
+                continue
+
+            rep = scorer.evaluate(img_bgr, mask, stem=stem)
+            reports.append(rep)
+
+            if any(i.severity == Severity.CRITICAL for i in rep.issues):
+                has_critical = True
+
+            tier_col = (
+                "[green]EXCELLENT[/green]" if rep.tier == QualityTier.EXCELLENT else
+                "[cyan]ACCEPTABLE[/cyan]" if rep.tier == QualityTier.ACCEPTABLE else
+                "[yellow]NEEDS_REVIEW[/yellow]" if rep.tier == QualityTier.NEEDS_REVIEW else
+                "[red]REJECTED[/red]"
+            )
+            issues_str = ", ".join(f"[{i.check_name}] {i.message}" for i in rep.issues[:2])
+            if len(rep.issues) > 2:
+                issues_str += f" (+{len(rep.issues)-2} more)"
+            if not issues_str:
+                issues_str = "[green]All checks passed[/green]"
+
+            table.add_row(stem, tier_col, f"{rep.overall_score:.2f}", issues_str)
+
+    console.print(table)
+
+    if reports:
+        avg_score = sum(r.overall_score for r in reports) / len(reports)
+        console.print(f"[bold]Overall Dataset QA Score:[/bold] [cyan]{avg_score:.2f} / 1.00[/cyan] ({len(reports)} pairs checked)")
+
+    if getattr(args, "export", False):
+        export_dir = PROJECT_ROOT / "results" / "metrics"
+        export_dir.mkdir(parents=True, exist_ok=True)
+        export_path = export_dir / "annotation_quality.json"
+
+        export_data = {
+            "total_pairs": len(reports),
+            "average_score": round(sum(r.overall_score for r in reports) / max(1, len(reports)), 3),
+            "critical_count": sum(1 for r in reports if any(i.severity == Severity.CRITICAL for i in r.issues)),
+            "reports": [
+                {
+                    "stem": r.stem,
+                    "score": r.overall_score,
+                    "tier": r.tier.value,
+                    "issues": [{"check": i.check_name, "severity": i.severity.value, "msg": i.message} for i in r.issues],
+                }
+                for r in reports
+            ]
+        }
+        with open(export_path, "w", encoding="utf-8") as f:
+            json.dump(export_data, f, indent=2)
+        console.print(f"[green]Saved QA report -> {export_path}[/green]")
+
+    if getattr(args, "strict", False) and has_critical:
+        console.print("[bold red]STRICT MODE FAILED: Critical annotation defects detected.[/bold red]")
+        sys.exit(1)
+
+
+def cmd_pipeline(args):
+    """Run full zero-touch automated data pipeline."""
+    from src.dataset.pipeline_orchestrator import PipelineOrchestrator
+
+    source = args.source or getattr(args, "zip", None) or getattr(args, "dir", None)
+    if not source:
+        console.print("[red]Please specify dataset source via --source <path>[/red]")
+        return
+
+    orchestrator = PipelineOrchestrator(base_dir=PROJECT_ROOT)
+    console.print(Panel(f"[bold cyan]APEX-RLP Intelligent Pipeline Orchestrator[/bold cyan]\nSource: {source}", border_style="cyan"))
+
+    auto_split = getattr(args, "auto_split", False)
+    summary = orchestrator.run(source_path=source, auto_split=auto_split)
+
+    table = Table(title="Pipeline Execution Summary", show_lines=True)
+    table.add_column("Stage / Metric", style="cyan")
+    table.add_column("Result", justify="right")
+    table.add_row("Batch ID", summary.batch_id[:8])
+    table.add_row("Input Files", str(summary.total_input_files))
+    table.add_row("Validated Frames", f"[green]{summary.validated_count}[/green]")
+    table.add_row("Corrupted Quarantined", f"[red]{summary.corrupted_count}[/red]" if summary.corrupted_count else "0")
+    table.add_row("Duplicates Filtered", str(summary.duplicate_count))
+    table.add_row("Auto-Annotated Masks", f"[bold green]{summary.annotated_count}[/bold green]")
+    table.add_row("Average Quality Score", f"{summary.avg_quality_score:.2f} / 1.00")
+    table.add_row("Splits (Train/Val/Test)", f"{summary.train_count} / {summary.val_count} / {summary.test_count}")
+    table.add_row("Elapsed Time", f"{summary.elapsed_seconds:.2f}s")
+    console.print(table)
+
+    if summary.report_path:
+        console.print(f"[green]Report saved -> {summary.report_path}[/green]")
 
 
 def main():
@@ -268,6 +451,25 @@ def main():
     p_ingest.add_argument("--dir", type=str, help="Path to extracted dataset directory")
     p_ingest.add_argument("--source", type=str, help="Alias for --zip or --dir")
     p_ingest.add_argument("--target", type=str, default=None, help="Target destination (default: data/annotated)")
+    p_ingest.add_argument("--auto-annotate", action="store_true", help="Generate pseudo-masks via Classical CV")
+    p_ingest.add_argument("--auto-split", action="store_true", help="Automatically partition into train/val/test")
+
+    # auto-annotate (Section 9.1)
+    p_auto = sub.add_parser("auto-annotate", help="Generate pseudo-masks for all unannotated frames")
+    p_auto.add_argument("--force", action="store_true", help="Overwrite existing auto-generated masks")
+    p_auto.add_argument("--confidence-threshold", type=float, default=0.70, help="Confidence threshold for auto-approval")
+
+    # quality-check (Section 9.1)
+    p_qa = sub.add_parser("quality-check", help="Run QA validation on all annotated image-mask pairs")
+    p_qa.add_argument("--strict", action="store_true", help="Fail with exit code 1 if critical defects found")
+    p_qa.add_argument("--export", action="store_true", help="Save report to results/metrics/annotation_quality.json")
+
+    # pipeline (full zero-touch automation)
+    p_pipe = sub.add_parser("pipeline", help="Run full automated pipeline on new data")
+    p_pipe.add_argument("--source", type=str, help="Path to archive, video, image, or folder")
+    p_pipe.add_argument("--zip", type=str, help="Path to ZIP archive")
+    p_pipe.add_argument("--dir", type=str, help="Path to dataset directory")
+    p_pipe.add_argument("--auto-split", action="store_true", help="Automatically split after annotation")
 
     args = parser.parse_args()
 
@@ -279,11 +481,14 @@ def main():
                 "[bold]Quick start:[/bold]\n"
                 "  1. [cyan]python run.py env[/cyan]              — Check environment\n"
                 "  2. [cyan]python run.py ingest --zip road.zip[/cyan] — Ingest dataset\n"
-                "  3. [cyan]python run.py inspect[/cyan]          — Inspect frames\n"
-                "  4. [cyan]python run.py split[/cyan]            — Split dataset\n"
-                "  5. [cyan]python run.py train[/cyan]            — Train model\n"
-                "  6. [cyan]python run.py evaluate[/cyan]         — Evaluate\n"
-                "  7. [cyan]python run.py infer --source webcam[/cyan] — Live demo",
+                "  3. [cyan]python run.py pipeline --source data/raw_videos/drive.mp4[/cyan] — Full automated pipeline\n"
+                "  4. [cyan]python run.py auto-annotate[/cyan]    — Generate pseudo-masks via Classical CV\n"
+                "  5. [cyan]python run.py quality-check[/cyan]     — Run 9-check QA audit\n"
+                "  6. [cyan]python run.py inspect[/cyan]          — Inspect frames\n"
+                "  7. [cyan]python run.py split[/cyan]            — Split dataset\n"
+                "  8. [cyan]python run.py train[/cyan]            — Train model\n"
+                "  9. [cyan]python run.py evaluate[/cyan]         — Evaluate\n"
+                " 10. [cyan]python run.py infer --source webcam[/cyan] — Live demo",
                 title="[bold green]Welcome",
                 border_style="green",
             )
@@ -291,15 +496,18 @@ def main():
         return
 
     dispatch = {
-        "env":       cmd_env,
-        "collect":   cmd_collect,
-        "inspect":   cmd_inspect,
-        "split":     cmd_split,
-        "train":     cmd_train,
-        "evaluate":  cmd_evaluate,
-        "infer":     cmd_infer,
-        "dashboard": cmd_dashboard,
-        "ingest":    cmd_ingest,
+        "env":           cmd_env,
+        "collect":       cmd_collect,
+        "inspect":       cmd_inspect,
+        "split":         cmd_split,
+        "train":         cmd_train,
+        "evaluate":      cmd_evaluate,
+        "infer":         cmd_infer,
+        "dashboard":     cmd_dashboard,
+        "ingest":        cmd_ingest,
+        "auto-annotate": cmd_auto_annotate,
+        "quality-check": cmd_quality_check,
+        "pipeline":      cmd_pipeline,
     }
     dispatch[args.command](args)
 

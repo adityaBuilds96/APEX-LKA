@@ -154,3 +154,66 @@ inference:
   webcam_id: 0
   webcam_width: 1280
   webcam_height: 720
+
+# ============================================================
+# Phase 2: Data Infrastructure & Automation Configs
+# ============================================================
+
+auto_annotation:
+  enabled: true
+  road_surface:
+    hls_lightness_range: [20, 180]
+    hls_saturation_max: 80
+    morph_kernel_size: 15
+    flood_fill_seed: "bottom_center"     # (W/2, H-1)
+  lane_marking:
+    line_thickness_px: 14                # Rasterized lane width in pixels
+    min_hough_lines: 3                   # Minimum Hough detections per side
+    polynomial_degree: 2                 # Match lane_geometry config
+  confidence:
+    high_threshold: 0.70
+    medium_threshold: 0.40
+    auto_approve_above: 0.70
+  output:
+    save_overlay_preview: true           # Save image+mask overlay for visual QC
+    overlay_alpha: 0.4                   # Mask transparency in overlay preview
+    log_path: "annotations/auto_annotation_log.json"
+
+upload:
+  staging_dir: "data/.staging"
+  max_file_size_mb: 500
+  max_batch_size_gb: 5
+  accepted_image_formats: ["jpg", "jpeg", "png", "bmp", "tiff", "webp"]
+  accepted_video_formats: ["mp4", "avi", "mov", "mkv"]
+  accepted_archive_formats: ["zip"]
+  thumbnail_size: [200, 120]
+  thumbnail_quality: 80
+  thumbnail_dir: "data/.thumbnails"
+  cleanup_staging_after_hours: 24
+
+quality_scoring:
+  dimension_mismatch_severity: "critical"
+  illegal_class_id_severity: "critical"
+  road_coverage_min: 0.10
+  road_coverage_max: 0.85
+  lane_coverage_min: 0.005
+  lane_coverage_max: 0.08
+  lane_width_min_px: 100
+  lane_width_max_px: 400
+  max_lane_fragments: 3
+  sky_region_top_fraction: 0.30
+  weights:
+    critical: 3.0
+    warning: 1.5
+    info: 0.5
+  thresholds:
+    excellent: 0.85
+    acceptable: 0.65
+    needs_review: 0.40
+
+pipeline:
+  batch_id_method: "uuid4"
+  state_file: "annotations/pipeline_state.json"
+  auto_split_after_annotation: false
+  parallel_workers: 2
+  progress_poll_interval_sec: 0.5

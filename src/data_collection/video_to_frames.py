@@ -98,6 +98,7 @@ class FrameExtractor:
     This makes it safe to re-run the extractor after a partial run.
     """
 
+
     def __init__(
         self,
         video_path: Path,
@@ -259,6 +260,9 @@ class FrameExtractor:
             "resolution":             f"{width}x{height}",
             "metadata_rows":          metadata_rows,
         }
+
+
+VideoFrameExtractor = FrameExtractor
 
 
 # ═══════════════════════════════════════════════════════════════════════════

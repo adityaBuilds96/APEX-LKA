@@ -401,10 +401,10 @@ def _render_sidebar() -> None:
 
         # ── Navigation Links to Secondary Pages ───────────────────────────
         st.markdown('<div style="font-family:monospace; font-size:0.62rem; color:#4a6178; letter-spacing:0.15em; text-transform:uppercase; margin-bottom:8px;">SECONDARY CONSOLES</div>', unsafe_allow_html=True)
+        st.page_link("pages/04_Dataset.py", label="Dataset Command Center", icon="⚡")
         st.page_link("pages/01_Diagnostics.py", label="Diagnostics Console", icon="🔬")
         st.page_link("pages/02_Perception.py", label="Perception Deep-Dive", icon="👁")
         st.page_link("pages/03_Recordings.py", label="Session Recordings", icon="📼")
-        st.page_link("pages/04_Dataset.py", label="Dataset Status", icon="📊")
         st.page_link("pages/07_Settings.py", label="System Configuration", icon="⚙")
 
         st.markdown("---")

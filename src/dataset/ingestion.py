@@ -59,6 +59,7 @@ class DatasetIngestor:
         source: Union[str, Path],
         target_dir: Optional[Path] = None,
         copy_to_annotated: bool = True,
+        auto_annotate: bool = False,
     ) -> DatasetReport:
         """
         Ingest a dataset source (ZIP file or directory) and produce a DatasetReport.
@@ -228,6 +229,12 @@ class DatasetIngestor:
                 # Prepare annotation workspace
                 ws = AnnotationWorkspace.create(self.base_dir)
                 ws.update_manifest()
+
+                if auto_annotate:
+                    from src.dataset.auto_annotator import ClassicalAutoAnnotator
+                    annotator = ClassicalAutoAnnotator(base_dir=self.base_dir)
+                    annotator.process_directory(target_images_dir)
+                    ws.update_manifest()
 
         # Clean up staging zip directory if created
         if temp_extracted and temp_extracted.exists():
