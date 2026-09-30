@@ -125,8 +125,16 @@ class LanePrediction:
     # Timing
     inference_ms:     float = 0.0
 
+    # Accuracy & Geometry Plausibility
+    accuracy_score:        float = 0.0
+    geometry_plausibility: float = 0.0
+
     # Error details
     error_message:    Optional[str] = None
+
+    @property
+    def lane_accuracy_percent(self) -> float:
+        return round(self.accuracy_score * 100.0, 1)
 
     @property
     def left_detected(self) -> bool:

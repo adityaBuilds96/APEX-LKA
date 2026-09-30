@@ -127,6 +127,13 @@ class OffsetResult:
     # Timing
     calc_ms:             float = 0.0
 
+    @property
+    def lateral_error_m(self) -> Optional[float]:
+        """Lateral error converted to metric units assuming 0.0185 m/px standard lane scale."""
+        if self.lateral_error_px is None:
+            return None
+        return round(self.lateral_error_px * 0.0185, 3)
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Stateful calculator (maintains previous error for derivative term)

@@ -76,19 +76,26 @@ def make_road_image(w: int = 640, h: int = 360) -> np.ndarray:
     # Road
     img[int(h * 0.4):, :] = (70, 70, 70)      # dark gray
 
-    # Left lane (white) — converges toward center at top
-    for y in range(int(h * 0.38), h):
-        x = int(0.28 * w + (y - h * 0.38) * 0.05)
-        x = min(x, w - 1)
-        cv2.line(img, (x, y), (x + 8, y), (255, 255, 255), 2)
+    # Left lane (white) — converges toward vanishing point at horizon
+    cv2.line(
+        img,
+        (int(0.42 * w), int(h * 0.42)),
+        (int(0.15 * w), h),
+        (255, 255, 255),
+        6,
+    )
 
-    # Right lane (white)
-    for y in range(int(h * 0.38), h):
-        x = int(0.72 * w - (y - h * 0.38) * 0.05)
-        x = max(x, 0)
-        cv2.line(img, (x - 8, y), (x, y), (255, 255, 255), 2)
+    # Right lane (white) — converges toward vanishing point at horizon
+    cv2.line(
+        img,
+        (int(0.58 * w), int(h * 0.42)),
+        (int(0.85 * w), h),
+        (255, 255, 255),
+        6,
+    )
 
     return img
+
 
 
 def make_blank_image(w: int = 640, h: int = 360) -> np.ndarray:
@@ -350,6 +357,82 @@ def test_full_pipeline_error_propagation() -> None:
     assert_true(result.error is not None, "pipeline_corrupt_has_error")
 
 
+def test_zip_extraction_and_batch_perception() -> None:
+    """Test ZIP extraction with zip-slip safety defense and batch perception."""
+    import io
+    import shutil
+    import zipfile
+    from src.inference.pipeline import run_pipeline
+
+    img1 = make_road_image()
+    img2 = make_road_image()
+    _, enc1 = cv2.imencode(".jpg", img1)
+    _, enc2 = cv2.imencode(".jpg", img2)
+
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w") as zf:
+        zf.writestr("frame_01.jpg", enc1.tobytes())
+        zf.writestr("nested/frame_02.jpg", enc2.tobytes())
+    zip_buffer.seek(0)
+
+    staging = PROJECT_ROOT / "data" / ".staging" / "test_zip_staging"
+    staging.mkdir(parents=True, exist_ok=True)
+    try:
+        with zipfile.ZipFile(zip_buffer, "r") as zf:
+            for member in zf.infolist():
+                target = (staging / member.filename).resolve()
+                assert_true(str(target).startswith(str(staging.resolve())), "zip_slip_safe")
+            zf.extractall(staging)
+
+        discovered = sorted(list(staging.rglob("*.jpg")))
+        assert_true(len(discovered) == 2, "zip_extract_two_frames")
+
+        res = run_pipeline(discovered[0], backend="classical_cv")
+        assert_true(res.success, "zip_batch_perception_success")
+        assert_true(res.prediction is not None, "zip_batch_has_prediction")
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
+
+
+def test_guardrail_suppression() -> None:
+    """Test that vertical noise/guardrail edges outside road are rejected."""
+    from src.inference.pipeline import run_pipeline
+
+    img = make_road_image()
+    h, w = img.shape[:2]
+
+    # Draw vertical guardrail post noise on outer left edge (x=10) and right edge (x=w-10)
+    cv2.line(img, (10, int(0.2 * h)), (10, h), (200, 200, 200), 4)
+    cv2.line(img, (w - 10, int(0.2 * h)), (w - 10, h), (200, 200, 200), 4)
+
+    res = run_pipeline(img, backend="classical_cv")
+    assert_true(res is not None, "guardrail_test_result_not_none")
+    assert_true(res.prediction is not None, "guardrail_test_has_prediction")
+    if res.prediction.left_mask is not None and res.prediction.left_mask.any():
+        left_cols = np.where(res.prediction.left_mask > 0)[1]
+        assert_true(left_cols.min() > 15, "guardrail_left_suppressed")
+    if res.prediction.right_mask is not None and res.prediction.right_mask.any():
+        right_cols = np.where(res.prediction.right_mask > 0)[1]
+        assert_true(right_cols.max() < w - 15, "guardrail_right_suppressed")
+
+
+def test_accuracy_score_calculation() -> None:
+    """Test unified lane accuracy calculation output range and properties."""
+    from src.inference.classical_cv import compute_lane_accuracy
+
+    acc_high = compute_lane_accuracy(0.9, 0.9, 1.0)
+    assert_true(0.85 <= acc_high <= 1.0, "acc_high_range")
+
+    acc_zero = compute_lane_accuracy(0.0, 0.0, 0.0)
+    assert_true(acc_zero == 0.0, "acc_zero_exact")
+
+    acc_clamped = compute_lane_accuracy(1.5, 2.0, 1.0)
+    assert_true(acc_clamped <= 1.0, "acc_clamp_upper")
+
+    acc_partial = compute_lane_accuracy(0.8, 0.0, 0.5)
+    assert_true(0.35 <= acc_partial <= 0.50, "acc_partial_range")
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # Runner
 # ═══════════════════════════════════════════════════════════════════════════
@@ -360,19 +443,22 @@ def main() -> None:
     print("=" * 60 + "\n")
 
     tests = [
-        ("Preprocessing — valid image",       test_preprocessing_valid),
-        ("Preprocessing — invalid bytes",      test_preprocessing_invalid),
-        ("Preprocessing — too-small image",    test_preprocessing_small_image),
-        ("Predictor factory",                  test_predictor_factory),
-        ("Classical CV — road image",          test_classical_cv_road_image),
-        ("Classical CV — blank (no lanes)",    test_classical_cv_blank_image),
-        ("ML predictor — not trained status",  test_ml_predictor_not_trained),
-        ("Postprocessing — mask cleanup",      test_postprocessing),
-        ("Lane geometry — curve fitting",      test_lane_geometry),
-        ("Offset — sign convention",           test_offset_sign_convention),
-        ("Visualization — overlay drawing",    test_visualization),
-        ("Full pipeline — road image",         test_full_pipeline_road),
-        ("Full pipeline — error propagation",  test_full_pipeline_error_propagation),
+        ("Preprocessing — valid image",           test_preprocessing_valid),
+        ("Preprocessing — invalid bytes",          test_preprocessing_invalid),
+        ("Preprocessing — too-small image",        test_preprocessing_small_image),
+        ("Predictor factory",                      test_predictor_factory),
+        ("Classical CV — road image",              test_classical_cv_road_image),
+        ("Classical CV — blank (no lanes)",        test_classical_cv_blank_image),
+        ("ML predictor — not trained status",      test_ml_predictor_not_trained),
+        ("Postprocessing — mask cleanup",          test_postprocessing),
+        ("Lane geometry — curve fitting",          test_lane_geometry),
+        ("Offset — sign convention",               test_offset_sign_convention),
+        ("Visualization — overlay drawing",        test_visualization),
+        ("Full pipeline — road image",             test_full_pipeline_road),
+        ("Full pipeline — error propagation",      test_full_pipeline_error_propagation),
+        ("ZIP extraction & batch perception",      test_zip_extraction_and_batch_perception),
+        ("Guardrail & barrier suppression",        test_guardrail_suppression),
+        ("Accuracy score calculation",             test_accuracy_score_calculation),
     ]
 
     for name, fn in tests:

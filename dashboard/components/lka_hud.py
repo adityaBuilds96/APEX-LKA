@@ -79,25 +79,30 @@ def _draw_minimal_corner_badge(
     x: int = 14,
     y: int = 14,
 ) -> None:
-    """Minimal, non-intrusive corner performance badge."""
-    bw, bh = 142, 54
+    """Minimal, non-intrusive corner performance badge, resolution-scaled."""
+    h, w = canvas.shape[:2]
+    scale = max(0.32, min(0.60, (h / 720.0) * 0.42))
+    bw = int(max(130, min(180, w * 0.22)))
+    bh = int(max(48, min(70, h * 0.12)))
+
     _draw_semi_trans_box(canvas, x, y, bw, bh, alpha=0.82)
 
     # Dot + Mode label
     dot_color = COLOR_GREEN if mode in ("LIVE", "REPLAY") else COLOR_CYAN
-    cv2.circle(canvas, (x + 12, y + 15), 4, dot_color, -1, cv2.LINE_AA)
-    cv2.putText(canvas, mode, (x + 22, y + 18),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.40, COLOR_TEXT_MAIN, 1, cv2.LINE_AA)
+    dot_r = max(3, int(4 * (h / 720.0)))
+    cv2.circle(canvas, (x + 12, y + int(bh * 0.30)), dot_r, dot_color, -1, cv2.LINE_AA)
+    cv2.putText(canvas, mode, (x + 22, y + int(bh * 0.35)),
+                cv2.FONT_HERSHEY_SIMPLEX, scale, COLOR_TEXT_MAIN, 1, cv2.LINE_AA)
 
     # FPS
     fps_str = f"FPS  {fps:.1f}" if fps > 0 else "FPS  --"
-    cv2.putText(canvas, fps_str, (x + 12, y + 33),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.36, COLOR_TEXT_MUTED, 1, cv2.LINE_AA)
+    cv2.putText(canvas, fps_str, (x + 12, y + int(bh * 0.65)),
+                cv2.FONT_HERSHEY_SIMPLEX, scale * 0.9, COLOR_TEXT_MUTED, 1, cv2.LINE_AA)
 
     # Latency
     lat_str = f"LAT  {latency_ms:.0f} ms" if latency_ms > 0 else "LAT  --"
-    cv2.putText(canvas, lat_str, (x + 12, y + 47),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.36, COLOR_CYAN, 1, cv2.LINE_AA)
+    cv2.putText(canvas, lat_str, (x + 12, y + int(bh * 0.92)),
+                cv2.FONT_HERSHEY_SIMPLEX, scale * 0.9, COLOR_CYAN, 1, cv2.LINE_AA)
 
 
 

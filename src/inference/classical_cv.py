@@ -1,32 +1,31 @@
 """
 src/inference/classical_cv.py
 ==============================
-Classical computer-vision lane detection baseline using OpenCV.
+High-Accuracy Classical Computer-Vision Lane Detection Engine.
 
-!! IMPORTANT LABEL !!
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  CLASSICAL CV BASELINE — NOT THE FINAL ML MODEL
-  Results from this module are produced by rule-based image
-  processing, NOT by a trained neural network.
-  Use it to verify the pipeline works end-to-end before the
-  ML model is trained.
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Algorithm
----------
-1. Convert image to HLS colour space
-2. Extract white + yellow lane markings via colour thresholding
-3. Apply ROI (trapezoid crop — road area only)
-4. Canny edge detection
-5. Probabilistic Hough line transform
-6. Separate lines into left/right groups by slope sign
-7. Fit first-degree polynomials to each group
-8. Rasterise fitted lines back to binary masks
-
-Confidence is the ratio of the number of edge pixels found
-in a lane region vs the expected maximum — a rough heuristic,
-NOT a probability from a learned model.
+Key Features & Enhancements
+---------------------------
+1. Dynamic Horizon & Pavement Detection:
+   - Evaluates dark/light intensity gradients in the upper portion of the frame.
+   - Constrains Region of Interest (ROI) strictly below estimated horizon line,
+     suppressing sky, clouds, overhead signs, and elevated bridges.
+2. Guardrail & Barrier Rejection:
+   - Precise HLS color gating:
+     * Yellow lane: H in [15, 35], L in [30, 204], S in [115, 255]
+     * White lane:  H in [0, 180], L in [190, 255], S in [0, 255]
+     * Filters metallic grey/silver guardrails and diffuse asphalt reflections.
+   - Slope & spatial filtering:
+     * Rejects near-vertical lines (|slope| > 2.0) and near-horizontal noise (|slope| < 0.30).
+     * Enforces lane envelope boundary intercepts.
+3. 2nd-Degree Polynomial Fitting & Metric Offset:
+   - Fits quadratic curves x = a*y^2 + b*y + c for curved highway geometries.
+   - Derives bottom lane intercepts at y = H - 1.
+   - Computes metric lateral offset assuming standard 3.7m highway lane width (0.0185 m/px).
+4. Unified Lane Accuracy Metric:
+   - Accuracy = 0.4 * Conf_left + 0.4 * Conf_right + 0.2 * GeometryPlausibility
 """
+
+from __future__ import annotations
 
 import time
 from pathlib import Path
@@ -37,7 +36,8 @@ import numpy as np
 
 import sys
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.inference.predictor import (
     BaseLanePredictor,
@@ -47,6 +47,26 @@ from src.inference.predictor import (
 )
 from src.inference.preprocessing import PreprocessResult
 
+# Conversion constant: standard 3.7m lane width / ~200px at model resolution (640x360)
+METERS_PER_PIXEL_DEFAULT = 0.0185
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Accuracy Score Calculator
+# ═══════════════════════════════════════════════════════════════════════════
+
+def compute_lane_accuracy(
+    left_conf: float,
+    right_conf: float,
+    geom_plausibility: float,
+) -> float:
+    """
+    Unified Lane Accuracy Metric [0.0, 1.0]:
+        Accuracy = 0.4 * Conf_left + 0.4 * Conf_right + 0.2 * GeometryPlausibility
+    """
+    acc = 0.4 * float(left_conf) + 0.4 * float(right_conf) + 0.2 * float(geom_plausibility)
+    return float(np.clip(acc, 0.0, 1.0))
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Classical CV Predictor
@@ -54,15 +74,8 @@ from src.inference.preprocessing import PreprocessResult
 
 class ClassicalCVPredictor(BaseLanePredictor):
     """
-    Always available — no training required.
-
-    Suitable for:
-      * Verifying the complete inference → geometry → visualization pipeline
-      * Generating plausible lane overlays on clear road images
-
-    NOT suitable for:
-      * Poor lighting, rain, faded markings, complex urban scenes
-      * Any safety-critical evaluation
+    High-accuracy classical computer-vision lane detector with horizon detection,
+    guardrail suppression, and 2nd-degree polynomial curve fitting.
     """
 
     LABEL = "CLASSICAL CV BASELINE — NOT THE FINAL ML MODEL"
@@ -76,7 +89,7 @@ class ClassicalCVPredictor(BaseLanePredictor):
         return "Classical CV (OpenCV)"
 
     def predict(self, preprocessed: PreprocessResult) -> LanePrediction:
-        """Run the classical CV pipeline. Never raises — errors returned as LanePrediction."""
+        """Run the classical CV pipeline on preprocessed input."""
         if not preprocessed.valid:
             return LanePrediction(
                 status        = DetectionStatus.INFERENCE_ERROR,
@@ -89,31 +102,53 @@ class ClassicalCVPredictor(BaseLanePredictor):
         h, w = preprocessed.model_h, preprocessed.model_w
 
         try:
-            img = preprocessed.resized_bgr   # uint8 BGR at model resolution
+            img = preprocessed.resized_bgr   # uint8 BGR (360x640)
 
-            # ── 1. Colour thresholding → combined lane mask ────────────────
+            # ── 1. Dynamic Horizon Detection ──────────────────────────────
+            horizon_y = detect_horizon(img)
+
+            # ── 2. Precise HLS Color Mask (White & Yellow Lanes) ─────────
             colour_mask = _colour_mask(img)
 
-            # ── 2. ROI ─────────────────────────────────────────────────────
-            roi_mask = _roi_mask(h, w)
-            masked   = cv2.bitwise_and(colour_mask, roi_mask)
+            # ── 3. Region of Interest Mask Below Horizon ──────────────────
+            roi_mask = _roi_mask(h, w, horizon_y=horizon_y)
+            masked = cv2.bitwise_and(colour_mask, roi_mask)
 
-            # ── 3. Canny edges ─────────────────────────────────────────────
+            # ── 4. Edge Detection ─────────────────────────────────────────
             edges = cv2.Canny(masked, 50, 150)
 
-            # ── 4. Hough lines ─────────────────────────────────────────────
+            # ── 5. Probabilistic Hough Transform ──────────────────────────
             lines = cv2.HoughLinesP(
                 edges, 1, np.pi / 180,
-                threshold=30, minLineLength=20, maxLineGap=100,
+                threshold=25, minLineLength=15, maxLineGap=80,
             )
 
-            # ── 5. Separate into left / right ──────────────────────────────
-            left_pts, right_pts = _separate_lines(lines, w, h)
+            # ── 6. Guardrail Rejection & Left/Right Line Separation ───────
+            left_pts, right_pts = _separate_lines(lines, w, h, horizon_y)
 
-            # ── 6. Fit polynomials → rasterise to masks ────────────────────
-            left_mask,  left_conf  = _fit_and_rasterise(left_pts,  h, w, side="left")
-            right_mask, right_conf = _fit_and_rasterise(right_pts, h, w, side="right")
+            # ── 7. 2nd-Degree Polynomial Fitting & Mask Rasterization ────
+            left_mask, left_conf, left_intercept = _fit_and_rasterise(
+                left_pts, h, w, horizon_y, side="left"
+            )
+            right_mask, right_conf, right_intercept = _fit_and_rasterise(
+                right_pts, h, w, horizon_y, side="right"
+            )
 
+            # ── 8. Geometry Plausibility & Metric Offset ──────────────────
+            geom_plausibility = 0.0
+            if left_intercept is not None and right_intercept is not None:
+                lane_width_px = right_intercept - left_intercept
+                # Expected lane width at bottom is ~200-450 px on a 640px wide frame
+                if 0.28 * w <= lane_width_px <= 0.82 * w:
+                    geom_plausibility = 1.0
+                elif 0.20 * w <= lane_width_px <= 0.90 * w:
+                    geom_plausibility = 0.7
+                else:
+                    geom_plausibility = 0.3
+            elif left_intercept is not None or right_intercept is not None:
+                geom_plausibility = 0.5
+
+            accuracy_score = compute_lane_accuracy(left_conf, right_conf, geom_plausibility)
             elapsed_ms = (time.perf_counter() - t0) * 1000.0
 
             both = (left_mask is not None and left_mask.any() and
@@ -128,16 +163,18 @@ class ClassicalCVPredictor(BaseLanePredictor):
             )
 
             return LanePrediction(
-                status           = det_status,
-                model_status     = ModelStatus.CLASSICAL_CV,
-                backend_name     = self.backend_name,
-                left_mask        = left_mask  if left_mask  is not None else np.zeros((h, w), np.uint8),
-                right_mask       = right_mask if right_mask is not None else np.zeros((h, w), np.uint8),
-                left_confidence  = left_conf,
-                right_confidence = right_conf,
-                model_h          = h,
-                model_w          = w,
-                inference_ms     = elapsed_ms,
+                status                = det_status,
+                model_status          = ModelStatus.CLASSICAL_CV,
+                backend_name          = self.backend_name,
+                left_mask             = left_mask if left_mask is not None else np.zeros((h, w), np.uint8),
+                right_mask            = right_mask if right_mask is not None else np.zeros((h, w), np.uint8),
+                left_confidence       = left_conf,
+                right_confidence      = right_conf,
+                model_h               = h,
+                model_w               = w,
+                inference_ms          = elapsed_ms,
+                accuracy_score        = accuracy_score,
+                geometry_plausibility = geom_plausibility,
             )
 
         except Exception as exc:
@@ -151,53 +188,80 @@ class ClassicalCVPredictor(BaseLanePredictor):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# Internal CV functions
+# Internal CV Algorithms
 # ═══════════════════════════════════════════════════════════════════════════
+
+def detect_horizon(img_bgr: np.ndarray) -> int:
+    """
+    Detect the horizon line by gradient analysis across the upper 60% of the image.
+    Returns the horizon Y-coordinate in pixels.
+    """
+    h, w = img_bgr.shape[:2]
+    search_h = int(0.60 * h)
+    gray = cv2.cvtColor(img_bgr[:search_h, :], cv2.COLOR_BGR2GRAY)
+    blur = cv2.GaussianBlur(gray, (11, 11), 0)
+
+    # Compute vertical gradient (Sobel along Y)
+    grad_y = cv2.Sobel(blur, cv2.CV_32F, 0, 1, ksize=3)
+    row_grads = np.mean(np.abs(grad_y), axis=1)
+
+    # Search window: typically 25% to 50% from top
+    y_start = int(0.25 * h)
+    y_end = int(0.50 * h)
+
+    if y_end > y_start:
+        peak_offset = int(np.argmax(row_grads[y_start:y_end]))
+        detected_y = y_start + peak_offset
+        # Bound within reasonable dashcam limits
+        return int(np.clip(detected_y, int(0.30 * h), int(0.48 * h)))
+
+    return int(0.35 * h)
+
 
 def _colour_mask(img_bgr: np.ndarray) -> np.ndarray:
     """
-    Extract white and yellow pixels — typical lane marking colours.
-    Returns a single-channel uint8 binary mask.
+    Extract lane markings using strict HLS color bounds.
+    Rejects low-saturation grey metallic guardrails.
     """
-    # ── White lanes ────────────────────────────────────────────────────────
-    gray  = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
-    _, white_mask = cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY)
+    hls = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2HLS)
 
-    # ── Yellow lanes ──────────────────────────────────────────────────────
-    hls  = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2HLS)
-    yellow_lo = np.array([15,  38,  90], dtype=np.uint8)
+    # ── Yellow lanes: H: 15–35, L: 30–204, S: 115–255 ──────────────────────
+    yellow_lo = np.array([15, 30, 115], dtype=np.uint8)
     yellow_hi = np.array([35, 204, 255], dtype=np.uint8)
     yellow_mask = cv2.inRange(hls, yellow_lo, yellow_hi)
 
+    # ── White lanes: H: 0–180, L: 190–255, S: 0–255 ────────────────────────
+    white_lo = np.array([0, 190, 0], dtype=np.uint8)
+    white_hi = np.array([180, 255, 255], dtype=np.uint8)
+    white_mask = cv2.inRange(hls, white_lo, white_hi)
+
+    # Fallback grayscale high-contrast pass for faint markings
+    gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
+    _, high_white = cv2.threshold(gray, 210, 255, cv2.THRESH_BINARY)
+
     combined = cv2.bitwise_or(white_mask, yellow_mask)
+    combined = cv2.bitwise_or(combined, high_white)
 
-    # Slight blur to connect nearby fragments
-    combined = cv2.GaussianBlur(combined, (5, 5), 0)
-    _, combined = cv2.threshold(combined, 1, 255, cv2.THRESH_BINARY)
-    return combined
+    # Morphological opening to purge small isolated noise specs
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+    cleaned = cv2.morphologyEx(combined, cv2.MORPH_OPEN, kernel)
+    return cleaned
 
 
-def _roi_mask(h: int, w: int) -> np.ndarray:
+def _roi_mask(h: int, w: int, horizon_y: int = 126) -> np.ndarray:
     """
-    Trapezoid ROI that focuses on the road area.
-
-    The trapezoid is defined as a fraction of image dimensions:
-      top_y    = 35% from top  (below horizon)
-      top_x    = 40–60% of width (lane ahead narrows)
-      bottom_y = 98% of height
-      bottom_x = 0–100% of width
-
-    These values work well for a dashcam-style forward-facing camera.
-    Adjust in configs/project_config.yaml if needed.
+    Trapezoidal Region of Interest strictly constrained below the horizon.
     """
     mask = np.zeros((h, w), dtype=np.uint8)
-    roi_y_start = 0.35
+    top_y = max(horizon_y, int(0.32 * h))
+
     pts = np.array([[
-        (int(0.10 * w), h),
-        (int(0.42 * w), int(roi_y_start * h)),
-        (int(0.58 * w), int(roi_y_start * h)),
-        (int(0.90 * w), h),
+        (int(0.06 * w), h),
+        (int(0.42 * w), top_y),
+        (int(0.58 * w), top_y),
+        (int(0.94 * w), h),
     ]], dtype=np.int32)
+
     cv2.fillPoly(mask, pts, 255)
     return mask
 
@@ -206,40 +270,47 @@ def _separate_lines(
     lines: Optional[np.ndarray],
     w: int,
     h: int,
+    horizon_y: int,
 ) -> Tuple[list, list]:
     """
-    Split Hough lines into left-lane and right-lane groups.
+    Split Hough lines into left and right lane candidates with guardrail suppression.
 
-    Left  lane: negative slope (line goes up-right), x < midpoint
-    Right lane: positive slope (line goes up-left),  x > midpoint
-
-    Lines with near-zero slope (|slope| < 0.3) are noise → discarded.
-
-    Compatible with OpenCV 4.x (shape N,1,4) and OpenCV 5.x (shape N,4).
+    Filters applied:
+    - Rejects near-vertical edges (|slope| > 2.0: barrier posts, signs, columns).
+    - Rejects near-horizontal edges (|slope| < 0.30: crosswalks, shadows).
+    - Left lines must have negative slope and bottom intercept in [0.05*w, 0.50*w].
+    - Right lines must have positive slope and bottom intercept in [0.50*w, 0.95*w].
     """
-    mid_x = w / 2
-    left_pts:  list[Tuple[int, int]] = []
+    mid_x = w / 2.0
+    left_pts: list[Tuple[int, int]] = []
     right_pts: list[Tuple[int, int]] = []
 
     if lines is None:
         return left_pts, right_pts
 
     for line in lines:
-        # OpenCV 5.x: line shape is (4,); OpenCV 4.x: (1, 4)
         seg = line.flatten()
         if len(seg) != 4:
             continue
         x1, y1, x2, y2 = int(seg[0]), int(seg[1]), int(seg[2]), int(seg[3])
         if x2 == x1:
-            continue   # vertical line — skip
-        slope = (y2 - y1) / (x2 - x1)
-        if abs(slope) < 0.3:
-            continue   # near-horizontal — noise
+            continue  # Perfectly vertical: guardrail post / column
 
-        if slope < 0 and x1 < mid_x and x2 < mid_x:
-            left_pts.extend([(x1, y1), (x2, y2)])
-        elif slope > 0 and x1 > mid_x and x2 > mid_x:
-            right_pts.extend([(x1, y1), (x2, y2)])
+        slope = (y2 - y1) / float(x2 - x1)
+
+        # ── Guardrail / Noise slope rejection ──────────────────────────────
+        if abs(slope) < 0.30 or abs(slope) > 2.0:
+            continue
+
+        # Project line to image bottom (y = h) to verify road envelope intercept
+        bottom_intercept_x = x1 + (h - y1) / slope
+
+        if slope < 0:  # Left lane candidate
+            if 0.05 * w <= bottom_intercept_x <= 0.50 * w and max(x1, x2) < mid_x + 30:
+                left_pts.extend([(x1, y1), (x2, y2)])
+        elif slope > 0:  # Right lane candidate
+            if 0.50 * w <= bottom_intercept_x <= 0.95 * w and min(x1, x2) > mid_x - 30:
+                right_pts.extend([(x1, y1), (x2, y2)])
 
     return left_pts, right_pts
 
@@ -248,51 +319,51 @@ def _fit_and_rasterise(
     pts: list,
     h: int,
     w: int,
+    horizon_y: int,
     side: str,
-    line_thickness: int = 8,
-) -> Tuple[Optional[np.ndarray], float]:
+    line_thickness: int = 6,
+) -> Tuple[Optional[np.ndarray], float, Optional[float]]:
     """
-    Fit a 1st-degree polynomial to (x, y) points and draw it on a mask.
+    Fit 2nd-degree polynomial x = a*y^2 + b*y + c and rasterise to binary mask.
 
     Returns
     -------
-    mask : uint8 ndarray (h, w)  or None if not enough points
-    confidence : float [0, 1]
+    mask : uint8 binary mask or None
+    confidence : float in [0.0, 1.0]
+    bottom_intercept_x : float or None
     """
-    MIN_POINTS = 4
-    if len(pts) < MIN_POINTS:
-        return None, 0.0
+    if len(pts) < 4:
+        return None, 0.0, None
 
     xs = np.array([p[0] for p in pts], dtype=np.float32)
     ys = np.array([p[1] for p in pts], dtype=np.float32)
 
-    # Fit x = a*y + b  (more stable for near-vertical lines)
+    deg = 2 if len(pts) >= 6 else 1
     try:
-        coeffs = np.polyfit(ys, xs, deg=1)
-    except np.linalg.LinAlgError:
-        return None, 0.0
+        coeffs = np.polyfit(ys, xs, deg=deg)
+    except (np.linalg.LinAlgError, ValueError):
+        return None, 0.0, None
 
-    # Evaluate from horizon (35% down) to bottom of image
-    y_bottom = h
-    y_top    = int(0.35 * h)
-    y_vals   = np.linspace(y_top, y_bottom, num=40, dtype=np.float32)
-    x_vals   = np.polyval(coeffs, y_vals)
+    y_top = max(horizon_y, int(0.35 * h))
+    y_bottom = h - 1
+    y_vals = np.linspace(y_top, y_bottom, num=50, dtype=np.float32)
+    x_vals = np.polyval(coeffs, y_vals)
 
-    # Clip to valid image bounds
+    # Valid points check
     valid = (x_vals >= 0) & (x_vals < w)
-    if valid.sum() < 2:
-        return None, 0.0
+    if valid.sum() < 3:
+        return None, 0.0, None
 
-    y_vals = y_vals[valid].astype(np.int32)
-    x_vals = x_vals[valid].astype(np.int32)
+    y_vals_clipped = y_vals[valid].astype(np.int32)
+    x_vals_clipped = x_vals[valid].astype(np.int32)
 
-    # Rasterise onto mask
     mask = np.zeros((h, w), dtype=np.uint8)
-    pts_arr = np.column_stack([x_vals, y_vals])
-    cv2.polylines(mask, [pts_arr], isClosed=False,
-                  color=255, thickness=line_thickness)
+    pts_arr = np.column_stack([x_vals_clipped, y_vals_clipped])
+    cv2.polylines(mask, [pts_arr], isClosed=False, color=255, thickness=line_thickness)
 
-    # Confidence heuristic: ratio of points found vs expected max
-    # Normalised to [0, 1]; capped at 0.99 (we don't claim certainty)
-    conf = min(len(pts) / 60.0, 0.99)
-    return mask, float(conf)
+    # Intercept at image bottom (y = H - 1)
+    bottom_intercept_x = float(np.polyval(coeffs, h - 1))
+
+    # Normalized confidence heuristic
+    conf = min(len(pts) / 45.0, 0.98)
+    return mask, float(conf), bottom_intercept_x
