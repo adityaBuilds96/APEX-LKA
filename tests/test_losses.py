@@ -237,22 +237,20 @@ class TestCombinedLaneLoss:
             assert torch.isfinite(val), f"{name} is not finite: {val}"
 
     def test_total_is_weighted_sum(self, criterion, batch):
-        """
-        total ≈ ce_weight * L_CE + dice_weight * L_Dice
-        Note: ce and dice are returned detached, so we recompute.
-        """
         logits, targets = batch
-        total, ce_d, dice_d = criterion(logits, targets)
+        out = criterion(logits, targets)
+        total, ce_d, dice_d = out
 
-        # Recompute CE and Dice independently for comparison
-        ce_w   = DEFAULT_CE_WEIGHT
-        dice_w = DEFAULT_DICE_WEIGHT
-
-        # We can verify: total.item() ≈ ce_w * ce_d + dice_w * dice_d
-        expected = ce_w * ce_d.item() + dice_w * dice_d.item()
+        # Total = ce_w * ce + dice_w * dice + boundary_w * boundary
+        expected = (
+            criterion.ce_weight * ce_d.item()
+            + criterion.dice_weight * dice_d.item()
+            + criterion.boundary_weight * out.boundary.item()
+        )
         assert abs(total.item() - expected) < 1e-4, (
             f"total={total.item():.5f} ≠ {expected:.5f}"
         )
+
 
     # ── Gradient flow ─────────────────────────────────────────────────────────
 
@@ -279,6 +277,64 @@ class TestCombinedLaneLoss:
             f"random (loss={loss_random.item():.4f})"
         )
 
+    # ── Focal loss variant on lane classes ────────────────────────────────────
+
+    def test_focal_loss_reduces_easy_example_weights(self):
+        """Focal modulation (1 - p_t)^2 should downweight confident correct lane pixels."""
+        from src.training.losses import FocalCrossEntropyLoss
+        focal_loss = FocalCrossEntropyLoss(gamma=2.0)
+
+        # Target is lane class 2
+        targets = torch.full((1, 8, 8), 2, dtype=torch.long)
+
+        # Easy (high confidence p=0.99) vs Hard (uncertain p=0.40)
+        easy_logits = torch.full((1, NUM_CLASSES, 8, 8), -5.0)
+        easy_logits[:, 2, :, :] = 10.0   # p_t ~ 0.9999
+
+        hard_logits = torch.zeros((1, NUM_CLASSES, 8, 8))  # uniform p_t = 0.25
+
+        loss_easy = focal_loss(easy_logits, targets)
+        loss_hard = focal_loss(hard_logits, targets)
+
+        assert loss_easy.item() < 0.01
+        assert loss_hard.item() > 0.5
+        assert loss_hard.item() > (loss_easy.item() * 50)
+
+    # ── Boundary loss penalizes misalignment ───────────────────────────────────
+
+    def test_boundary_loss_penalizes_misalignment(self):
+        """Boundary loss must be lower for well-aligned lane masks than misaligned masks."""
+        from src.training.losses import BoundaryLoss
+        b_loss = BoundaryLoss()
+
+        targets = torch.zeros((1, 32, 32), dtype=torch.long)
+        targets[:, :, 14:18] = 2  # Left lane in center
+
+        # Aligned logits
+        aligned_logits = torch.full((1, NUM_CLASSES, 32, 32), -5.0)
+        aligned_logits[:, 2, :, 14:18] = 5.0
+
+        # Misaligned logits (shifted laterally by 6 pixels)
+        shifted_logits = torch.full((1, NUM_CLASSES, 32, 32), -5.0)
+        shifted_logits[:, 2, :, 20:24] = 5.0
+
+        loss_aligned = b_loss(aligned_logits, targets)
+        loss_shifted = b_loss(shifted_logits, targets)
+
+        assert loss_aligned.item() < loss_shifted.item()
+
+    # ── Auxiliary boundary loss ───────────────────────────────────────────────
+
+    def test_auxiliary_loss_supervision(self, criterion):
+        logits = torch.randn(2, NUM_CLASSES, 16, 16)
+        targets = torch.randint(0, NUM_CLASSES, (2, 16, 16))
+        aux_logits = torch.randn(2, 1, 16, 16)
+
+        out = criterion(logits, targets, aux_logits=aux_logits)
+        assert out.aux is not None
+        assert torch.isfinite(out.aux)
+        assert out.total.item() > 0
+
     # ── Class weights ─────────────────────────────────────────────────────────
 
     def test_update_class_weights_no_error(self, criterion):
@@ -299,4 +355,5 @@ class TestCombinedLaneLoss:
 
     def test_invalid_weight_split_raises(self):
         with pytest.raises(AssertionError):
-            CombinedLaneLoss(ce_weight=0.6, dice_weight=0.6)  # sums to 1.2
+            CombinedLaneLoss(ce_weight=0.6, dice_weight=0.6, boundary_weight=0.2)  # sums to 1.4
+

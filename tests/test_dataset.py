@@ -258,3 +258,159 @@ class TestClassPixelCounts:
         counts = ds.class_pixel_counts()
         for c in range(NUM_CLASSES):
             assert counts[c] > 0, f"Class {c} has zero pixels — multi-class mask broken"
+
+
+class TestLaneSegDatasetMetadata:
+
+    def test_metadata_returned_when_flag_enabled(self, train_dir):
+        ds = LaneSegDataset(train_dir, split="val", return_metadata=True)
+        item = ds[0]
+        assert len(item) == 3
+        img, mask, meta = item
+        assert isinstance(img, torch.Tensor)
+        assert isinstance(mask, torch.Tensor)
+        assert isinstance(meta, dict)
+        assert "image_path" in meta
+        assert "mask_path" in meta
+        assert "session_id" in meta
+        assert "height" in meta
+        assert "width" in meta
+        assert isinstance(meta["session_id"], str) and len(meta["session_id"]) > 0
+
+    def test_default_does_not_return_metadata(self, train_dir):
+        ds = LaneSegDataset(train_dir, split="val")
+        item = ds[0]
+        assert len(item) == 2
+
+
+class TestLaneSegDatasetAugmentationSafety:
+
+    def test_augmentation_preserves_mask_validity(self, train_dir):
+        """Augmentations must NEVER create values outside {0, 1, 2, 3}."""
+        ds = LaneSegDataset(train_dir, split="train", augment=True)
+        for _ in range(10):
+            img, mask = ds[0]
+            unique_vals = set(mask.unique().tolist())
+            assert unique_vals.issubset({0, 1, 2, 3}), f"Illegal mask values generated: {unique_vals}"
+
+    def test_forbidden_augmentations_not_in_pipeline(self):
+        """HorizontalFlip, ElasticTransform, GridDistortion, CoarseDropout MUST NOT be present."""
+        from src.training.dataset import build_safe_train_augmentations
+        pipeline = build_safe_train_augmentations(height=72, width=128)
+        
+        transform_types = [t.__class__.__name__ for t in pipeline.transforms]
+        
+        forbidden = [
+            "HorizontalFlip",
+            "RandomHorizontalFlip",
+            "Fliplr",
+            "ElasticTransform",
+            "GridDistortion",
+            "OpticalDistortion",
+            "CoarseDropout",
+            "Cutout",
+            "RandomRotate90",
+        ]
+        for f in forbidden:
+            assert f not in transform_types, f"Forbidden augmentation '{f}' found in pipeline!"
+
+    def test_rotation_angle_strictly_bounded(self):
+        """Rotation must not exceed 5 degrees to protect steering geometry."""
+        from src.training.dataset import build_safe_train_augmentations
+        pipeline = build_safe_train_augmentations(height=72, width=128)
+        for t in pipeline.transforms:
+            if "Rotate" in t.__class__.__name__:
+                limit = getattr(t, "limit", None)
+                if limit is not None:
+                    max_angle = max(abs(limit[0]), abs(limit[1])) if isinstance(limit, (tuple, list)) else abs(limit)
+                    assert max_angle <= 5, f"Rotation limit {max_angle}° exceeds safe 5° threshold"
+
+
+class TestWeightedAndSequenceSamplers:
+
+    def test_compute_lane_pixel_fractions(self, tmp_path):
+        from src.training.samplers import compute_lane_pixel_fractions
+        mask_dir = tmp_path / "masks"
+        mask_dir.mkdir(parents=True)
+
+        # Mask 1: only background (0 lane pixels)
+        p1 = mask_dir / "m1.png"
+        cv2.imwrite(str(p1), np.zeros((32, 32), dtype=np.uint8))
+
+        # Mask 2: 50% left lane (class 2)
+        p2 = mask_dir / "m2.png"
+        m2 = np.zeros((32, 32), dtype=np.uint8)
+        m2[:16, :] = 2
+        cv2.imwrite(str(p2), m2)
+
+        fractions = compute_lane_pixel_fractions([p1, p2])
+        assert len(fractions) == 2
+        assert fractions[0] == 0.0
+        assert pytest.approx(fractions[1], rel=1e-3) == 0.5
+
+    def test_compute_class_balanced_weights(self):
+        from src.training.samplers import compute_class_balanced_weights
+        fractions = np.array([0.0, 0.2, 0.4], dtype=np.float32)
+        weights = compute_class_balanced_weights(fractions)
+        assert len(weights) == 3
+        # Weight formula: 1.0 + 1.5 * (lane_fraction / mean_lane_fraction)
+        # Higher lane fraction => strictly higher weight
+        assert weights[2] > weights[1] > weights[0]
+        assert weights[0] == 1.0
+
+    def test_class_balanced_sampler_samples_correctly(self):
+        from src.training.samplers import ClassBalancedSampler
+        dummy_dataset = list(range(10))
+        fractions = np.array([0.0] * 5 + [0.3] * 5, dtype=np.float32)
+        sampler = ClassBalancedSampler(dummy_dataset, lane_fractions=fractions, num_samples=50)
+        samples = list(sampler)
+        assert len(samples) == 50
+        # High lane fraction indices (5..9) should be sampled more often than (0..4)
+        high_count = sum(1 for idx in samples if idx >= 5)
+        low_count = sum(1 for idx in samples if idx < 5)
+        assert high_count > low_count
+
+    def test_weighted_session_sampler_diversity(self, tmp_path):
+        from src.training.samplers import WeightedSessionSampler
+        # Create dataset items belonging to 4 distinct sessions
+        session_ids = [
+            "session_A", "session_A", "session_A",
+            "session_B", "session_B", "session_B",
+            "session_C", "session_C", "session_C",
+            "session_D", "session_D", "session_D",
+        ]
+        dummy_dataset = list(range(len(session_ids)))
+        batch_size = 4
+        sampler = WeightedSessionSampler(
+            dataset=dummy_dataset,
+            batch_size=batch_size,
+            session_ids=session_ids,
+        )
+        batches = list(sampler)
+        assert len(batches) >= 3
+        for b in batches:
+            if len(b) == batch_size:
+                batch_sessions = [session_ids[i] for i in b]
+                # Each batch should have high diversity (distinct sessions)
+                assert len(set(batch_sessions)) == len(batch_sessions), (
+                    f"Batch has duplicate sessions: {batch_sessions}"
+                )
+
+    def test_weighted_session_sampler_with_dataloader(self, train_dir):
+        from torch.utils.data import DataLoader
+        from src.training.samplers import WeightedSessionSampler
+
+        ds = LaneSegDataset(train_dir, split="train", height=36, width=64, augment=False)
+        sampler = WeightedSessionSampler(ds, batch_size=2)
+        loader = DataLoader(ds, batch_sampler=sampler)
+
+        batch_count = 0
+        total_items = 0
+        for imgs, masks in loader:
+            batch_count += 1
+            total_items += imgs.shape[0]
+            assert imgs.shape[1] == 3
+            assert masks.shape[1:] == (36, 64)
+        assert batch_count > 0
+        assert total_items == len(ds)
+
