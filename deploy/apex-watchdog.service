@@ -1,0 +1,20 @@
+[Unit]
+Description=APEX-LKA Autonomous Supervisor Watchdog Service
+After=network.target multi-user.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=orin
+WorkingDirectory=/home/orin/APEX-LKA
+ExecStart=/usr/bin/python3 deploy/watchdog.py --command "python3 deploy/jetson_run.py" --timeout 3.0 --interval 0.5 --max-restarts 3 --window 60.0
+Restart=always
+RestartSec=2s
+KillMode=mixed
+TimeoutStopSec=5s
+Environment=PYTHONUNBUFFERED=1
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

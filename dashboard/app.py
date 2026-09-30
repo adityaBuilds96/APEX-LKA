@@ -253,8 +253,21 @@ h1, h2, h3, h4 { font-family: 'Inter', sans-serif; font-weight: 700; }
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# Session State Initialization
+# Error Boundary & Session State Initialization
 # ═══════════════════════════════════════════════════════════════════════════
+
+def render_error_boundary(title: str, func, *args, **kwargs):
+    """
+    Execute UI component safely within an exception shield.
+    If the component raises an error, renders a graceful warning banner
+    instead of crashing the Streamlit app.
+    """
+    try:
+        return func(*args, **kwargs)
+    except Exception as exc:
+        st.warning(f"⚠️ **{title}**: Component temporarily unavailable ({exc})")
+        return None
+
 
 def _init_state() -> None:
     defaults = {
@@ -498,14 +511,32 @@ def _render_sidebar() -> None:
 
         st.markdown("---")
 
-        # ── Clear Session ─────────────────────────────────────────────────
-        if st.button("🗑 Reset Session Data", use_container_width=True):
-            clear_events()
-            clear_offset_history()
-            st.session_state.last_result = None
-            st.session_state.last_telemetry = None
-            st.session_state.last_perf = None
-            st.rerun()
+        # ── Clear & Self-Healing Reset ─────────────────────────────────────
+        c_rst1, c_rst2 = st.columns(2)
+        with c_rst1:
+            if st.button("🗑 Reset", use_container_width=True, help="Clear event history and lateral offset cache"):
+                clear_events()
+                clear_offset_history()
+                st.session_state.last_result = None
+                st.session_state.last_telemetry = None
+                st.session_state.last_perf = None
+                st.rerun()
+        with c_rst2:
+            if st.button("🔄 Self-Heal", use_container_width=True, help="Restart background workers and recover state"):
+                try:
+                    sm = get_stream_manager()
+                    if sm.is_running:
+                        sm.stop()
+                except Exception:
+                    pass
+                clear_events()
+                clear_offset_history()
+                st.session_state.cam_active = False
+                st.session_state.last_result = None
+                st.session_state.last_telemetry = None
+                st.session_state.last_perf = None
+                st.success("Workers reset.")
+                st.rerun()
 
         st.caption("APEX LKA &mdash; SAE BAJA Autonomous System")
 
@@ -515,53 +546,61 @@ def _render_sidebar() -> None:
 # ═══════════════════════════════════════════════════════════════════════════
 
 def _run_live_camera(frame_container) -> None:
-    stream_mgr = get_stream_manager()
-    recorder = get_recorder()
-    cam_active = st.session_state.cam_active
+    try:
+        stream_mgr = get_stream_manager()
+        recorder = get_recorder()
+        cam_active = st.session_state.cam_active
 
-    if cam_active:
-        res, telem, perf = stream_mgr.get_latest()
+        if cam_active:
+            # Auto-reconnect if background worker died
+            if stream_mgr.is_running and (
+                (stream_mgr.camera_thread and not stream_mgr.camera_thread.is_alive()) or
+                (stream_mgr.inference_worker and not stream_mgr.inference_worker.is_alive())
+            ):
+                add_event(EventType.ERROR, "Worker thread died unexpectedly; attempting auto-recovery...")
+                stream_mgr.start(source=st.session_state.webcam_id, backend=st.session_state.backend)
 
-        if res is not None and res.annotated_bgr is not None:
-            # Sync recording if enabled
-            if recorder.is_recording and res.preprocessed and res.preprocessed.original_bgr is not None:
-                recorder.record_frame(res.preprocessed.original_bgr, telem, perf)
+            res, telem, perf = stream_mgr.get_latest()
 
-            # Draw clean, uncluttered HUD
-            hud_frame = draw_hud_overlay(res.annotated_bgr, telemetry=telem, perf=perf, mode_label="LIVE")
-            rgb_frame = cv2.cvtColor(hud_frame, cv2.COLOR_BGR2RGB)
-            frame_container.image(rgb_frame, use_container_width=True)
+            if res is not None and res.annotated_bgr is not None:
+                # Sync recording if enabled
+                if recorder.is_recording and res.preprocessed and res.preprocessed.original_bgr is not None:
+                    recorder.record_frame(res.preprocessed.original_bgr, telem, perf)
 
-            st.session_state.last_result = res
-            st.session_state.last_telemetry = telem
-            st.session_state.last_perf = perf
-            st.session_state.cam_frames += 1
+                # Draw clean, uncluttered HUD
+                hud_frame = draw_hud_overlay(res.annotated_bgr, telemetry=telem, perf=perf, mode_label="LIVE")
+                rgb_frame = cv2.cvtColor(hud_frame, cv2.COLOR_BGR2RGB)
+                frame_container.image(rgb_frame, use_container_width=True)
 
-            if res.offset and st.session_state.cam_frames % 2 == 0:
-                add_offset_sample(res.offset)
+                st.session_state.last_result = res
+                st.session_state.last_telemetry = telem
+                st.session_state.last_perf = perf
+                st.session_state.cam_frames += 1
 
-        time.sleep(0.01)
-        st.rerun()
+                if res.offset and st.session_state.cam_frames % 2 == 0:
+                    add_offset_sample(res.offset)
 
-    else:
-        # Sleek standby screen
-        frame_container.markdown(
-            """
-            <div class="standby-viewport">
-              <div style="font-family:'JetBrains Mono', monospace; font-size:1.1rem; font-weight:700; color:#cbd5e1; letter-spacing:0.12em;">
-                CAMERA STANDBY
-              </div>
-              <div style="font-family:'JetBrains Mono', monospace; font-size:0.65rem; color:#4a6178; letter-spacing:0.10em;">
-                DECOUPLED REAL-TIME PERCEPTION PIPELINE READY
-              </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+            time.sleep(0.01)
+            st.rerun()
 
+        else:
+            # Sleek standby screen
+            frame_container.markdown(
+                """
+                <div class="standby-viewport">
+                  <div style="font-family:'JetBrains Mono', monospace; font-size:1.1rem; font-weight:700; color:#cbd5e1; letter-spacing:0.12em;">
+                    CAMERA STANDBY
+                  </div>
+                  <div style="font-family:'JetBrains Mono', monospace; font-size:0.65rem; color:#4a6178; letter-spacing:0.10em;">
+                    DECOUPLED REAL-TIME PERCEPTION PIPELINE READY
+                  </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+    except Exception as exc:
+        frame_container.warning(f"Live camera stream error: {exc}")
 
-def _run_image_mode(frame_container) -> None:
-    backend = st.session_state.backend
 
 def _run_image_mode(frame_container) -> None:
     backend = st.session_state.backend
@@ -979,17 +1018,17 @@ def main() -> None:
     # ── Tab 2: Image Benchmark ────────────────────────────────────────────
     with tab_img:
         img_frame_container = st.empty()
-        _run_image_mode(img_frame_container)
+        render_error_boundary("Image Mode", _run_image_mode, img_frame_container)
 
     # ── Tab 3: Video Stream ───────────────────────────────────────────────
     with tab_vid:
         vid_frame_container = st.empty()
-        _run_video_mode(vid_frame_container)
+        render_error_boundary("Video Stream", _run_video_mode, vid_frame_container)
 
     # ── Tab 4: Session Replay ─────────────────────────────────────────────
     with tab_replay:
         replay_frame_container = st.empty()
-        _run_replay_mode(replay_frame_container)
+        render_error_boundary("Session Replay", _run_replay_mode, replay_frame_container)
 
     # ═══════════════════════════════════════════════════════════════════════
     # Primary Operational Telemetry (Below Hero Viewport)
@@ -1000,20 +1039,20 @@ def main() -> None:
 
     with col_left:
         # 1. LKA State & Departure Alert Card
-        render_lka_status_card(telemetry=telemetry, result=result)
+        render_error_boundary("LKA Status", render_lka_status_card, telemetry=telemetry, result=result)
 
         # 2. Precision Lateral Offset Centerline Gauge
-        render_lateral_offset_gauge(telemetry=telemetry, result=result)
+        render_error_boundary("Lateral Offset Gauge", render_lateral_offset_gauge, telemetry=telemetry, result=result)
 
     with col_right:
         # 3. Perception Cluster
-        render_perception_cluster(telemetry=telemetry, result=result)
+        render_error_boundary("Perception Cluster", render_perception_cluster, telemetry=telemetry, result=result)
 
         # 4. Performance Cluster
-        render_performance_cluster(perf=perf, result=result)
+        render_error_boundary("Performance Cluster", render_performance_cluster, perf=perf, result=result)
 
     # ── Subsystem Health Strip ─────────────────────────────────────────────
-    render_system_health_strip(camera_active=cam_active, result=result, telemetry=telemetry)
+    render_error_boundary("Health Strip", render_system_health_strip, camera_active=cam_active, result=result, telemetry=telemetry)
 
     # ── Last Event & Expandable Event Stream ───────────────────────────────
     last_ev = get_last_event()
