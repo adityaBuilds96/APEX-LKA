@@ -172,9 +172,18 @@ def cmd_evaluate(args):
     """Run model evaluation."""
     script = PROJECT_ROOT / "src" / "training" / "evaluate.py"
     if not script.exists():
-        console.print("[yellow]Evaluation script not yet implemented.[/yellow]")
+        console.print("[yellow]Evaluation script not found at src/training/evaluate.py.[/yellow]")
         return
-    subprocess.run([sys.executable, str(script)], check=True)
+    cmd = [sys.executable, str(script)]
+    if getattr(args, "checkpoint", None) is not None:
+        cmd += ["--checkpoint", str(args.checkpoint)]
+    if getattr(args, "split", None) is not None:
+        cmd += ["--split", str(args.split)]
+    if getattr(args, "export_report", False):
+        cmd += ["--export-report"]
+    if getattr(args, "device", None) is not None:
+        cmd += ["--device", str(args.device)]
+    subprocess.run(cmd, check=True)
 
 
 def cmd_infer(args):
@@ -455,7 +464,11 @@ def main():
     p_train.add_argument("--device", type=str, choices=["cuda", "cpu"], default=None, help="Target device")
 
     # evaluate
-    sub.add_parser("evaluate", help="Evaluate model on test set")
+    p_eval = sub.add_parser("evaluate", help="Evaluate model on test or validation set")
+    p_eval.add_argument("--checkpoint", type=str, default=None, help="Path to checkpoint .pth/.pt")
+    p_eval.add_argument("--split", type=str, choices=["test", "val", "train"], default="test", help="Dataset split to evaluate")
+    p_eval.add_argument("--export-report", action="store_true", help="Generate JSON, MD, and HTML reports")
+    p_eval.add_argument("--device", type=str, choices=["cuda", "cpu"], default=None, help="Target device")
 
     # infer
     p_infer = sub.add_parser("infer", help="Run live inference")
