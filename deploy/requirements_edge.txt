@@ -1,0 +1,20 @@
+# ==============================================================================
+# APEX-LKA Minimal Edge Deployment Requirements for NVIDIA Jetson Orin Nano
+# Target OS: Ubuntu 22.04 LTS (JetPack 5.x / 6.x)
+# ==============================================================================
+
+# Core Numerical & Arrays
+numpy>=1.23.0,<2.3.0
+
+# Computer Vision & Camera Pipelines
+opencv-python-headless>=4.7.0
+
+# Inference Runtimes (ONNX Runtime fallback)
+onnxruntime>=1.16.0
+
+# Vehicle Hardware Communication (Arduino Mega 2560 & CAN Bus)
+pyserial>=3.5
+python-can>=4.2.0
+
+# Configuration Management
+PyYAML>=6.0

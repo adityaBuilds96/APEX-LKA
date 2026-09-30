@@ -1,0 +1,25 @@
+[Unit]
+Description=APEX-LKA Autonomous Lane Perception & Vehicle Guidance Engine
+After=network.target nvargus-daemon.service systemd-udevd.service
+Wants=nvargus-daemon.service
+
+[Service]
+Type=simple
+User=jetson
+Group=jetson
+WorkingDirectory=/home/jetson/apex-lka/deploy
+ExecStart=/usr/bin/python3 /home/jetson/apex-lka/deploy/jetson_run.py --config /home/jetson/apex-lka/deploy/deploy_config.yaml
+Restart=always
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+Environment=PYTHONUNBUFFERED=1
+Environment=DISPLAY=:0
+
+# Allow real-time process priority
+LimitRTPRIO=99
+CPUSchedulingPolicy=rr
+CPUSchedulingPriority=80
+
+[Install]
+WantedBy=multi-user.target
