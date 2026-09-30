@@ -358,54 +358,143 @@ def _render_header(
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# Sidebar Navigation & Settings
+# Streamlined Sidebar (Objective 3)
 # ═══════════════════════════════════════════════════════════════════════════
 
 def _render_sidebar() -> None:
     with st.sidebar:
-        st.markdown("### 🎯 APEX LKA")
-        st.caption("Automotive Perception Workstation")
+        st.markdown("### 🏎️ APEX LKA")
+        st.caption("SAE BAJA & Autonomous Lane Perception")
         st.markdown("---")
 
-        # ── Backend selection ──────────────────────────────────────────────
-        st.markdown('<div style="font-family:monospace; font-size:0.62rem; color:#4a6178; letter-spacing:0.15em; text-transform:uppercase; margin-bottom:6px;">PERCEPTION BACKEND</div>', unsafe_allow_html=True)
+        # ── Backend indicator & selector ──────────────────────────────────
         ml = MLSegmentationPredictor()
         ml_ready = (ml.model_status == ModelStatus.READY)
 
-        bk_choice = st.radio(
-            "Backend",
-            options=["Classical CV (OpenCV)", "ML Segmentation"],
-            index=0 if st.session_state.backend == "classical_cv" else 1,
-            label_visibility="collapsed",
+        st.markdown(
+            '<div style="font-family:\'JetBrains Mono\', monospace; font-size:0.62rem; color:#4a6178; letter-spacing:0.15em; text-transform:uppercase; margin-bottom:6px;">'
+            'PERCEPTION BACKEND'
+            '</div>',
+            unsafe_allow_html=True,
         )
-        if bk_choice == "Classical CV (OpenCV)":
-            st.session_state.backend = "classical_cv"
+
+        if ml_ready:
+            bk_choice = st.radio(
+                "Perception Backend",
+                options=["Classical CV (OpenCV)", "Deep Learning (LaneSegNet)"],
+                index=0 if st.session_state.backend == "classical_cv" else 1,
+                label_visibility="collapsed",
+            )
+            st.session_state.backend = "classical_cv" if bk_choice == "Classical CV (OpenCV)" else "ml_segmentation"
         else:
-            if not ml_ready:
-                st.warning("ML model checkpoint not found. Fallback: Classical CV.")
-                st.session_state.backend = "classical_cv"
-            else:
-                st.session_state.backend = "ml_segmentation"
+            st.session_state.backend = "classical_cv"
+            st.markdown(
+                '<div style="background:#0c1524; border:1px solid #1e293b; border-radius:6px; padding:8px 12px; font-family:\'JetBrains Mono\', monospace; font-size:0.72rem; color:#38bdf8;">'
+                '● CLASSICAL CV (Active)<br>'
+                '<span style="color:#64748b; font-size:0.62rem;">Deep Learning: Train model in Training tab to unlock</span>'
+                '</div>',
+                unsafe_allow_html=True,
+            )
 
         st.markdown("---")
 
-        # ── Camera Selection ──────────────────────────────────────────────
-        st.markdown('<div style="font-family:monospace; font-size:0.62rem; color:#4a6178; letter-spacing:0.15em; text-transform:uppercase; margin-bottom:6px;">CAMERA DEVICE</div>', unsafe_allow_html=True)
-        st.session_state.webcam_id = st.selectbox(
-            "Device ID", [0, 1, 2], index=st.session_state.webcam_id,
-            help="Windows DirectShow device index / V4L2 device",
-            label_visibility="collapsed",
+        # ── Model Status Badge ────────────────────────────────────────────
+        st.markdown(
+            '<div style="font-family:\'JetBrains Mono\', monospace; font-size:0.62rem; color:#4a6178; letter-spacing:0.15em; text-transform:uppercase; margin-bottom:6px;">'
+            'NEURAL MODEL STATUS'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+        if ml_ready:
+            st.markdown(
+                '<div style="background:rgba(16,185,129,0.15); border:1px solid #10b981; border-radius:6px; padding:6px 12px; font-family:\'JetBrains Mono\', monospace; font-size:0.75rem; color:#10b981; font-weight:700;">'
+                '● READY (best_model.pth)'
+                '</div>',
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(
+                '<div style="background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.5); border-radius:6px; padding:6px 12px; font-family:\'JetBrains Mono\', monospace; font-size:0.75rem; color:#f87171;">'
+                '○ NOT TRAINED (Baseline CV)'
+                '</div>',
+                unsafe_allow_html=True,
+            )
+
+        st.markdown("---")
+
+        # ── Quick Stats ───────────────────────────────────────────────────
+        st.markdown(
+            '<div style="font-family:\'JetBrains Mono\', monospace; font-size:0.62rem; color:#4a6178; letter-spacing:0.15em; text-transform:uppercase; margin-bottom:8px;">'
+            'DATASET & TRAINING STATS'
+            '</div>',
+            unsafe_allow_html=True,
         )
 
+        # Count total frames & annotated frames
+        img_exts = {".jpg", ".jpeg", ".png", ".bmp"}
+        n_raw = len([f for f in PATHS.raw_frames.glob("*.*") if f.suffix.lower() in img_exts]) if PATHS.raw_frames.exists() else 0
+        n_ann_img = len([f for f in (PATHS.annotated / "images").glob("*.*") if f.suffix.lower() in img_exts]) if (PATHS.annotated / "images").exists() else 0
+        n_train_img = len([f for f in (PATHS.train / "images").glob("*.*") if f.suffix.lower() in img_exts]) if (PATHS.train / "images").exists() else 0
+        total_frames = n_raw + n_ann_img + n_train_img
+
+        n_masks = len(list((PATHS.annotated / "masks").glob("*.png"))) if (PATHS.annotated / "masks").exists() else 0
+        n_train_masks = len(list((PATHS.train / "masks").glob("*.png"))) if (PATHS.train / "masks").exists() else 0
+        annotated_frames = n_masks + n_train_masks
+
+        # Check last training mIoU
+        last_miou_str = "N/A"
+        csv_metric_file = PATHS.logs / "training" / "training_metrics.csv"
+        if csv_metric_file.exists():
+            try:
+                import pandas as pd
+                df_m = pd.read_csv(csv_metric_file)
+                if "val_mean_iou" in df_m.columns and not df_m.empty:
+                    last_miou_str = f"{df_m['val_mean_iou'].max():.4f}"
+            except Exception:
+                pass
+
+        col_s1, col_s2 = st.columns(2)
+        with col_s1:
+            st.metric("Total Frames", f"{total_frames:,}")
+        with col_s2:
+            st.metric("Annotated", f"{annotated_frames:,}")
+
+        st.metric("Last Training mIoU", last_miou_str)
+
         st.markdown("---")
 
-        # ── Navigation Links to Secondary Pages ───────────────────────────
-        st.markdown('<div style="font-family:monospace; font-size:0.62rem; color:#4a6178; letter-spacing:0.15em; text-transform:uppercase; margin-bottom:8px;">SECONDARY CONSOLES</div>', unsafe_allow_html=True)
-        st.page_link("pages/04_Dataset.py", label="Dataset Command Center", icon="⚡")
-        st.page_link("pages/01_Diagnostics.py", label="Diagnostics Console", icon="🔬")
-        st.page_link("pages/02_Perception.py", label="Perception Deep-Dive", icon="👁")
-        st.page_link("pages/03_Recordings.py", label="Session Recordings", icon="📼")
-        st.page_link("pages/07_Settings.py", label="System Configuration", icon="⚙")
+        # ── Global Settings Collapsible ───────────────────────────────────
+        with st.expander("⚙️ Global Workstation Settings", expanded=False):
+            st.session_state.webcam_id = st.selectbox(
+                "Camera Device ID",
+                [0, 1, 2, 3],
+                index=st.session_state.webcam_id if st.session_state.webcam_id < 4 else 0,
+                help="Camera device index",
+            )
+            st.selectbox(
+                "Viewport Resolution",
+                ["640x360 (Standard)", "1280x720 (HD)", "1920x1080 (FHD)"],
+                index=0,
+            )
+            st.selectbox(
+                "Compute Hardware",
+                ["GPU (CUDA Accelerated)", "CPU (Portable)"],
+                index=0,
+            )
+
+        st.markdown("---")
+
+        # ── Secondary Workflow Pages ──────────────────────────────────────
+        st.markdown(
+            '<div style="font-family:\'JetBrains Mono\', monospace; font-size:0.62rem; color:#4a6178; letter-spacing:0.15em; text-transform:uppercase; margin-bottom:8px;">'
+            'WORKSTATION PAGES'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+        st.page_link("pages/01_Recording.py", label="01. Recording & Ingestion", icon="📼")
+        st.page_link("pages/02_Dataset.py", label="02. Dataset Management", icon="⚡")
+        st.page_link("pages/03_Training.py", label="03. Training Center", icon="🔬")
+        st.page_link("pages/04_Evaluation.py", label="04. Evaluation & Export", icon="📈")
 
         st.markdown("---")
 
@@ -418,10 +507,7 @@ def _render_sidebar() -> None:
             st.session_state.last_perf = None
             st.rerun()
 
-        st.caption(
-            "APEX LKA — Software perception prototype.  \n"
-            "Strictly zero hardware actuation."
-        )
+        st.caption("APEX LKA &mdash; SAE BAJA Autonomous System")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
