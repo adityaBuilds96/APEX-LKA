@@ -143,15 +143,25 @@ def cmd_split(args):
 
 
 def cmd_train(args):
-    """Run training pipeline."""
+    """Run bulletproof training pipeline."""
     script = PROJECT_ROOT / "src" / "training" / "train.py"
     if not script.exists():
         console.print(
-            "[yellow]Training pipeline not yet implemented. "
-            "Complete annotation and splitting first.[/yellow]"
+            "[yellow]Training pipeline not found at src/training/train.py.[/yellow]"
         )
         return
-    subprocess.run([sys.executable, str(script)], check=True)
+    cmd = [sys.executable, str(script)]
+    if getattr(args, "epochs", None) is not None:
+        cmd += ["--epochs", str(args.epochs)]
+    if getattr(args, "batch_size", None) is not None:
+        cmd += ["--batch-size", str(args.batch_size)]
+    if getattr(args, "lr", None) is not None:
+        cmd += ["--lr", str(args.lr)]
+    if getattr(args, "resume", None) is not None:
+        cmd += ["--resume", str(args.resume)]
+    if getattr(args, "device", None) is not None:
+        cmd += ["--device", str(args.device)]
+    subprocess.run(cmd, check=True)
 
 
 def cmd_evaluate(args):
@@ -431,7 +441,12 @@ def main():
     p_split.add_argument("--dry-run", action="store_true")
 
     # train
-    sub.add_parser("train", help="Train the lane detection model")
+    p_train = sub.add_parser("train", help="Train the lane detection model")
+    p_train.add_argument("--epochs", type=int, default=None, help="Number of training epochs")
+    p_train.add_argument("--batch-size", type=int, default=None, help="Training batch size")
+    p_train.add_argument("--lr", type=float, default=None, help="Initial learning rate")
+    p_train.add_argument("--resume", type=str, default=None, help="Path to checkpoint to resume from")
+    p_train.add_argument("--device", type=str, choices=["cuda", "cpu"], default=None, help="Target device")
 
     # evaluate
     sub.add_parser("evaluate", help="Evaluate model on test set")
