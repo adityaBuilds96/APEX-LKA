@@ -38,6 +38,10 @@ data/recordings/*
 models/checkpoints/*.pth
 models/exported/*.pth
 models/exported/*.onnx
+models/exported/*.plan
+deploy/deploy_package_*
+deploy/*.zip
+
 
 # Logs & Runtime
 logs/

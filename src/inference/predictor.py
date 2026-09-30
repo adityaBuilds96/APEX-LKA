@@ -333,18 +333,26 @@ def get_predictor(backend: str = "auto") -> BaseLanePredictor:
 
     Parameters
     ----------
-    backend : "auto" | "classical_cv" | "ml_segmentation"
+    backend : "auto" | "classical_cv" | "ml_segmentation" | "onnx"
 
-    ``"auto"`` (default) — checks whether ``models/exported/best_model.pth``
-    exists.  If it does, the ML segmentation predictor is returned; otherwise
-    the always-functional classical CV predictor is used.
-
-    The classical_cv backend is always functional.
-    The ml_segmentation backend requires a trained model file.
+    ``"auto"`` (default) — checks whether ``models/exported/best_model.onnx`` or
+    ``best_model.pth`` exists. If ONNX exists, uses high-speed hardware ONNX backend;
+    otherwise if PyTorch checkpoint exists, uses ML segmentation; otherwise falls back
+    to classical CV baseline.
     """
     from src.inference.classical_cv import ClassicalCVPredictor  # local import to avoid circular
 
     if backend == "auto":
+        onnx_path = PROJECT_ROOT / "models" / "exported" / "best_model.onnx"
+        if onnx_path.exists():
+            try:
+                from src.inference.onnx_predictor import ONNXLanePredictor
+                onnx_pred = ONNXLanePredictor(model_path=onnx_path)
+                if onnx_pred.model_status == ModelStatus.READY:
+                    return onnx_pred
+            except Exception:
+                pass
+
         model_path = PROJECT_ROOT / "models" / "exported" / "best_model.pth"
         if model_path.exists():
             ml = MLSegmentationPredictor()
@@ -355,8 +363,12 @@ def get_predictor(backend: str = "auto") -> BaseLanePredictor:
         return ClassicalCVPredictor()
     elif backend == "ml_segmentation":
         return MLSegmentationPredictor()
+    elif backend == "onnx":
+        from src.inference.onnx_predictor import ONNXLanePredictor
+        return ONNXLanePredictor()
     else:
         raise ValueError(
             f"Unknown backend: '{backend}'. "
-            "Choose 'auto', 'classical_cv' or 'ml_segmentation'."
+            "Choose 'auto', 'classical_cv', 'ml_segmentation', or 'onnx'."
         )
+

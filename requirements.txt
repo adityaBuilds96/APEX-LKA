@@ -47,3 +47,9 @@ pytest>=7.4.0
 
 # Phase 2 Auto-Ingestion & Monitoring
 watchdog>=3.0.0
+
+# Model Export & Universal Edge Deployment (Phase 3)
+onnx>=1.14.0
+onnxruntime>=1.16.0
+onnxsim>=0.4.0
+onnxconverter-common>=1.14.0

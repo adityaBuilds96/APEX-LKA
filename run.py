@@ -186,6 +186,66 @@ def cmd_evaluate(args):
     subprocess.run(cmd, check=True)
 
 
+def cmd_export(args):
+    """Export model to ONNX, TensorRT, or Deployment Package."""
+    from src.training.export import (
+        build_tensorrt_engine,
+        export_fp16,
+        export_int8,
+        export_to_onnx,
+    )
+
+    console.print(Panel("[bold cyan]APEX-LKA Universal Model Export Pipeline[/bold cyan]", border_style="cyan"))
+
+    # 1. Base FP32 export
+    out_path = getattr(args, "output", "models/exported/best_model.onnx")
+    ckpt_path = getattr(args, "checkpoint", None)
+    res = export_to_onnx(model_or_checkpoint=ckpt_path, output_path=out_path)
+    onnx_file = Path(res["output_path"])
+
+    console.print(f"[bold green][OK] Exported ONNX (Opset {res['opset_version']}):[/bold green] {onnx_file} ({res['file_size_mb']} MB)")
+    console.print(f"  Numerical verification: max diff {res['max_abs_diff']:.2e} -> {'[green]PASSED[/green]' if res['verification_passed'] else '[yellow]WARNING[/yellow]'}")
+
+    # 2. FP16 export
+    if getattr(args, "fp16", False):
+        fp16_res = export_fp16(onnx_path=onnx_file)
+        console.print(f"[bold green][OK] Exported FP16:[/bold green] {fp16_res['output_path']} ({fp16_res['fp16_size_mb']} MB, {fp16_res['reduction_percent']}% reduction)")
+
+    # 3. INT8 export
+    if getattr(args, "int8", False):
+        int8_res = export_int8(onnx_path=onnx_file)
+        console.print(f"[bold green][OK] Exported INT8:[/bold green] {int8_res['output_path']} ({int8_res['int8_size_mb']} MB, {int8_res['reduction_percent']}% reduction)")
+
+    # 4. TensorRT export
+    if getattr(args, "tensorrt", False):
+        plan_out = onnx_file.parent / f"{onnx_file.stem}.plan"
+        plan_res = build_tensorrt_engine(onnx_path=onnx_file, output_plan_path=plan_out)
+        if plan_res:
+            console.print(f"[bold green][OK] Built TensorRT Engine:[/bold green] {plan_res}")
+
+    # 5. Full Deployment Package
+    if getattr(args, "package", False):
+        from deploy.deployment_package_builder import build_deployment_package
+        pkg_zip = build_deployment_package(onnx_model_path=onnx_file)
+        console.print(f"[bold green][OK] Generated Deployment Bundle:[/bold green] {pkg_zip}")
+
+    # 6. Benchmark
+    if getattr(args, "benchmark", False):
+        from src.training.export import cross_device_benchmark
+        cross_device_benchmark(onnx_path=onnx_file)
+
+
+def cmd_benchmark(args):
+    """Run hardware speed test across all available ExecutionProviders."""
+    from src.training.export import cross_device_benchmark
+
+    onnx_model = getattr(args, "model", None)
+    iters = getattr(args, "iterations", 50)
+    warmup = getattr(args, "warmup", 10)
+    cross_device_benchmark(onnx_path=onnx_model, num_iterations=iters, warmup=warmup)
+
+
+
 def cmd_infer(args):
     """Run live inference."""
     script = PROJECT_ROOT / "src" / "inference" / "live_inference.py"
@@ -470,6 +530,22 @@ def main():
     p_eval.add_argument("--export-report", action="store_true", help="Generate JSON, MD, and HTML reports")
     p_eval.add_argument("--device", type=str, choices=["cuda", "cpu"], default=None, help="Target device")
 
+    # export
+    p_export = sub.add_parser("export", help="Export PyTorch model to ONNX, TensorRT, or Deployment Package")
+    p_export.add_argument("--checkpoint", type=str, default=None, help="Path to checkpoint .pth/.pt")
+    p_export.add_argument("--output", type=str, default="models/exported/best_model.onnx", help="Target ONNX export path")
+    p_export.add_argument("--fp16", action="store_true", help="Export to FP16 half precision")
+    p_export.add_argument("--int8", action="store_true", help="Apply INT8 dynamic post-training quantization")
+    p_export.add_argument("--tensorrt", action="store_true", help="Build TensorRT engine (.plan) for Jetson")
+    p_export.add_argument("--package", action="store_true", help="Build full edge deployment bundle (.zip)")
+    p_export.add_argument("--benchmark", action="store_true", help="Run latency benchmark across providers")
+
+    # benchmark
+    p_bench = sub.add_parser("benchmark", help="Benchmark model latency and throughput across hardware backends")
+    p_bench.add_argument("--model", type=str, default=None, help="Path to ONNX model")
+    p_bench.add_argument("--iterations", type=int, default=50, help="Number of benchmark iterations")
+    p_bench.add_argument("--warmup", type=int, default=10, help="Number of warmup iterations")
+
     # infer
     p_infer = sub.add_parser("infer", help="Run live inference")
     p_infer.add_argument("--source", choices=["webcam", "video", "image"],
@@ -522,7 +598,9 @@ def main():
                 "  7. [cyan]python run.py split[/cyan]            — Split dataset\n"
                 "  8. [cyan]python run.py train[/cyan]            — Train model\n"
                 "  9. [cyan]python run.py evaluate[/cyan]         — Evaluate\n"
-                " 10. [cyan]python run.py infer --source webcam[/cyan] — Live demo",
+                " 10. [cyan]python run.py export[/cyan]           — Export to ONNX/TensorRT\n"
+                " 11. [cyan]python run.py benchmark[/cyan]        — Speed test hardware\n"
+                " 12. [cyan]python run.py infer --source webcam[/cyan] — Live demo",
                 title="[bold green]Welcome",
                 border_style="green",
             )
@@ -536,6 +614,8 @@ def main():
         "split":         cmd_split,
         "train":         cmd_train,
         "evaluate":      cmd_evaluate,
+        "export":        cmd_export,
+        "benchmark":     cmd_benchmark,
         "infer":         cmd_infer,
         "dashboard":     cmd_dashboard,
         "ingest":        cmd_ingest,
@@ -544,6 +624,7 @@ def main():
         "pipeline":      cmd_pipeline,
     }
     dispatch[args.command](args)
+
 
 
 if __name__ == "__main__":
