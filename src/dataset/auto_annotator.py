@@ -72,7 +72,7 @@ class ClassicalAutoAnnotator:
             config_dict: Optional override dictionary for auto_annotation config.
         """
         self.cfg = config_dict or cfg.get("auto_annotation", {})
-        self.predictor = ClassicalCVPredictor()
+        self.predictor = ClassicalCVPredictor(mode="painted")
 
         # Configurable parameters with robust defaults
         road_cfg = self.cfg.get("road_surface", {})

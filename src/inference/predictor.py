@@ -129,6 +129,12 @@ class LanePrediction:
     accuracy_score:        float = 0.0
     geometry_plausibility: float = 0.0
 
+    # Universal detection mode & representations
+    detection_mode:        str                  = "painted"  # "painted" | "edge" | "drivable"
+    road_mask:             Optional[np.ndarray] = None
+    left_poly_coeffs:      Optional[np.ndarray] = None
+    right_poly_coeffs:     Optional[np.ndarray] = None
+
     # Error details
     error_message:    Optional[str] = None
 

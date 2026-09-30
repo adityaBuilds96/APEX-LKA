@@ -210,9 +210,9 @@ def _draw_structured_hud(
     line_h = int(24 * (h / 720.0))
     line_h = max(16, min(line_h, 32))
 
-    box_w = int(max(180, min(260, w * 0.32)))
-    box_h = line_h * 4 + 14
-    box_x = w - box_w - 12
+    box_w = int(max(200, min(290, w * 0.36)))
+    box_h = line_h * 5 + 16
+    box_x = max(10, w - box_w - 12)
     box_y = 12
 
     # Translucent card background
@@ -228,7 +228,13 @@ def _draw_structured_hud(
     cv2.putText(canvas, f"{b_tag} | {status_txt}", (box_x + 10, box_y + line_h),
                 cv2.FONT_HERSHEY_SIMPLEX, font_scale, s_col, 1, cv2.LINE_AA)
 
-    # Line 2: Lateral offset
+    # Line 2: Universal Detection Mode
+    mode_name = getattr(prediction, "detection_mode", "painted").upper()
+    mode_txt = f"MODE: {mode_name}"
+    cv2.putText(canvas, mode_txt, (box_x + 10, box_y + line_h * 2),
+                cv2.FONT_HERSHEY_SIMPLEX, font_scale * 0.95, (200, 220, 240), 1, cv2.LINE_AA)
+
+    # Line 3: Lateral offset
     err_m = getattr(offset, "lateral_error_m", None)
     if err_m is None and getattr(offset, "lateral_error_px", None) is not None:
         err_m = round(offset.lateral_error_px * 0.0185, 3)
@@ -241,18 +247,18 @@ def _draw_structured_hud(
         off_txt = f"OFFSET: {sign}{offset.lateral_error_px:.0f} px"
     else:
         off_txt = "OFFSET: --"
-    cv2.putText(canvas, off_txt, (box_x + 10, box_y + line_h * 2),
+    cv2.putText(canvas, off_txt, (box_x + 10, box_y + line_h * 3),
                 cv2.FONT_HERSHEY_SIMPLEX, font_scale, C_TEXT_MAIN, 1, cv2.LINE_AA)
 
-    # Line 3: Heading error & Accuracy
+    # Line 4: Heading error & Accuracy
     acc_pct = getattr(prediction, "lane_accuracy_percent", None)
     if acc_pct is None:
         acc_pct = int(round(max(prediction.left_confidence, prediction.right_confidence) * 100))
     acc_txt = f"ACCURACY: {acc_pct:.0f}%"
-    cv2.putText(canvas, acc_txt, (box_x + 10, box_y + line_h * 3),
+    cv2.putText(canvas, acc_txt, (box_x + 10, box_y + line_h * 4),
                 cv2.FONT_HERSHEY_SIMPLEX, font_scale, (255, 200, 0), 1, cv2.LINE_AA)
 
-    # Line 4: Steering recommendation
+    # Line 5: Steering recommendation
     rec_txt = f"STEER: {offset.recommendation.value}"
-    cv2.putText(canvas, rec_txt, (box_x + 10, box_y + line_h * 4),
+    cv2.putText(canvas, rec_txt, (box_x + 10, box_y + line_h * 5),
                 cv2.FONT_HERSHEY_SIMPLEX, font_scale, C_TEXT_MUTED, 1, cv2.LINE_AA)
