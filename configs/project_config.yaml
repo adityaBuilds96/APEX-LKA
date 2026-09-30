@@ -97,6 +97,32 @@ training:
   early_stopping_patience: 10  # Stop if val_iou doesn't improve for N epochs
   gradient_clip: 1.0
 
+# ------- Advanced Training Features (RTX 4060 Optimized) -----
+training_advanced:
+  mixed_precision: true
+  gradient_accumulation_steps: 1
+  ema_decay: 0.999
+  label_smoothing: 0.05
+  warmup_epochs: 5
+  cosine_restart_epochs: 15
+  progressive_unfreezing: true
+  unfreeze_schedule: [5, 15]
+
+robustness:
+  max_consecutive_failures: 10
+  max_total_failures: 50
+  memory_monitor_interval_sec: 30
+  gpu_temp_threshold_celsius: 85
+  disk_space_min_gb: 1.0
+  auto_batch_size_reduction: true
+  thermal_cooldown_sec: 5
+
+rtx4060_optimized:
+  default_batch_size: 8
+  default_num_workers: 4
+  default_pin_memory: true
+
+
 # ------- Evaluation Metrics ----------------------------------
 evaluation:
   primary_metric: "mean_iou"

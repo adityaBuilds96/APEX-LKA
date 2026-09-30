@@ -113,6 +113,76 @@ class WarmupCosineScheduler(LRScheduler):
         super().load_state_dict(state)
 
 
+class WarmupCosineWithRestarts(LRScheduler):
+    """
+    Learning rate scheduler with linear warmup followed by Cosine Annealing with Warm Restarts.
+
+    Phase 1 (Warmup: epoch 0 to warmup_epochs - 1):
+        Linear ramp from warmup_start_lr (default 1e-6) to target base_lr.
+
+    Phase 2 (Cosine Annealing with Restarts: epoch >= warmup_epochs):
+        Cosine decay restarting every `restart_epochs` (default 15).
+        At the start of each restart period, LR resets to base_lr and decays smoothly to min_lr.
+    """
+
+    def __init__(
+        self,
+        optimizer: torch.optim.Optimizer,
+        warmup_epochs: int = 5,
+        restart_epochs: int = 15,
+        max_epochs: int = 50,
+        warmup_start_lr: float = 1e-6,
+        min_lr: float = 1e-6,
+        last_epoch: int = -1,
+    ) -> None:
+        self.warmup_epochs = max(0, int(warmup_epochs))
+        self.restart_epochs = max(1, int(restart_epochs))
+        self.max_epochs = max(1, int(max_epochs))
+        self.warmup_start_lr = float(warmup_start_lr)
+        self.min_lr = float(min_lr)
+        super().__init__(optimizer, last_epoch=last_epoch)
+
+    def get_lr(self) -> List[float]:
+        epoch = self.last_epoch
+
+        # Warmup phase
+        if self.warmup_epochs > 0 and epoch < self.warmup_epochs:
+            alpha = float(epoch + 1) / float(self.warmup_epochs)
+            return [
+                self.warmup_start_lr + alpha * (base_lr - self.warmup_start_lr)
+                for base_lr in self.base_lrs
+            ]
+
+        # Post-warmup with periodic warm restarts
+        current_step = max(0, epoch - self.warmup_epochs)
+        progress = float(current_step % self.restart_epochs) / float(self.restart_epochs)
+        progress = min(1.0, max(0.0, progress))
+
+        cosine_decay = 0.5 * (1.0 + math.cos(math.pi * progress))
+        return [
+            self.min_lr + (base_lr - self.min_lr) * cosine_decay
+            for base_lr in self.base_lrs
+        ]
+
+    def state_dict(self) -> Dict[str, Any]:
+        state = super().state_dict()
+        state["warmup_epochs"] = self.warmup_epochs
+        state["restart_epochs"] = self.restart_epochs
+        state["max_epochs"] = self.max_epochs
+        state["warmup_start_lr"] = self.warmup_start_lr
+        state["min_lr"] = self.min_lr
+        return state
+
+    def load_state_dict(self, state_dict: Dict[str, Any]) -> None:
+        state = dict(state_dict)
+        self.warmup_epochs = state.pop("warmup_epochs", self.warmup_epochs)
+        self.restart_epochs = state.pop("restart_epochs", self.restart_epochs)
+        self.max_epochs = state.pop("max_epochs", self.max_epochs)
+        self.warmup_start_lr = state.pop("warmup_start_lr", self.warmup_start_lr)
+        self.min_lr = state.pop("min_lr", self.min_lr)
+        super().load_state_dict(state)
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # 2. Model Exponential Moving Average (EMA)
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -128,7 +198,7 @@ class ModelEMA:
     ----------
     model : nn.Module
         The active training model to track.
-    decay : float, default 0.9999
+    decay : float, default 0.999
         EMA smoothing factor.
     device : Optional[torch.device | str], default None
         Device on which the EMA shadow model resides (None = match model device).
@@ -137,7 +207,7 @@ class ModelEMA:
     def __init__(
         self,
         model: nn.Module,
-        decay: float = 0.9999,
+        decay: float = 0.999,
         device: Optional[torch.device | str] = None,
     ) -> None:
         if not (0.0 <= decay <= 1.0):

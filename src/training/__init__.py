@@ -28,6 +28,28 @@ from src.training.samplers import (
     extract_session_id,
 )
 
+from src.training.schedulers import (
+    WarmupCosineScheduler,
+    WarmupCosineWithRestarts,
+    ModelEMA,
+)
+from src.training.callbacks import (
+    Callback,
+    ModelCheckpoint,
+    BestModelExporter,
+    CSVLogger,
+    TensorBoardLogger,
+    EarlyStopping,
+    HealthMonitor,
+)
+from src.training.train import Trainer
+from src.training.utils import (
+    compute_confusion_matrix,
+    metrics_from_confusion_matrix,
+    find_latest_checkpoint,
+    cleanup_old_checkpoints,
+)
+
 __all__ = [
     "LaneSegNet",
     "SpatialAttention",
@@ -48,4 +70,20 @@ __all__ = [
     "compute_lane_pixel_fractions",
     "compute_class_balanced_weights",
     "extract_session_id",
+    "WarmupCosineScheduler",
+    "WarmupCosineWithRestarts",
+    "ModelEMA",
+    "Callback",
+    "ModelCheckpoint",
+    "BestModelExporter",
+    "CSVLogger",
+    "TensorBoardLogger",
+    "EarlyStopping",
+    "HealthMonitor",
+    "Trainer",
+    "compute_confusion_matrix",
+    "metrics_from_confusion_matrix",
+    "find_latest_checkpoint",
+    "cleanup_old_checkpoints",
 ]
+

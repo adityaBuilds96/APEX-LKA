@@ -159,6 +159,10 @@ def cmd_train(args):
         cmd += ["--lr", str(args.lr)]
     if getattr(args, "resume", None) is not None:
         cmd += ["--resume", str(args.resume)]
+    if getattr(args, "fresh", False):
+        cmd += ["--fresh"]
+    if getattr(args, "config", None) is not None:
+        cmd += ["--config", str(args.config)]
     if getattr(args, "device", None) is not None:
         cmd += ["--device", str(args.device)]
     subprocess.run(cmd, check=True)
@@ -446,6 +450,8 @@ def main():
     p_train.add_argument("--batch-size", type=int, default=None, help="Training batch size")
     p_train.add_argument("--lr", type=float, default=None, help="Initial learning rate")
     p_train.add_argument("--resume", type=str, default=None, help="Path to checkpoint to resume from")
+    p_train.add_argument("--fresh", action="store_true", help="Start training from scratch (ignore existing checkpoints)")
+    p_train.add_argument("--config", type=str, default=None, help="Path to custom configuration YAML")
     p_train.add_argument("--device", type=str, choices=["cuda", "cpu"], default=None, help="Target device")
 
     # evaluate
