@@ -1,55 +1,42 @@
 # ============================================================
-# Lane Keep Assist (LKA) - Requirements
+# APEX-LKA Master Development Requirements
 # Python 3.10+
 # ============================================================
 
-# Core ML
+# Core ML & Inference
 torch>=2.0.0
 torchvision>=0.15.0
+onnx>=1.14.0
+onnxruntime>=1.16.0
+onnxsim>=0.4.0
+onnxconverter-common>=1.14.0
 
-# Computer Vision
+# Computer Vision & Augmentation
 opencv-python>=4.8.0
 Pillow>=10.0.0
+albumentations>=1.3.0
 
-# Data & Science
+# Numerical & Data Science
 numpy>=1.24.0
 pandas>=2.0.0
 scipy>=1.10.0
 scikit-learn>=1.3.0
 
-# Augmentation
-albumentations>=1.3.0
-
-# Visualization & Dashboard
+# Visualization & Interactive Dashboard
 matplotlib>=3.7.0
 streamlit>=1.28.0
 
-# Training Utilities
-tqdm>=4.65.0
+# Hardware Communications & Edge Monitoring
+pyserial>=3.5
+python-can>=4.2.0
+psutil>=5.9.0
+
+# Training Utilities & Logging
 PyYAML>=6.0
-
-# Logging & CLI
 rich>=13.0.0
+tqdm>=4.65.0
 click>=8.1.0
-
-# Experiment Tracking
 tensorboard>=2.13.0
 
-# Notebook support
-jupyter>=1.0.0
-ipykernel>=6.25.0
-
-# Optional: YOLO (only if selected architecture uses it)
-# ultralytics>=8.0.0
-
-# Testing
+# Testing & Verification
 pytest>=7.4.0
-
-# Phase 2 Auto-Ingestion & Monitoring
-watchdog>=3.0.0
-
-# Model Export & Universal Edge Deployment (Phase 3)
-onnx>=1.14.0
-onnxruntime>=1.16.0
-onnxsim>=0.4.0
-onnxconverter-common>=1.14.0

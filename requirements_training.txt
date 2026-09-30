@@ -1,0 +1,22 @@
+# ============================================================
+# APEX-LKA Training Engine Requirements (Workstation RTX 4060)
+# ============================================================
+
+torch>=2.0.0
+torchvision>=0.15.0
+albumentations>=1.3.0
+opencv-python>=4.8.0
+Pillow>=10.0.0
+numpy>=1.24.0
+pandas>=2.0.0
+scipy>=1.10.0
+scikit-learn>=1.3.0
+matplotlib>=3.7.0
+PyYAML>=6.0
+rich>=13.0.0
+tqdm>=4.65.0
+tensorboard>=2.13.0
+psutil>=5.9.0
+onnx>=1.14.0
+onnxsim>=0.4.0
+onnxconverter-common>=1.14.0

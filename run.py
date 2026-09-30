@@ -270,6 +270,51 @@ def cmd_dashboard(args):
     )
 
 
+def cmd_record(args):
+    """Record live camera frames and telemetry to disk."""
+    import time
+    import cv2
+    from dashboard.components.recorder import get_recorder
+
+    duration = getattr(args, "duration", 10.0)
+    tag = getattr(args, "tag", "session")
+    device_id = getattr(args, "device_id", 0)
+
+    console.print(f"[bold cyan]Starting recording session (Tag: {tag}, Duration: {duration}s, Camera: {device_id})...[/bold cyan]")
+    recorder = get_recorder()
+    sess_dir = recorder.start()
+
+    cap = cv2.VideoCapture(device_id)
+    if not cap.isOpened():
+        console.print(f"[yellow]Camera {device_id} unavailable (mocking frame capture for headless testing)...[/yellow]")
+        dummy = np.zeros((360, 640, 3), dtype=np.uint8)
+        t_start = time.time()
+        frames_captured = 0
+        while (time.time() - t_start) < min(duration, 1.0):
+            recorder.record_frame(dummy)
+            frames_captured += 1
+            time.sleep(0.05)
+        recorder.stop()
+        console.print(f"[bold green][OK] Recorded {frames_captured} mock frames in {sess_dir}[/bold green]")
+        return
+
+    t_start = time.time()
+    frames_captured = 0
+    try:
+        while (time.time() - t_start) < duration:
+            ret, frame = cap.read()
+            if not ret or frame is None:
+                break
+            recorder.record_frame(frame)
+            frames_captured += 1
+            time.sleep(0.03)
+    finally:
+        cap.release()
+        recorder.stop()
+
+    console.print(f"[bold green][OK] Recording complete:[/bold green] {frames_captured} frames captured in {sess_dir}")
+
+
 def cmd_ingest(args):
     """Ingest and validate road dataset from ZIP or directory."""
     from src.dataset.ingestion import DatasetIngestor
@@ -498,6 +543,12 @@ def main():
     # env
     sub.add_parser("env", help="Show environment and dataset status")
 
+    # record
+    p_record = sub.add_parser("record", help="Record live camera frames and telemetry to disk")
+    p_record.add_argument("--duration", type=float, default=10.0, help="Duration in seconds")
+    p_record.add_argument("--tag", type=str, default="session", help="Tag or label for session")
+    p_record.add_argument("--device-id", type=int, default=0, help="Camera index")
+
     # collect
     p_collect = sub.add_parser("collect", help="Extract frames from video")
     p_collect.add_argument("--video", type=str, help="Path to a single video")
@@ -609,6 +660,7 @@ def main():
 
     dispatch = {
         "env":           cmd_env,
+        "record":        cmd_record,
         "collect":       cmd_collect,
         "inspect":       cmd_inspect,
         "split":         cmd_split,
