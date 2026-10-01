@@ -433,6 +433,49 @@ def test_accuracy_score_calculation() -> None:
     assert_true(0.35 <= acc_partial <= 0.50, "acc_partial_range")
 
 
+def test_deterministic_accuracy_score_tiers() -> None:
+    """Test deterministic 0-100 score and tier classifications (GOOD, REVIEW, BAD)."""
+    from src.inference.classical_cv import compute_deterministic_accuracy_score
+
+    # 1. High confidence, clean road, valid geometry -> GOOD (>= 70)
+    score_good, tier_good = compute_deterministic_accuracy_score(
+        left_conf=0.90,
+        right_conf=0.88,
+        geom_plausibility=1.0,
+        left_intercept=180,
+        right_intercept=460,
+        w=640,
+        h=360,
+    )
+    assert_true(score_good >= 70.0, f"score_good_min: {score_good}")
+    assert_true(tier_good == "GOOD", f"tier_good_match: {tier_good}")
+
+    # 2. Moderate confidence / single lane -> REVIEW (40 to 69)
+    score_rev, tier_rev = compute_deterministic_accuracy_score(
+        left_conf=0.60,
+        right_conf=0.0,
+        geom_plausibility=0.5,
+        left_intercept=180,
+        w=640,
+        h=360,
+    )
+    assert_true(40.0 <= score_rev < 70.0, f"score_rev_range: {score_rev}")
+    assert_true(tier_rev == "REVIEW", f"tier_rev_match: {tier_rev}")
+
+    # 3. Off-road artifacts or zero confidence -> BAD (< 40)
+    score_bad, tier_bad = compute_deterministic_accuracy_score(
+        left_conf=0.10,
+        right_conf=0.05,
+        geom_plausibility=0.0,
+        has_outside_lines=True,
+        has_extreme_slopes=True,
+        w=640,
+        h=360,
+    )
+    assert_true(score_bad < 40.0, f"score_bad_range: {score_bad}")
+    assert_true(tier_bad == "BAD", f"tier_bad_match: {tier_bad}")
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # Runner
 # ═══════════════════════════════════════════════════════════════════════════
@@ -459,6 +502,7 @@ def main() -> None:
         ("ZIP extraction & batch perception",      test_zip_extraction_and_batch_perception),
         ("Guardrail & barrier suppression",        test_guardrail_suppression),
         ("Accuracy score calculation",             test_accuracy_score_calculation),
+        ("Deterministic accuracy score tiers",     test_deterministic_accuracy_score_tiers),
     ]
 
     for name, fn in tests:

@@ -250,13 +250,15 @@ def _draw_structured_hud(
     cv2.putText(canvas, off_txt, (box_x + 10, box_y + line_h * 3),
                 cv2.FONT_HERSHEY_SIMPLEX, font_scale, C_TEXT_MAIN, 1, cv2.LINE_AA)
 
-    # Line 4: Heading error & Accuracy
+    # Line 4: Deterministic Accuracy Score & Tier
     acc_pct = getattr(prediction, "lane_accuracy_percent", None)
     if acc_pct is None:
         acc_pct = int(round(max(prediction.left_confidence, prediction.right_confidence) * 100))
-    acc_txt = f"ACCURACY: {acc_pct:.0f}%"
+    tier = getattr(prediction, "accuracy_tier", "GOOD" if acc_pct >= 70 else ("REVIEW" if acc_pct >= 40 else "BAD"))
+    acc_txt = f"SCORE: {acc_pct:.0f}% [{tier}]"
+    acc_col = (100, 230, 100) if tier == "GOOD" else ((0, 180, 255) if tier == "REVIEW" else (60, 60, 240))
     cv2.putText(canvas, acc_txt, (box_x + 10, box_y + line_h * 4),
-                cv2.FONT_HERSHEY_SIMPLEX, font_scale, (255, 200, 0), 1, cv2.LINE_AA)
+                cv2.FONT_HERSHEY_SIMPLEX, font_scale, acc_col, 1, cv2.LINE_AA)
 
     # Line 5: Steering recommendation
     rec_txt = f"STEER: {offset.recommendation.value}"

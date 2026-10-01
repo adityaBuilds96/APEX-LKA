@@ -30,6 +30,15 @@ if str(PROJECT_ROOT) not in sys.path:
 # ── Configuration & Paths ──────────────────────────────────────────────────
 from src.config import PATHS, cfg
 
+def _safe_count_dir(p: Optional[Path], exts: set[str]) -> int:
+    """Safely count files matching given extensions without raising exceptions."""
+    try:
+        if p is not None and p.exists() and p.is_dir():
+            return len([f for f in p.glob("*.*") if f.suffix.lower() in exts])
+    except Exception:
+        return 0
+    return 0
+
 # ── Backend Interfaces (Strictly Preserved — Unchanged) ────────────────────
 from src.inference.pipeline import run_pipeline, InferenceResult
 from src.inference.predictor import ModelStatus, MLSegmentationPredictor
@@ -446,28 +455,29 @@ def _render_sidebar() -> None:
             unsafe_allow_html=True,
         )
 
-        # Count total frames & annotated frames
-        img_exts = {".jpg", ".jpeg", ".png", ".bmp"}
-        n_raw = len([f for f in PATHS.raw_frames.glob("*.*") if f.suffix.lower() in img_exts]) if PATHS.raw_frames.exists() else 0
-        n_ann_img = len([f for f in (PATHS.annotated / "images").glob("*.*") if f.suffix.lower() in img_exts]) if (PATHS.annotated / "images").exists() else 0
-        n_train_img = len([f for f in (PATHS.train / "images").glob("*.*") if f.suffix.lower() in img_exts]) if (PATHS.train / "images").exists() else 0
+        # Count total frames & annotated frames safely
+        img_exts = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
+        mask_exts = {".png"}
+        n_raw = _safe_count_dir(PATHS.raw_frames, img_exts)
+        n_ann_img = _safe_count_dir(PATHS.annotated / "images", img_exts)
+        n_train_img = _safe_count_dir(PATHS.train / "images", img_exts)
         total_frames = n_raw + n_ann_img + n_train_img
 
-        n_masks = len(list((PATHS.annotated / "masks").glob("*.png"))) if (PATHS.annotated / "masks").exists() else 0
-        n_train_masks = len(list((PATHS.train / "masks").glob("*.png"))) if (PATHS.train / "masks").exists() else 0
+        n_masks = _safe_count_dir(PATHS.annotated / "masks", mask_exts)
+        n_train_masks = _safe_count_dir(PATHS.train / "masks", mask_exts)
         annotated_frames = n_masks + n_train_masks
 
         # Check last training mIoU
         last_miou_str = "N/A"
-        csv_metric_file = PATHS.logs / "training" / "training_metrics.csv"
-        if csv_metric_file.exists():
-            try:
+        try:
+            csv_metric_file = PATHS.logs / "training" / "training_metrics.csv"
+            if csv_metric_file.exists():
                 import pandas as pd
                 df_m = pd.read_csv(csv_metric_file)
                 if "val_mean_iou" in df_m.columns and not df_m.empty:
                     last_miou_str = f"{df_m['val_mean_iou'].max():.4f}"
-            except Exception:
-                pass
+        except Exception:
+            pass
 
         col_s1, col_s2 = st.columns(2)
         with col_s1:
@@ -608,71 +618,85 @@ def _run_live_camera(frame_container) -> None:
 def _run_image_mode(frame_container) -> None:
     backend = st.session_state.backend
 
-    # ── Premium glassmorphic drag-and-drop zone ───────────────────────────
-    st.markdown(
-        """
-        <style>
-        .img-upload-zone {
-            background: rgba(15,23,42,0.85);
-            border: 1.5px dashed rgba(56,189,248,0.45);
-            border-radius: 12px;
-            padding: 16px 20px 14px;
-            margin-bottom: 14px;
-            transition: all 0.25s ease-in-out;
-        }
-        .img-upload-zone:hover {
-            border-color: #38bdf8;
-            background: rgba(20,30,55,0.95);
-        }
-        .zone-label {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.70rem;
-            letter-spacing: 0.12em;
-            color: #38bdf8;
-            text-transform: uppercase;
-            margin-bottom: 6px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .kpi-card {
-            background: #0d1829;
-            border: 1px solid #1e293b;
-            border-radius: 8px;
-            padding: 12px 14px;
-            text-align: center;
-        }
-        .kpi-val {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 1.25rem;
-            font-weight: 700;
-            margin-top: 2px;
-        }
-        .kpi-lbl {
-            font-size: 0.62rem;
-            color: #64748b;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-        }
-        </style>
-        <div class="img-upload-zone">
-          <div class="zone-label">⬆ DROP IMAGE OR ZIP ARCHIVE TO RUN INSTANT PERCEPTION</div>
-          <div style="font-size:0.72rem; color:#94a3b8; margin-bottom:8px;">
-            Supports single road frames (.jpg, .jpeg, .png, .webp) or batch datasets (.zip). Zero button clicks required.
-          </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    # ── Upload Zone & Reset Toolbar ───────────────────────────────────────
+    c_up_header, c_reset = st.columns([3, 1])
+    with c_up_header:
+        st.markdown(
+            """
+            <style>
+            .img-upload-zone {
+                background: rgba(15,23,42,0.85);
+                border: 1.5px dashed rgba(56,189,248,0.45);
+                border-radius: 12px;
+                padding: 14px 18px 12px;
+                margin-bottom: 12px;
+                transition: all 0.25s ease-in-out;
+            }
+            .img-upload-zone:hover {
+                border-color: #38bdf8;
+                background: rgba(20,30,55,0.95);
+            }
+            .zone-label {
+                font-family: 'JetBrains Mono', monospace;
+                font-size: 0.70rem;
+                letter-spacing: 0.12em;
+                color: #38bdf8;
+                text-transform: uppercase;
+                margin-bottom: 4px;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+            .kpi-card {
+                background: #0d1829;
+                border: 1px solid #1e293b;
+                border-radius: 8px;
+                padding: 10px 12px;
+                text-align: center;
+            }
+            .kpi-val {
+                font-family: 'JetBrains Mono', monospace;
+                font-size: 1.15rem;
+                font-weight: 700;
+                margin-top: 2px;
+            }
+            .kpi-lbl {
+                font-size: 0.60rem;
+                color: #64748b;
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+            }
+            </style>
+            <div class="img-upload-zone">
+              <div class="zone-label">⬆ DROP ROAD IMAGE OR DATASET ZIP FOR INSTANT PERCEPTION</div>
+              <div style="font-size:0.72rem; color:#94a3b8;">
+                Supports single images (.jpg, .jpeg, .png, .webp, .bmp) or batch archives (.zip). Zero button clicks required.
+              </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with c_reset:
+        st.markdown("<div style='margin-top: 14px;'>", unsafe_allow_html=True)
+        if st.button("🔄 Reset Upload", use_container_width=True, help="Clear active uploaded image or batch state"):
+            st.session_state["_last_img_name"] = None
+            st.session_state["_last_zip_name"] = None
+            st.session_state["_last_uploaded_bytes"] = None
+            st.session_state["_zip_batch_results"] = None
+            st.session_state["_zip_images"] = None
+            st.session_state["last_result"] = None
+            st.session_state["last_telemetry"] = None
+            st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
 
     uploaded = st.file_uploader(
         "Upload image or zip",
-        type=["jpg", "jpeg", "png", "webp", "zip"],
+        type=["jpg", "jpeg", "png", "webp", "bmp", "zip"],
         key="up_img_or_zip",
         label_visibility="collapsed",
     )
-    st.markdown("</div>", unsafe_allow_html=True)
 
-    # ── Handle Upload Instantly ───────────────────────────────────────────
+    # ── Handle Upload ─────────────────────────────────────────────────────
     if uploaded:
         is_zip = uploaded.name.lower().endswith(".zip")
 
@@ -680,28 +704,29 @@ def _run_image_mode(frame_container) -> None:
             # ── ZIP Batch Processing ──────────────────────────────────────
             if st.session_state.get("_last_zip_name") != uploaded.name:
                 st.session_state["_last_zip_name"] = uploaded.name
+                st.session_state["_zip_batch_results"] = None
 
                 import io
                 import zipfile
 
-                staging_dir = PROJECT_ROOT / "data" / ".staging" / f"zip_{Path(uploaded.name).stem}_{int(time.time())}"
+                batch_id = f"batch_{int(time.time())}"
+                staging_dir = PROJECT_ROOT / "data" / ".staging" / batch_id
                 staging_dir.mkdir(parents=True, exist_ok=True)
 
                 with st.spinner(f"Extracting and verifying {uploaded.name}..."):
                     try:
                         with zipfile.ZipFile(io.BytesIO(uploaded.read())) as zf:
-                            # Zip-slip safe path extraction
+                            # Zip-slip safe extraction check
                             for member in zf.infolist():
                                 target = (staging_dir / member.filename).resolve()
                                 if not str(target).startswith(str(staging_dir.resolve())):
                                     raise ValueError(f"Zip slip security violation in {member.filename}")
                             zf.extractall(staging_dir)
 
-                        img_exts = {".jpg", ".jpeg", ".png", ".webp"}
+                        img_exts = {".jpg", ".jpeg", ".png", ".webp", ".bmp"}
                         extracted_imgs = sorted([
                             p for p in staging_dir.rglob("*.*") if p.suffix.lower() in img_exts
                         ])
-
                         st.session_state["_zip_images"] = [str(p) for p in extracted_imgs]
                         st.session_state["_zip_staging_dir"] = str(staging_dir)
 
@@ -709,43 +734,120 @@ def _run_image_mode(frame_container) -> None:
                         st.error(f"Failed to extract ZIP archive: {e}")
                         st.session_state["_zip_images"] = []
 
-            # Display ZIP Batch Results
-            zip_imgs = st.session_state.get("_zip_images", [])
-            if zip_imgs:
-                st.success(f"📦 Successfully unpacked **{len(zip_imgs)}** road frames from `{uploaded.name}`")
+                # Progressive Batch Perception Run
+                zip_imgs = st.session_state.get("_zip_images", [])
+                if zip_imgs:
+                    batch_results = []
+                    prog_bar = st.progress(0)
+                    status_lbl = st.empty()
+                    total_f = len(zip_imgs)
 
-                # Action: Push All to Dataset
-                if st.button("🚀 Push All Valid Frames to Training Dataset (data/raw_frames/)", type="primary"):
-                    raw_dir = PATHS.raw_frames
-                    raw_dir.mkdir(parents=True, exist_ok=True)
-                    copied = 0
-                    for imp in zip_imgs:
-                        shutil.copy2(imp, raw_dir / Path(imp).name)
-                        copied += 1
-                    st.success(f"✅ Ingested {copied} frames into `{raw_dir.name}/` for annotation & training!")
+                    for idx, img_str in enumerate(zip_imgs):
+                        imp = Path(img_str)
+                        status_lbl.markdown(f"**Processing frame {idx + 1}/{total_f}:** `{imp.name}`")
+                        try:
+                            res = run_pipeline(imp, backend=backend, reset_pd_state=True)
+                            acc_pct = getattr(res.prediction, "lane_accuracy_percent", None)
+                            if acc_pct is None:
+                                acc_pct = int(round(max(res.prediction.left_confidence, res.prediction.right_confidence) * 100))
+                            tier = getattr(res.prediction, "accuracy_tier", "GOOD" if acc_pct >= 70 else ("REVIEW" if acc_pct >= 40 else "BAD"))
 
-                # Batch Perception Grid Preview
-                st.markdown("##### Batch Perception Previews")
-                sample_imgs = zip_imgs[:8]
-                cols = st.columns(min(4, max(1, len(sample_imgs))))
+                            # Generate thumbnail RGB
+                            if res.annotated_bgr is not None:
+                                thumb_bgr = cv2.resize(res.annotated_bgr, (240, 135))
+                                thumb_rgb = cv2.cvtColor(thumb_bgr, cv2.COLOR_BGR2RGB)
+                            else:
+                                thumb_rgb = None
 
-                for i, img_path_str in enumerate(sample_imgs):
-                    p = Path(img_path_str)
-                    res = run_pipeline(p, backend=backend, reset_pd_state=True)
-                    acc_pct = getattr(res.prediction, "lane_accuracy_percent", None)
-                    if acc_pct is None:
-                        acc_pct = int(round(max(res.prediction.left_confidence, res.prediction.right_confidence) * 100))
+                            batch_results.append({
+                                "path": str(imp),
+                                "name": imp.name,
+                                "score": acc_pct,
+                                "tier": tier,
+                                "thumb": thumb_rgb,
+                            })
+                        except Exception as exc:
+                            batch_results.append({
+                                "path": str(imp),
+                                "name": imp.name,
+                                "score": 0.0,
+                                "tier": "BAD",
+                                "thumb": None,
+                            })
 
-                    with cols[i % len(cols)]:
-                        if res.annotated_bgr is not None:
-                            st.image(cv2.cvtColor(res.annotated_bgr, cv2.COLOR_BGR2RGB), use_container_width=True)
-                        badge_col = "#10b981" if acc_pct >= 65 else ("#f59e0b" if acc_pct >= 40 else "#ef4444")
-                        st.markdown(
-                            f"<div style='font-family:monospace; font-size:0.70rem; color:{badge_col}; font-weight:700; text-align:center;'>"
-                            f"Accuracy: {acc_pct:.0f}%"
-                            f"</div>",
-                            unsafe_allow_html=True,
-                        )
+                        prog_bar.progress(min(1.0, (idx + 1) / total_f))
+
+                    status_lbl.empty()
+                    prog_bar.empty()
+                    st.session_state["_zip_batch_results"] = batch_results
+
+            # Render ZIP Batch Results & Action
+            batch_data = st.session_state.get("_zip_batch_results", [])
+            if batch_data:
+                n_total = len(batch_data)
+                good_items = [b for b in batch_data if b["tier"] == "GOOD"]
+                review_items = [b for b in batch_data if b["tier"] == "REVIEW"]
+                bad_items = [b for b in batch_data if b["tier"] == "BAD"]
+
+                st.markdown(
+                    f"""
+                    <div style="background:#091522; border:1px solid #1e3a5f; border-radius:8px; padding:10px 14px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+                      <div>
+                        <span style="font-family:'JetBrains Mono', monospace; font-size:0.85rem; font-weight:700; color:#38bdf8;">BATCH RESULTS: {n_total} Frames</span>
+                        <span style="font-size:0.75rem; color:#94a3b8; margin-left:12px;">
+                          ✅ <b style="color:#10b981;">{len(good_items)} GOOD</b> &nbsp;|&nbsp;
+                          ⚠️ <b style="color:#f59e0b;">{len(review_items)} REVIEW</b> &nbsp;|&nbsp;
+                          ❌ <b style="color:#ef4444;">{len(bad_items)} BAD</b>
+                        </span>
+                      </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+
+                # Exactly One Action: Push GOOD frames to data/annotated/images/
+                col_act, col_info = st.columns([1.5, 2.5])
+                with col_act:
+                    btn_label = f"🚀 Push {len(good_items)} GOOD Frames to Annotated Dataset"
+                    if st.button(btn_label, type="primary", use_container_width=True, disabled=(len(good_items) == 0)):
+                        try:
+                            dest_dir = PATHS.annotated / "images"
+                            dest_dir.mkdir(parents=True, exist_ok=True)
+                            copied = 0
+                            for g in good_items:
+                                src_p = Path(g["path"])
+                                if src_p.exists():
+                                    shutil.copy2(src_p, dest_dir / src_p.name)
+                                    copied += 1
+                            st.success(f"✅ Successfully ingested {copied} verified GOOD frames into `data/annotated/images/`! (Skipped {len(review_items) + len(bad_items)} review/bad frames)")
+                        except Exception as e:
+                            st.error(f"Failed to copy frames: {e}")
+
+                with col_info:
+                    st.caption("Training-readiness filter: Only verified frames (Score ≥ 70) are copied. Questionable or out-of-boundary frames are automatically rejected.")
+
+                # Frame Grid Display
+                st.markdown("##### Batch Frames & Quality Scores")
+                cols_per_row = 4
+                for row_start in range(0, min(n_total, 40), cols_per_row):
+                    cols = st.columns(cols_per_row)
+                    for c_idx, item_idx in enumerate(range(row_start, min(row_start + cols_per_row, min(n_total, 40)))):
+                        item = batch_data[item_idx]
+                        tier_color = "#10b981" if item["tier"] == "GOOD" else ("#f59e0b" if item["tier"] == "REVIEW" else "#ef4444")
+                        with cols[c_idx]:
+                            if item["thumb"] is not None:
+                                st.image(item["thumb"], use_container_width=True)
+                            st.markdown(
+                                f"""
+                                <div style="font-family:'JetBrains Mono', monospace; font-size:0.68rem; text-align:center; margin-top:2px;">
+                                  <span style="color:#94a3b8;">{item['name'][:18]}</span><br>
+                                  <b style="color:{tier_color}; font-size:0.72rem;">{item['score']:.0f}% [{item['tier']}]</b>
+                                </div>
+                                """,
+                                unsafe_allow_html=True,
+                            )
+                if n_total > 40:
+                    st.caption(f"Showing first 40 of {n_total} frames.")
 
         else:
             # ── Single Image Instant Perception ───────────────────────────
@@ -754,57 +856,86 @@ def _run_image_mode(frame_container) -> None:
                 img_bytes = uploaded.read()
                 st.session_state["_last_uploaded_bytes"] = img_bytes
 
-                with st.spinner("Running high-precision lane perception..."):
-                    res = run_pipeline(img_bytes, backend=backend, reset_pd_state=True)
-                    tracker = LKAStateTracker()
-                    telem = tracker.update(res)
-                _handle_result(res, telem, source="image")
+                try:
+                    with st.spinner("Running high-precision lane perception..."):
+                        res = run_pipeline(img_bytes, backend=backend, reset_pd_state=True)
+                        tracker = LKAStateTracker()
+                        telem = tracker.update(res)
+                    _handle_result(res, telem, source="image")
+                except Exception as exc:
+                    st.error(f"Perception pipeline error: {exc}")
 
-    # ── Hero Viewport & KPI Panel for Single Image ─────────────────────────
+    # ── Single Image Viewport & Metrics ───────────────────────────────────
     r = st.session_state.last_result
     t = st.session_state.last_telemetry
 
-    if r and r.annotated_bgr is not None:
-        # Display annotated viewport
-        hud_frame = draw_hud_overlay(r.annotated_bgr, telemetry=t, perf=None, mode_label="IMAGE")
-        frame_container.image(cv2.cvtColor(hud_frame, cv2.COLOR_BGR2RGB), use_container_width=True)
+    if r and r.annotated_bgr is not None and not (uploaded and uploaded.name.lower().endswith(".zip")):
+        # Render Original vs Overlay in Dual Columns
+        col_orig, col_over = st.columns(2)
 
-        # ── KPI Panel (Objective 4) ───────────────────────────────────────
+        with col_orig:
+            st.markdown(
+                '<div style="font-family:\'JetBrains Mono\', monospace; font-size:0.68rem; color:#94a3b8; margin-bottom:4px; font-weight:700;">'
+                '📷 ORIGINAL INPUT'
+                '</div>',
+                unsafe_allow_html=True,
+            )
+            if r.preprocessed and r.preprocessed.original_bgr is not None:
+                orig_rgb = cv2.cvtColor(r.preprocessed.original_bgr, cv2.COLOR_BGR2RGB)
+                st.image(orig_rgb, use_container_width=True)
+
+        with col_over:
+            st.markdown(
+                '<div style="font-family:\'JetBrains Mono\', monospace; font-size:0.68rem; color:#38bdf8; margin-bottom:4px; font-weight:700;">'
+                '🛣️ PERCEPTION OVERLAY (LANES, ROAD & CENTERLINE)'
+                '</div>',
+                unsafe_allow_html=True,
+            )
+            hud_frame = draw_hud_overlay(r.annotated_bgr, telemetry=t, perf=None, mode_label="IMAGE")
+            st.image(cv2.cvtColor(hud_frame, cv2.COLOR_BGR2RGB), use_container_width=True)
+
+        # Accuracy Score & Category
         acc_pct = getattr(r.prediction, "lane_accuracy_percent", None)
         if acc_pct is None:
             acc_pct = int(round(max(r.prediction.left_confidence, r.prediction.right_confidence) * 100))
+        tier = getattr(r.prediction, "accuracy_tier", "GOOD" if acc_pct >= 70 else ("REVIEW" if acc_pct >= 40 else "BAD"))
 
-        if acc_pct >= 70:
-            acc_badge = f"{acc_pct:.0f}% (High Confidence)"
+        if tier == "GOOD":
             acc_color = "#10b981"
             status_text = "READY FOR ANNOTATION / TRAINING"
-            status_color = "#10b981"
-        elif acc_pct >= 40:
-            acc_badge = f"{acc_pct:.0f}% (Moderate)"
+        elif tier == "REVIEW":
             acc_color = "#f59e0b"
             status_text = "NEEDS REVIEW (MODERATE CONFIDENCE)"
-            status_color = "#f59e0b"
         else:
-            acc_badge = f"{acc_pct:.0f}% (Low Confidence)"
             acc_color = "#ef4444"
-            status_text = "LOW CONFIDENCE (CHECK MARKINGS)"
-            status_color = "#ef4444"
+            status_text = "LOW CONFIDENCE / REJECTED"
 
-        # Metric offset
+        # Lateral Offset string
         if t and t.lateral_offset_m is not None:
             sign = "+" if t.lateral_offset_m >= 0 else ""
-            desc = "Centered" if abs(t.lateral_offset_m) < 0.20 else ("Drift Left" if t.lateral_offset_m < 0 else "Drift Right")
-            off_str = f"{sign}{t.lateral_offset_m:.2f} m ({desc})"
+            px_val = getattr(r.offset, "lateral_error_px", 0.0) if r.offset else 0.0
+            off_str = f"{sign}{t.lateral_offset_m:.2f} m ({px_val:+.0f} px)"
         else:
             off_str = "-- m"
 
-        k1, k2, k3 = st.columns(3)
+        # Confidence string
+        conf_pct = int(round(max(r.prediction.left_confidence, r.prediction.right_confidence) * 100))
+        conf_str = f"{conf_pct}%"
+
+        # Heading angle
+        head_deg = getattr(r.geometry, "heading_angle_deg", None) if r.geometry else None
+        if head_deg is None and t and t.heading_error_deg is not None:
+            head_deg = t.heading_error_deg
+        head_str = f"{head_deg:+.1f}°" if head_deg is not None else "0.0°"
+
+        # KPI Panel (4 metrics)
+        k1, k2, k3, k4 = st.columns(4)
         with k1:
             st.markdown(
                 f"""
                 <div class="kpi-card">
-                  <div class="kpi-lbl">LANE ACCURACY</div>
-                  <div class="kpi-val" style="color:{acc_color};">{acc_badge}</div>
+                  <div class="kpi-lbl">ACCURACY SCORE</div>
+                  <div class="kpi-val" style="color:{acc_color};">{acc_pct:.0f}% [{tier}]</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -813,8 +944,8 @@ def _run_image_mode(frame_container) -> None:
             st.markdown(
                 f"""
                 <div class="kpi-card">
-                  <div class="kpi-lbl">METRIC LATERAL OFFSET</div>
-                  <div class="kpi-val" style="color:#38bdf8;">{off_str}</div>
+                  <div class="kpi-lbl">DETECTION CONFIDENCE</div>
+                  <div class="kpi-val" style="color:#38bdf8;">{conf_str}</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -823,8 +954,18 @@ def _run_image_mode(frame_container) -> None:
             st.markdown(
                 f"""
                 <div class="kpi-card">
-                  <div class="kpi-lbl">PERCEPTION STATUS</div>
-                  <div class="kpi-val" style="color:{status_color}; font-size:0.95rem;">{status_text}</div>
+                  <div class="kpi-lbl">LATERAL OFFSET</div>
+                  <div class="kpi-val" style="color:#e2e8f0; font-size:1.0rem;">{off_str}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        with k4:
+            st.markdown(
+                f"""
+                <div class="kpi-card">
+                  <div class="kpi-lbl">HEADING ANGLE</div>
+                  <div class="kpi-val" style="color:#e2e8f0;">{head_str}</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -836,17 +977,22 @@ def _run_image_mode(frame_container) -> None:
         col_act1, col_act2 = st.columns([1.5, 2.5])
         with col_act1:
             if st.button("✅ Send to Annotated Dataset (data/annotated/images/)", type="primary", use_container_width=True):
-                ann_img_dir = PATHS.annotated / "images"
-                ann_img_dir.mkdir(parents=True, exist_ok=True)
-                stem = f"frame_{int(time.time())}"
-                dest_file = ann_img_dir / f"{stem}.jpg"
+                try:
+                    ann_img_dir = PATHS.annotated / "images"
+                    ann_img_dir.mkdir(parents=True, exist_ok=True)
+                    stem = f"frame_{int(time.time())}"
+                    dest_file = ann_img_dir / f"{stem}.jpg"
 
-                if "_last_uploaded_bytes" in st.session_state:
-                    dest_file.write_bytes(st.session_state["_last_uploaded_bytes"])
-                elif r.preprocessed and r.preprocessed.original_bgr is not None:
-                    cv2.imwrite(str(dest_file), r.preprocessed.original_bgr)
+                    if "_last_uploaded_bytes" in st.session_state and st.session_state["_last_uploaded_bytes"]:
+                        dest_file.write_bytes(st.session_state["_last_uploaded_bytes"])
+                    elif r.preprocessed and r.preprocessed.original_bgr is not None:
+                        cv2.imwrite(str(dest_file), r.preprocessed.original_bgr)
 
-                st.success(f"Successfully saved clean frame -> `{dest_file.name}`")
+                    st.success(f"Successfully saved clean frame -> `{dest_file.name}`")
+                except Exception as e:
+                    st.error(f"Failed to save frame: {e}")
+        with col_act2:
+            st.caption(f"Status: <b style='color:{acc_color};'>{status_text}</b>", unsafe_allow_html=True)
 
 
 def _run_video_mode(frame_container) -> None:
@@ -956,7 +1102,7 @@ def main() -> None:
     # ── Input Mode Selector Toolbar ──
     tab_live, tab_img, tab_vid, tab_replay = st.tabs([
         "📡  LIVE CAMERA",
-        "📁  IMAGE",
+        "📁  IMAGE / ZIP",
         "🎬  VIDEO",
         "📼  REPLAY",
     ])
@@ -1018,7 +1164,7 @@ def main() -> None:
         live_frame_container = st.empty()
         _run_live_camera(live_frame_container)
 
-    # ── Tab 2: Image Benchmark ────────────────────────────────────────────
+    # ── Tab 2: Image / ZIP Upload ─────────────────────────────────────────
     with tab_img:
         img_frame_container = st.empty()
         render_error_boundary("Image Mode", _run_image_mode, img_frame_container)

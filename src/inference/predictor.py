@@ -129,6 +129,16 @@ class LanePrediction:
         return round(self.accuracy_score * 100.0, 1)
 
     @property
+    def accuracy_tier(self) -> str:
+        """Categorize detection quality: GOOD (>= 70), REVIEW (40-69), BAD (< 40)."""
+        pct = self.lane_accuracy_percent
+        if pct >= 70.0:
+            return "GOOD"
+        elif pct >= 40.0:
+            return "REVIEW"
+        return "BAD"
+
+    @property
     def left_detected(self) -> bool:
         return (
             self.left_mask is not None

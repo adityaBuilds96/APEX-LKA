@@ -72,9 +72,99 @@ def compute_lane_accuracy(
     """
     Unified Lane Accuracy Metric [0.0, 1.0]:
         Accuracy = 0.4 * Conf_left + 0.4 * Conf_right + 0.2 * GeometryPlausibility
+    Preserved for backwards compatibility with existing unit tests.
     """
     acc = 0.4 * float(left_conf) + 0.4 * float(right_conf) + 0.2 * float(geom_plausibility)
     return float(np.clip(acc, 0.0, 1.0))
+
+
+def compute_deterministic_accuracy_score(
+    left_conf: float,
+    right_conf: float,
+    geom_plausibility: float,
+    road_mask: Optional[np.ndarray] = None,
+    left_intercept: Optional[float] = None,
+    right_intercept: Optional[float] = None,
+    center_intercept: Optional[float] = None,
+    w: int = 640,
+    h: int = 360,
+    has_outside_lines: bool = False,
+    has_extreme_slopes: bool = False,
+) -> Tuple[float, str]:
+    """
+    Deterministic Lane/Path Accuracy Score in [0, 100] for training-readiness filtering.
+
+    Components:
+    1. Detection confidence (both vs single boundary)
+    2. Geometry plausibility (lane width, symmetry, convergence)
+    3. Road surface coverage ratio
+    4. Centerline plausibility & alignment
+    5. Penalties for suspicious artifacts (lines outside road mask, extreme slopes)
+
+    Returns:
+    (score_0_to_100, category) where category in {"GOOD", "REVIEW", "BAD"}
+    GOOD (>= 70), REVIEW (40-69), BAD (< 40)
+    """
+    score = 0.0
+
+    # 1. Detection confidence
+    both_detected = (left_conf > 0.15 and right_conf > 0.15)
+    one_detected = (left_conf > 0.15 or right_conf > 0.15)
+
+    if both_detected:
+        conf_pts = 0.5 * (left_conf + right_conf) * 45.0
+        boundary_pts = 15.0
+    elif one_detected:
+        conf_pts = max(left_conf, right_conf) * 22.0
+        boundary_pts = 6.0
+    else:
+        conf_pts = 0.0
+        boundary_pts = 0.0
+
+    score += conf_pts + boundary_pts
+
+    # 2. Geometric plausibility
+    score += float(np.clip(geom_plausibility, 0.0, 1.0)) * 25.0
+
+    # 3. Road surface coverage ratio
+    if road_mask is not None and road_mask.size > 0:
+        cov = float(np.count_nonzero(road_mask)) / float(max(1, h * w))
+        if 0.10 <= cov <= 0.65:
+            score += 15.0
+        elif 0.05 <= cov < 0.10 or 0.65 < cov <= 0.80:
+            score += 8.0
+        elif cov > 0:
+            score += 3.0
+    else:
+        score += 8.0
+
+    # 4. Centerline plausibility & bottom corridor width
+    if left_intercept is not None and right_intercept is not None:
+        lane_w = right_intercept - left_intercept
+        if 0.25 * w <= lane_w <= 0.80 * w:
+            score += 5.0
+        elif lane_w < 0.18 * w or lane_w > 0.90 * w:
+            score -= 15.0
+
+    if center_intercept is not None:
+        if center_intercept < 0.10 * w or center_intercept > 0.90 * w:
+            score -= 15.0
+
+    # 5. Penalties for suspicious artifacts
+    if has_outside_lines:
+        score -= 25.0
+    if has_extreme_slopes:
+        score -= 15.0
+
+    final_score = float(np.clip(round(score, 1), 0.0, 100.0))
+    if final_score >= 70.0:
+        tier = "GOOD"
+    elif final_score >= 40.0:
+        tier = "REVIEW"
+    else:
+        tier = "BAD"
+
+    return final_score, tier
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -182,23 +272,30 @@ class ClassicalCVPredictor(BaseLanePredictor):
             target_mode = self.default_mode.lower()
             prediction_candidate: Optional[LanePrediction] = None
 
+            pred_a = None
             if target_mode in ("auto", "painted"):
                 pred_a = self._detect_mode_painted(proc_img, road_mask, proc_h, proc_w, horizon_y)
-                if pred_a is not None and (
-                    pred_a.status == DetectionStatus.LANE_DETECTED
-                    or (pred_a.status == DetectionStatus.PARTIAL_LANE_DETECTED and target_mode == "painted")
-                ):
+                # If painted lanes are detected with high confidence
+                if pred_a is not None and pred_a.status == DetectionStatus.LANE_DETECTED and pred_a.lane_accuracy_percent >= 45.0:
+                    prediction_candidate = pred_a
+                elif pred_a is not None and target_mode == "painted":
                     prediction_candidate = pred_a
 
+            # Fallback to Mode B (Road Edge) if painted markings are weak or absent
             if prediction_candidate is None and target_mode in ("auto", "edge"):
                 pred_b = self._detect_mode_edge(proc_img, road_mask, proc_h, proc_w, horizon_y)
                 if pred_b is not None and pred_b.status != DetectionStatus.LANE_NOT_DETECTED:
                     prediction_candidate = pred_b
 
+            # Fallback to Mode C (Drivable Envelope) if road edge detection failed
             if prediction_candidate is None and target_mode in ("auto", "drivable"):
                 pred_c = self._detect_mode_drivable(proc_img, road_mask, proc_h, proc_w, horizon_y)
-                if pred_c is not None:
+                if pred_c is not None and pred_c.status != DetectionStatus.LANE_NOT_DETECTED:
                     prediction_candidate = pred_c
+
+            # If still nothing but we had partial painted lanes, use pred_a
+            if prediction_candidate is None and pred_a is not None and pred_a.status != DetectionStatus.LANE_NOT_DETECTED:
+                prediction_candidate = pred_a
 
 
             # Fallback if all modes returned None
@@ -270,10 +367,11 @@ class ClassicalCVPredictor(BaseLanePredictor):
             threshold=25, minLineLength=min_line_len, maxLineGap=80,
         )
 
-        left_pts, right_pts = _separate_lines_vectorized(
+        left_pts, right_pts, has_outside_lines, has_extreme_slopes = _separate_lines_vectorized(
             lines, w, h, horizon_y,
             min_length=min_line_len,
             max_slope=self.max_slope_absolute,
+            road_mask=road_mask,
         )
 
         left_mask, left_conf, left_intercept, left_coeffs = _fit_and_rasterise(
@@ -284,7 +382,28 @@ class ClassicalCVPredictor(BaseLanePredictor):
         )
 
         geom_plausibility = _calculate_geometry_plausibility(left_intercept, right_intercept, w)
-        accuracy_score = compute_lane_accuracy(left_conf, right_conf, geom_plausibility)
+
+        center_int = None
+        if left_intercept is not None and right_intercept is not None:
+            center_int = (left_intercept + right_intercept) / 2.0
+        elif left_intercept is not None:
+            center_int = left_intercept + (0.50 * w) / 2.0
+        elif right_intercept is not None:
+            center_int = right_intercept - (0.50 * w) / 2.0
+
+        det_score, det_tier = compute_deterministic_accuracy_score(
+            left_conf=left_conf,
+            right_conf=right_conf,
+            geom_plausibility=geom_plausibility,
+            road_mask=road_mask,
+            left_intercept=left_intercept,
+            right_intercept=right_intercept,
+            center_intercept=center_int,
+            w=w,
+            h=h,
+            has_outside_lines=has_outside_lines,
+            has_extreme_slopes=has_extreme_slopes,
+        )
 
         both = (left_mask is not None and left_mask.any() and
                 right_mask is not None and right_mask.any())
@@ -311,7 +430,7 @@ class ClassicalCVPredictor(BaseLanePredictor):
             right_confidence      = right_conf,
             model_h               = h,
             model_w               = w,
-            accuracy_score        = accuracy_score,
+            accuracy_score        = det_score / 100.0,
             geometry_plausibility = geom_plausibility,
         )
 
@@ -349,7 +468,19 @@ class ClassicalCVPredictor(BaseLanePredictor):
         r_mask, r_conf, r_int, r_coeffs = _fit_and_rasterise(right_pts, h, w, horizon_y, side="right")
 
         geom_plausibility = _calculate_geometry_plausibility(l_int, r_int, w)
-        accuracy_score = compute_lane_accuracy(l_conf, r_conf, geom_plausibility)
+        center_int = ((l_int + r_int) / 2.0) if (l_int is not None and r_int is not None) else None
+
+        det_score, det_tier = compute_deterministic_accuracy_score(
+            left_conf=l_conf * 0.90,
+            right_conf=r_conf * 0.90,
+            geom_plausibility=geom_plausibility,
+            road_mask=road_mask,
+            left_intercept=l_int,
+            right_intercept=r_int,
+            center_intercept=center_int,
+            w=w,
+            h=h,
+        )
 
         both = (l_mask is not None and l_mask.any() and r_mask is not None and r_mask.any())
         one  = (l_mask is not None and l_mask.any() or  r_mask is not None and r_mask.any())
@@ -370,11 +501,11 @@ class ClassicalCVPredictor(BaseLanePredictor):
             road_mask             = road_mask,
             left_poly_coeffs      = l_coeffs,
             right_poly_coeffs     = r_coeffs,
-            left_confidence       = l_conf * 0.90,  # Slightly lower confidence than painted markings
+            left_confidence       = l_conf * 0.90,
             right_confidence      = r_conf * 0.90,
             model_h               = h,
             model_w               = w,
-            accuracy_score        = accuracy_score * 0.90,
+            accuracy_score        = det_score / 100.0,
             geometry_plausibility = geom_plausibility,
         )
 
@@ -405,7 +536,19 @@ class ClassicalCVPredictor(BaseLanePredictor):
         r_mask, r_conf, r_int, r_coeffs = _fit_and_rasterise(right_envelope, h, w, horizon_y, side="right")
 
         geom_plausibility = _calculate_geometry_plausibility(l_int, r_int, w)
-        accuracy_score = compute_lane_accuracy(l_conf, r_conf, geom_plausibility)
+        center_int = ((l_int + r_int) / 2.0) if (l_int is not None and r_int is not None) else None
+
+        det_score, det_tier = compute_deterministic_accuracy_score(
+            left_conf=l_conf * 0.82,
+            right_conf=r_conf * 0.82,
+            geom_plausibility=geom_plausibility,
+            road_mask=road_mask,
+            left_intercept=l_int,
+            right_intercept=r_int,
+            center_intercept=center_int,
+            w=w,
+            h=h,
+        )
 
         both = (l_mask is not None and l_mask.any() and r_mask is not None and r_mask.any())
         one  = (l_mask is not None and l_mask.any() or  r_mask is not None and r_mask.any())
@@ -426,11 +569,11 @@ class ClassicalCVPredictor(BaseLanePredictor):
             road_mask             = road_mask,
             left_poly_coeffs      = l_coeffs,
             right_poly_coeffs     = r_coeffs,
-            left_confidence       = l_conf * 0.80,
-            right_confidence      = r_conf * 0.80,
+            left_confidence       = l_conf * 0.82,
+            right_confidence      = r_conf * 0.82,
             model_h               = h,
             model_w               = w,
-            accuracy_score        = accuracy_score * 0.80,
+            accuracy_score        = det_score / 100.0,
             geometry_plausibility = geom_plausibility,
         )
 
@@ -484,44 +627,60 @@ def detect_horizon(img_bgr: np.ndarray) -> int:
     Detect the horizon line by gradient analysis across the upper 60% of the image.
     Returns the horizon Y-coordinate in pixels.
     """
+def detect_horizon(img_bgr: np.ndarray) -> int:
+    """
+    Detect the horizon line by gradient analysis across the upper 55% of the image.
+    Clamps ROI strictly below sky, overhead structures, and trees.
+    """
     h, w = img_bgr.shape[:2]
-    search_h = int(0.60 * h)
+    search_h = int(0.55 * h)
     gray = cv2.cvtColor(img_bgr[:search_h, :], cv2.COLOR_BGR2GRAY)
-    blur = cv2.GaussianBlur(gray, (11, 11), 0)
+    blur = cv2.GaussianBlur(gray, (9, 9), 0)
 
     grad_y = cv2.Sobel(blur, cv2.CV_32F, 0, 1, ksize=3)
     row_grads = np.mean(np.abs(grad_y), axis=1)
 
-    y_start = int(0.25 * h)
+    y_start = int(0.28 * h)
     y_end = int(0.50 * h)
 
     if y_end > y_start:
         peak_offset = int(np.argmax(row_grads[y_start:y_end]))
         detected_y = y_start + peak_offset
-        return int(np.clip(detected_y, int(0.30 * h), int(0.48 * h)))
+        return int(np.clip(detected_y, int(0.32 * h), int(0.48 * h)))
 
     return int(0.35 * h)
 
 
 def segment_road_surface(img_bgr: np.ndarray, horizon_y: int) -> np.ndarray:
     """
-    Segment the drivable pavement surface using HLS color gating and bottom-center flood-fill.
-    Guarantees off-road guardrails, sky, and trees are excluded.
+    Segment the drivable pavement surface using bottom-center road color sampling,
+    HLS color gating, and flood-fill connectivity.
+    Strictly excludes off-road guardrails, sky, trees, and metallic side structures.
     """
     h, w = img_bgr.shape[:2]
     hls = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2HLS)
 
-    # Asphalt / concrete pavement characteristics:
-    # Moderate lightness, low saturation.
-    # Exclude green grass (H in [35, 85] with S >= 50)
     l_channel = hls[:, :, 1]
     s_channel = hls[:, :, 2]
     h_channel = hls[:, :, 0]
 
+    # Sample road color from vehicle hood area directly ahead (bottom-center)
+    sample_y1, sample_y2 = int(0.86 * h), int(0.97 * h)
+    sample_x1, sample_x2 = int(0.42 * w), int(0.58 * w)
+    patch_l = l_channel[sample_y1:sample_y2, sample_x1:sample_x2]
+    patch_s = s_channel[sample_y1:sample_y2, sample_x1:sample_x2]
+
+    med_l = float(np.median(patch_l)) if patch_l.size > 0 else 85.0
+    med_s = float(np.median(patch_s)) if patch_s.size > 0 else 30.0
+
+    min_l = max(18, int(med_l - 60))
+    max_l = min(220, int(med_l + 70))
+    max_s = min(95, max(50, int(med_s + 45)))
+
     pavement_candidate = (
-        (l_channel >= 20) & (l_channel <= 205)
-        & (s_channel <= 90)
-        & ~((h_channel >= 35) & (h_channel <= 85) & (s_channel >= 50))
+        (l_channel >= min_l) & (l_channel <= max_l)
+        & (s_channel <= max_s)
+        & ~((h_channel >= 32) & (h_channel <= 88) & (s_channel >= 40))
     )
 
     # Mask out everything at or above the horizon line
@@ -536,7 +695,6 @@ def segment_road_surface(img_bgr: np.ndarray, horizon_y: int) -> np.ndarray:
 
     # Flood fill
     ff_mask = np.zeros((h + 2, w + 2), dtype=np.uint8)
-    # If seed pixel is 0, search adjacent bottom pixels
     if road_bin[seed_y, seed_x] == 0:
         found_seed = False
         for offset_x in [0, -20, 20, -40, 40, -80, 80]:
@@ -546,7 +704,6 @@ def segment_road_surface(img_bgr: np.ndarray, horizon_y: int) -> np.ndarray:
                 found_seed = True
                 break
         if not found_seed:
-            # Fallback to standard lower trapezoid if seed not found
             return _roi_mask(h, w, horizon_y)
 
     cv2.floodFill(road_bin, ff_mask, (seed_x, seed_y), 255, flags=4 | (255 << 8))
@@ -605,10 +762,10 @@ def _roi_mask(h: int, w: int, horizon_y: int = 126) -> np.ndarray:
     top_y = max(horizon_y, int(0.32 * h))
 
     pts = np.array([[
-        (int(0.04 * w), h),
-        (int(0.40 * w), top_y),
-        (int(0.60 * w), top_y),
-        (int(0.96 * w), h),
+        (int(0.06 * w), h),
+        (int(0.38 * w), top_y),
+        (int(0.62 * w), top_y),
+        (int(0.94 * w), h),
     ]], dtype=np.int32)
 
     cv2.fillPoly(mask, pts, 255)
@@ -621,19 +778,29 @@ def _separate_lines_vectorized(
     h: int,
     horizon_y: int,
     min_length: float,
-    max_slope: float = 2.0,
+    max_slope: float = 1.85,
     min_slope: float = 0.30,
-) -> Tuple[list, list]:
+    road_mask: Optional[np.ndarray] = None,
+) -> Tuple[list, list, bool, bool]:
     """
     Split Hough lines into left and right candidates using vectorized NumPy operations.
-    Rejects near-vertical guardrail edges (|slope| > max_slope), short segments (< min_length),
-    and lines falling outside the highway lane envelope.
+    Rejects:
+    - Vertical guardrail posts (|slope| > max_slope)
+    - Horizontal crosswalks/shadows (|slope| < min_slope)
+    - Lines originating outside the road surface region (tested against road_mask)
+    - Lines extending above the horizon
+    - Lines slanting outward (must converge towards upper vanishing point)
+
+    Returns:
+    (left_pts, right_pts, has_outside_lines, has_extreme_slopes)
     """
     left_pts: list[Tuple[int, int]] = []
     right_pts: list[Tuple[int, int]] = []
+    has_outside_lines = False
+    has_extreme_slopes = False
 
     if lines is None or len(lines) == 0:
-        return left_pts, right_pts
+        return left_pts, right_pts, False, False
 
     segs = lines.reshape(-1, 4)
     x1, y1, x2, y2 = segs[:, 0], segs[:, 1], segs[:, 2], segs[:, 3]
@@ -649,10 +816,16 @@ def _separate_lines_vectorized(
     nonzero_dx = np.abs(dx) > 1e-4
     slopes = np.divide(dy, dx, where=nonzero_dx, out=np.full_like(dy, 999.0, dtype=np.float32))
 
-    # Reject vertical guardrails (|slope| > max_slope) and horizontal crosswalks (|slope| < min_slope)
+    # Reject vertical guardrails (|slope| > max_slope) and horizontal noise (|slope| < min_slope)
     valid_slope = valid_len & (np.abs(slopes) >= min_slope) & (np.abs(slopes) <= max_slope)
+    if np.any(valid_len & (np.abs(slopes) > max_slope)):
+        has_extreme_slopes = True
 
-    # 3. Bottom intercept projection: x_bot = x1 + (h - y1) / slope
+    # 3. Horizon cutoff (must be strictly below horizon)
+    y_min = np.minimum(y1, y2)
+    below_horizon = valid_slope & (y_min >= (horizon_y - 2))
+
+    # 4. Bottom intercept projection: x_bot = x1 + (h - y1) / slope
     bot_x = x1.astype(np.float32) + np.divide(
         (h - y1).astype(np.float32),
         slopes,
@@ -660,19 +833,50 @@ def _separate_lines_vectorized(
         out=np.full_like(dx, -999.0, dtype=np.float32),
     )
 
-    # 4. Road envelope classification
-    left_mask = valid_slope & (slopes < 0) & (bot_x >= 0.04 * w) & (bot_x <= 0.52 * w) & (np.maximum(x1, x2) < (0.55 * w))
-    right_mask = valid_slope & (slopes > 0) & (bot_x >= 0.48 * w) & (bot_x <= 0.96 * w) & (np.minimum(x1, x2) > (0.45 * w))
+    # 5. Road envelope classification & slant validation
+    # Left line: slopes < 0 (y decreases as x increases, leaning right towards center)
+    # Right line: slopes > 0 (y increases as x increases, leaning left towards center)
+    left_mask = below_horizon & (slopes < 0) & (bot_x >= 0.05 * w) & (bot_x <= 0.50 * w) & (np.maximum(x1, x2) < (0.55 * w))
+    right_mask = below_horizon & (slopes > 0) & (bot_x >= 0.50 * w) & (bot_x <= 0.95 * w) & (np.minimum(x1, x2) > (0.45 * w))
 
-    left_idx = np.where(left_mask)[0]
-    right_idx = np.where(right_mask)[0]
+    # 6. Road surface region constraint
+    if road_mask is not None and np.count_nonzero(road_mask) > (0.04 * h * w):
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (9, 9))
+        road_dil = cv2.dilate(road_mask, kernel, iterations=1)
 
-    for idx in left_idx:
+        def is_on_road(idx: int) -> bool:
+            lx1, ly1, lx2, ly2 = x1[idx], y1[idx], x2[idx], y2[idx]
+            pts_to_check = [
+                (int(lx1 * 0.85 + lx2 * 0.15), int(ly1 * 0.85 + ly2 * 0.15)),
+                (int(lx1 * 0.50 + lx2 * 0.50), int(ly1 * 0.50 + ly2 * 0.50)),
+                (int(lx1 * 0.15 + lx2 * 0.85), int(ly1 * 0.15 + ly2 * 0.85)),
+            ]
+            in_count = sum(1 for px, py in pts_to_check if 0 <= py < h and 0 <= px < w and road_dil[py, px] > 0)
+            return in_count >= 2
+
+        left_valid_indices = []
+        for idx in np.where(left_mask)[0]:
+            if is_on_road(idx):
+                left_valid_indices.append(idx)
+            else:
+                has_outside_lines = True
+
+        right_valid_indices = []
+        for idx in np.where(right_mask)[0]:
+            if is_on_road(idx):
+                right_valid_indices.append(idx)
+            else:
+                has_outside_lines = True
+    else:
+        left_valid_indices = np.where(left_mask)[0].tolist()
+        right_valid_indices = np.where(right_mask)[0].tolist()
+
+    for idx in left_valid_indices:
         left_pts.extend([(int(x1[idx]), int(y1[idx])), (int(x2[idx]), int(y2[idx]))])
-    for idx in right_idx:
+    for idx in right_valid_indices:
         right_pts.extend([(int(x1[idx]), int(y1[idx])), (int(x2[idx]), int(y2[idx]))])
 
-    return left_pts, right_pts
+    return left_pts, right_pts, has_outside_lines, has_extreme_slopes
 
 
 def _fit_and_rasterise(

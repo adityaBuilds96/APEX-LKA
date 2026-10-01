@@ -76,6 +76,31 @@ def test_steering_convention():
     assert sc["max_steering_command"] > 0
 
 
+def test_safe_count_dir_non_existent(tmp_path):
+    """Verify safe counting helper handles non-existent paths without crashing."""
+    from dashboard.app import _safe_count_dir
+
+    non_existent = tmp_path / "ghost_dir_123"
+    assert _safe_count_dir(non_existent, {".jpg", ".png"}) == 0
+    assert _safe_count_dir(None, {".jpg", ".png"}) == 0
+
+    # Create dummy dir with mixed files
+    test_d = tmp_path / "real_dir"
+    test_d.mkdir()
+    (test_d / "a.jpg").write_text("dummy")
+    (test_d / "b.png").write_text("dummy")
+    (test_d / "c.txt").write_text("dummy")
+    assert _safe_count_dir(test_d, {".jpg", ".png"}) == 2
+
+
+def test_dashboard_app_imports_paths():
+    """Verify dashboard/app.py exports/imports PATHS and cfg cleanly."""
+    import dashboard.app as app
+    assert hasattr(app, "PATHS"), "dashboard/app.py must have PATHS imported"
+    assert hasattr(app, "cfg"), "dashboard/app.py must have cfg imported"
+    assert app.PATHS is not None
+
+
 if __name__ == "__main__":
     # Run tests directly without pytest
     tests = [
@@ -85,6 +110,8 @@ if __name__ == "__main__":
         test_data_collection_config,
         test_model_config,
         test_steering_convention,
+        test_safe_count_dir_non_existent,
+        test_dashboard_app_imports_paths,
     ]
     passed = 0
     failed = 0
