@@ -1,0 +1,24 @@
+{
+  "session_id": "SESSION_1791250682_16d219",
+  "timestamp": "2026-10-06T07:08:03Z",
+  "profile": "TEST-OFFROAD",
+  "surface_type": "offroad",
+  "duration_frames": 40,
+  "passed": true,
+  "metrics": {
+    "rms_cross_track_m": 0.083,
+    "peak_cross_track_m": 0.171,
+    "rms_heading_error_deg": 1.09,
+    "max_sustained_lka_lost_s": 0.0,
+    "peak_steer_rate_dps": 40.3,
+    "ram_peak_mb": 2154.9
+  },
+  "perception_modes": {
+    "MODE_A_PAINTED": 0,
+    "MODE_B_CONTRAST": 40,
+    "MODE_C_CENTROID": 0
+  },
+  "camera_events_count": 0,
+  "camera_events": [],
+  "telemetry_csv": "C:\\Users\\chavh\\OneDrive\\LKA.MAIN\\results\\benchmarks\\last_session\\telemetry.csv"
+}

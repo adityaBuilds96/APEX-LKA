@@ -72,14 +72,17 @@ augmentation:
 model:
   model_name: "APEX-RLP"       # Configurable model name
   architecture: "LaneSegNet"   # Custom lightweight segmentation model
-  backbone: "mobilenetv3"      # Lightweight backbone for real-time
+  backbone: "mobilenet_v3_small" # Lightweight backbone for real-time
+  fpn_channels: 128
   num_classes: 3               # 0=background, 1=left_lane, 2=right_lane (baseline)
   target_num_classes: 4        # 0=background, 1=road, 2=left_lane, 3=right_lane (dynamic)
   pretrained_backbone: true
   input_channels: 3            # RGB
+  param_limit_min: 3000000
+  param_limit_max: 5000000
   # Checkpoint
   best_model_metric: "val_mean_iou"
-  save_every_n_epochs: 5
+  save_every_n_epochs: 1
 
 # ------- Training --------------------------------------------
 training:
@@ -89,13 +92,25 @@ training:
   lr_scheduler: "cosine"       # cosine | step | plateau
   weight_decay: 0.0001
   optimizer: "adam"            # adam | sgd | adamw
-  loss: "combined"             # combined = dice + cross_entropy
-  dice_weight: 0.5
-  ce_weight: 0.5
+  loss: "combined"             # combined = dice + cross_entropy + boundary
+  dice_weight: 0.4
+  ce_weight: 0.4
+  boundary_weight: 0.2
   num_workers: 0               # Set to 0 on Windows to avoid multiprocessing issues
   pin_memory: false
   early_stopping_patience: 10  # Stop if val_iou doesn't improve for N epochs
   gradient_clip: 1.0
+
+# ------- Model Export & Edge Optimization --------------------
+export:
+  opset_version: 17
+  dynamic_batch: true
+  fp16: true
+  simplify: true
+  tensorrt_workspace_mb: 512
+  tensorrt_fp16: true
+  parity_tolerance: 1e-3
+  parity_test_frames: 100
 
 # ------- Advanced Training Features (RTX 4060 Optimized) -----
 training_advanced:
@@ -262,3 +277,185 @@ lane_detection_universal:
     processing_resolution: [480, 270]
     target_fps: 30
 
+# ============================================================
+# Multi-Task Autonomous Scene Perception Configuration (Phase 4)
+# ============================================================
+scene_perception:
+  environmental_adaptation: true
+  clahe_clip_limit: 3.0
+  clahe_grid_size: [8, 8]
+  camera_calibration:
+    mounting_height_m: 1.25
+    pitch_angle_deg: 0.0
+    focal_length_px: 500.0
+    horizon_y_px: 126  # 0.35 * 360
+  temporal_smoothing:
+    enabled: true
+    buffer_depth: 5
+    ema_alpha: 0.65
+    max_lateral_jump_m: 0.50
+    hold_gap_frames: 3
+
+# ============================================================
+# Optical Calibration & Kinematic Control Configuration (Section 5)
+# ============================================================
+camera_intrinsics:
+  fx: 500.0
+  fy: 500.0
+  cx: 320.0
+  cy: 180.0
+
+paths_extra:
+  camera_extrinsics: "configs/camera_extrinsics.yaml"
+  bev:               "configs/bev.yaml"
+  actuation:         "configs/actuation_profile.yaml"
+
+perception_runtime:
+  road_first: true
+  horizon_from_extrinsics: true
+  poly_degree_bev: 2
+  ransac_iters: 50
+  ransac_inlier_tol_m: 0.08
+  ekf:
+    enabled: true
+    process_noise: 1.0e-3
+    measurement_noise: 2.0e-2
+    max_innov_m: 0.5
+    max_hold_frames: 3
+  quality:
+    min_inliers: 40
+    min_coverage: 0.15
+    attenuate_below: 0.5
+
+control:
+  wheelbase_m: 1.60
+  stanley:
+    k: 1.1
+    epsilon_v: 0.3
+  pure_pursuit:
+    L_min: 1.5
+    L_max: 6.0
+    k_speed: 0.4
+  switching:
+    kappa_switch: 0.08
+    hysteresis: 0.02
+  limits:
+    delta_max_deg: 30
+    delta_rate_max_dps: 120
+  quality_scaling:
+    min_scale: 0.3
+    full_scale_above: 0.75
+
+# ============================================================
+# Section 6 — Hardware-In-The-Loop, Camera & Certification
+# ============================================================
+paths_extra_section6:
+  camera_intrinsics: "configs/camera_intrinsics.yaml"
+  camera_profiles:   "configs/camera_profiles.yaml"
+  hil:               "configs/hil.yaml"
+  fault_matrix:      "configs/fault_matrix.yaml"
+
+camera_runtime:
+  target_fps: 30
+  depth1_capture: true
+  monotonic_timestamps: true
+  exposure_control:
+    enabled: true
+    target_lightness: 118
+    tolerance: 10
+    update_every_n_frames: 5
+  awb_lock_after_frames: 60
+  tone_mapping:
+    adaptive_clahe: true
+    clip_min: 1.5
+    clip_max: 4.0
+  glare_suppression:
+    enabled: true
+    highlight_thresh: 240
+    bloom_min_area_px: 150
+  occlusion_detector:
+    enabled: true
+    sharpness_min: 25.0
+    frames_to_trigger: 10
+  distortion_correction:
+    enabled: true
+  frame_hashing:
+    enabled: true
+    every_n_frames: 15
+  supervisor:
+    jitter_warn_ms: 8
+    jitter_fault_ms: 20
+    hotplug_retry_backoff_s: [1, 2, 4, 8]
+
+certification_budgets:
+  latency_p50_ms: 15
+  latency_p95_ms: 25
+  latency_p99_ms: 40
+  fps_floor: 30
+  ram_peak_mb: 1400
+  watchdog_recovery_ms: 500
+
+# ============================================================
+# Phase 5: Section 1 — Multi-Object Detection & Risk Assessment
+# ============================================================
+object_detection:
+  enabled: true
+  model_path: "models/exported/multitask_best.onnx"
+  engine_path: "models/exported/multitask_best.plan"
+  confidence_threshold: 0.35
+  nms_threshold: 0.45
+  classes:
+    0: "vehicle"
+    1: "pedestrian"
+    2: "cyclist"
+    3: "traffic_cone"
+    4: "barrier"
+    5: "animal"
+    6: "debris"
+    7: "traffic_sign"
+    8: "traffic_light"
+
+risk_assessment:
+  emergency_brake_risk_threshold: 85
+  proximity_brake_threshold: 0.75
+  corridor_padding_px: 20
+
+# ============================================================
+# Phase 5: Section 2 — 3D Scene Depth & Occupancy Grid
+# ============================================================
+depth_estimation:
+  enabled: true
+  model_path: "models/exported/depth_best.onnx"
+  engine_path: "models/exported/depth_best.plan"
+  metric_scale: 15.0
+  metric_shift: 0.1
+
+occupancy_grid:
+  grid_resolution_m: 0.10
+  x_min_m: -5.0
+  x_max_m: 5.0
+  z_min_m: 0.0
+  z_max_m: 15.0
+  raycast_shadows: true
+
+# ============================================================
+# Phase 5: Section 3 — Perception Recovery, Tracking & Trajectory
+# ============================================================
+lane_perfection:
+  lab_b_min: 145
+  hls_l_min: 200
+  ransac_iterations: 50
+  ransac_threshold_px: 3.0
+  min_lane_width_px: 150
+  max_lane_width_px: 380
+
+object_tracking:
+  enabled: true
+  track_thresh: 0.45
+  track_buffer_frames: 30
+  match_thresh: 0.80
+
+trajectory_prediction:
+  horizon_seconds: 3.0
+  tti_warning_threshold_s: 2.5
+  tti_critical_threshold_s: 1.0

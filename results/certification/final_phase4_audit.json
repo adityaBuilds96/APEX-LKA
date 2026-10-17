@@ -1,0 +1,68 @@
+{
+  "verdict": "GO",
+  "certified": true,
+  "timestamp": "2026-10-03T17:56:18Z",
+  "gates": {
+    "task_6_1_hil_bench": {
+      "passed": true,
+      "metrics": {
+        "latency_p50_ms": 14.41,
+        "latency_p95_ms": 17.41,
+        "latency_p99_ms": 18.92,
+        "sustained_fps_min": 29.99,
+        "watchdog_trips": 0,
+        "total_exceptions": 0
+      }
+    },
+    "task_6_2_campus_paved": {
+      "passed": true,
+      "metrics": {
+        "rms_cross_track_m": 0.052,
+        "peak_cross_track_m": 0.076,
+        "rms_heading_error_deg": 0.11,
+        "max_sustained_lka_lost_s": 0.0,
+        "peak_steer_rate_dps": 5.23,
+        "ram_peak_mb": 57.9
+      }
+    },
+    "task_6_3_offroad_extreme": {
+      "passed": true,
+      "metrics": {
+        "rms_cross_track_m": 0.086,
+        "peak_cross_track_m": 0.205,
+        "rms_heading_error_deg": 2.07,
+        "max_sustained_lka_lost_s": 0.0,
+        "peak_steer_rate_dps": 42.53,
+        "ram_peak_mb": 64.9
+      }
+    },
+    "task_6_4_safety_watchdog": {
+      "passed": true,
+      "faults_passed": 8
+    },
+    "task_6_5_telemetry_audit": {
+      "passed": true,
+      "summary": {
+        "session_dir": "C:\\Users\\chavh\\OneDrive\\LKA.MAIN\\results\\benchmarks\\last_session",
+        "timestamp": "2026-10-03T17:56:11Z",
+        "passed": true,
+        "verdict": "AUDIT_PASS",
+        "frame_counts": 150,
+        "monotonic_timestamps": true,
+        "max_gap_ms": 47.0,
+        "gaps_over_100ms_count": 0,
+        "latency_p50_ms": 0.42,
+        "latency_p95_ms": 0.88,
+        "latency_p99_ms": 1.13,
+        "mean_fps": 30.2,
+        "min_fps": 25.8,
+        "peak_ram_mb": 65.2,
+        "frame_hashes_recorded": 150,
+        "camera_events_summary": {
+          "GLARE_SUPPRESSED": 21,
+          "LENS_OCCLUDED": 31
+        }
+      }
+    }
+  }
+}

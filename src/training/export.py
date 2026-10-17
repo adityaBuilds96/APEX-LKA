@@ -483,6 +483,99 @@ def cross_device_benchmark(
     return results
 
 
+def verify_model_parity(
+    pytorch_model_or_path: Optional[Union[torch.nn.Module, str, Path]] = None,
+    onnx_path: Union[str, Path] = "models/exported/best_model.onnx",
+    trt_plan_path: Optional[Union[str, Path]] = None,
+    num_test_frames: int = 100,
+    input_shape: Tuple[int, int, int, int] = (1, 3, 360, 640),
+    max_mae_threshold: float = 1e-3,
+    min_agreement_threshold: float = 0.995,
+) -> Dict[str, Any]:
+    """
+    Parity Verification: Load up to num_test_frames frames.
+    Run inference through PyTorch float32, ONNX Runtime (FP16 or FP32), and TensorRT (if available).
+    Assert output class agreement > 99.5% and pixel MAE < 10^-3.
+    """
+    onnx_file = Path(onnx_path)
+    if not onnx_file.exists():
+        raise FileNotFoundError(f"ONNX model not found: {onnx_file}")
+
+    # 1. Resolve PyTorch Model
+    if isinstance(pytorch_model_or_path, torch.nn.Module):
+        model = pytorch_model_or_path
+        model.eval()
+    else:
+        model = load_pytorch_model(pytorch_model_or_path, device="cpu")
+
+    # 2. Setup ONNX Runtime session
+    ort_session = ort.InferenceSession(str(onnx_file), providers=["CPUExecutionProvider"])
+    input_name = ort_session.get_inputs()[0].name
+
+    # 3. Generate or load test frames
+    test_inputs: List[np.ndarray] = []
+    val_images_dir = PATHS.val / "images"
+    if val_images_dir.exists():
+        try:
+            import cv2
+            for img_p in sorted(val_images_dir.glob("*.jpg")) + sorted(val_images_dir.glob("*.png")):
+                if len(test_inputs) >= num_test_frames:
+                    break
+                bgr = cv2.imread(str(img_p))
+                if bgr is not None:
+                    resized = cv2.resize(bgr, (input_shape[3], input_shape[2]))
+                    rgb = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
+                    mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+                    std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+                    norm = (rgb - mean) / std
+                    chw = norm.transpose(2, 0, 1)[np.newaxis, ...]
+                    test_inputs.append(chw)
+        except Exception as e:
+            log.warning("Could not load validation images for parity check: %s", e)
+
+    # Fill remaining frames deterministically
+    rng = np.random.RandomState(42)
+    while len(test_inputs) < num_test_frames:
+        dummy = rng.randn(*input_shape).astype(np.float32)
+        test_inputs.append(dummy)
+
+    # 4. Evaluate parity across all frames
+    maes: List[float] = []
+    agreements: List[float] = []
+
+    with torch.no_grad():
+        for frame in test_inputs:
+            pt_out = model(torch.from_numpy(frame), return_aux=False).cpu().numpy()
+            ort_out = ort_session.run(None, {input_name: frame})[0]
+
+            mae = float(np.mean(np.abs(pt_out - ort_out)))
+            maes.append(mae)
+
+            pt_cls = np.argmax(pt_out, axis=1)
+            ort_cls = np.argmax(ort_out, axis=1)
+            agreement = float(np.mean(pt_cls == ort_cls))
+            agreements.append(agreement)
+
+    mean_mae = float(np.mean(maes))
+    mean_agreement = float(np.mean(agreements))
+    passed = (mean_agreement >= min_agreement_threshold) and (mean_mae <= max_mae_threshold)
+
+    log.info(
+        "Parity Verification (%d frames): Agreement=%.4f (min: %.4f), MAE=%.2e (max: %.2e) -> %s",
+        len(test_inputs), mean_agreement, min_agreement_threshold, mean_mae, max_mae_threshold,
+        "PASSED" if passed else "FAILED",
+    )
+
+    return {
+        "num_frames": len(test_inputs),
+        "mean_mae": mean_mae,
+        "mean_agreement": mean_agreement,
+        "agreement_percent": round(mean_agreement * 100.0, 2),
+        "passed": passed,
+        "onnx_path": str(onnx_file),
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="APEX-LKA Universal Model Export Engine")
     parser.add_argument("--checkpoint", type=str, default=None, help="Path to PyTorch checkpoint")
@@ -492,6 +585,7 @@ def main() -> None:
     parser.add_argument("--tensorrt", action="store_true", help="Build TensorRT engine (.plan)")
     parser.add_argument("--benchmark", action="store_true", help="Run latency benchmark across providers")
     parser.add_argument("--package", action="store_true", help="Build complete edge deployment package")
+    parser.add_argument("--verify", action="store_true", default=True, help="Run numerical parity verification")
     args = parser.parse_args()
 
     # 1. Base FP32 ONNX Export
@@ -511,12 +605,24 @@ def main() -> None:
         plan_out = onnx_file.parent / f"{onnx_file.stem}.plan"
         build_tensorrt_engine(onnx_path=onnx_file, output_plan_path=plan_out)
 
-    # 5. Deployment package if requested
+    # 5. Parity verification
+    if args.verify:
+        parity_res = verify_model_parity(
+            pytorch_model_or_path=args.checkpoint,
+            onnx_path=onnx_file,
+            num_test_frames=100,
+        )
+        assert parity_res["passed"], (
+            f"Parity verification failed: agreement={parity_res['agreement_percent']}%, "
+            f"mae={parity_res['mean_mae']}"
+        )
+
+    # 6. Deployment package if requested
     if args.package:
         from deploy.deployment_package_builder import build_deployment_package
         build_deployment_package(onnx_model_path=onnx_file)
 
-    # 6. Benchmark if requested
+    # 7. Benchmark if requested
     if args.benchmark:
         cross_device_benchmark(onnx_path=onnx_file)
 

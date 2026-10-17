@@ -146,17 +146,30 @@ class ModelCheckpoint(Callback):
             "batch_idx": batch_idx,
             "batch_size": getattr(trainer, "batch_size", 8),
             "gradient_accumulation_steps": getattr(trainer, "grad_accum_steps", 1),
+            "model_state": trainer.model.state_dict(),
             "model_state_dict": trainer.model.state_dict(),
+            "optimizer_state": trainer.optimizer.state_dict(),
             "optimizer_state_dict": trainer.optimizer.state_dict(),
+            "scheduler_state": (
+                trainer.scheduler.state_dict() if getattr(trainer, "scheduler", None) else None
+            ),
             "scheduler_state_dict": (
                 trainer.scheduler.state_dict() if getattr(trainer, "scheduler", None) else None
+            ),
+            "ema_state": (
+                trainer.ema.state_dict() if getattr(trainer, "ema", None) else None
             ),
             "ema_state_dict": (
                 trainer.ema.state_dict() if getattr(trainer, "ema", None) else None
             ),
+            "scaler_state": (
+                trainer.scaler.state_dict() if getattr(trainer, "scaler", None) else None
+            ),
             "scaler_state_dict": (
                 trainer.scaler.state_dict() if getattr(trainer, "scaler", None) else None
             ),
+            "best_miou": getattr(trainer, "best_metric", -1.0),
+            "config_snapshot": getattr(trainer, "config", {}),
             "random_states": get_random_states(),
             "best_metric": getattr(trainer, "best_metric", -1.0),
             "early_stopping_wait": early_stopping_wait,
@@ -184,6 +197,10 @@ class ModelCheckpoint(Callback):
         log.info("Saved checkpoint -> %s (epoch %d, batch %d)", path.name, epoch, batch_idx)
 
     def on_epoch_end(self, trainer: Any, epoch: int, metrics: Dict[str, float]) -> None:
+        # Atomic latest checkpoint for auto-resume
+        latest_ckpt = self.checkpoint_dir / "checkpoint_latest.pth"
+        self.save_checkpoint(latest_ckpt, trainer, epoch=epoch, batch_idx=0, metrics=metrics)
+
         last_ckpt = self.checkpoint_dir / "last_checkpoint.pt"
         self.save_checkpoint(last_ckpt, trainer, epoch=epoch, batch_idx=0, metrics=metrics)
 
@@ -203,6 +220,9 @@ class ModelCheckpoint(Callback):
         batch_idx: int,
         error: BaseException,
     ) -> None:
+        latest_ckpt = self.checkpoint_dir / "checkpoint_latest.pth"
+        self.save_checkpoint(latest_ckpt, trainer, epoch=epoch, batch_idx=batch_idx)
+
         crash_ckpt = self.checkpoint_dir / "crash_checkpoint.pt"
         self.save_checkpoint(crash_ckpt, trainer, epoch=epoch, batch_idx=batch_idx)
 
@@ -210,8 +230,8 @@ class ModelCheckpoint(Callback):
         self.save_checkpoint(emergency_ckpt, trainer, epoch=epoch, batch_idx=batch_idx)
 
         log.warning(
-            "Emergency crash recovery saved to %s (epoch %d, batch %d, error: %s)",
-            crash_ckpt, epoch, batch_idx, error
+            "Emergency crash recovery saved to %s and %s (epoch %d, batch %d, error: %s)",
+            latest_ckpt, crash_ckpt, epoch, batch_idx, error
         )
 
 

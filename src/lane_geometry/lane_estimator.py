@@ -29,10 +29,11 @@ This is more stable than y = f(x) for near-vertical lane lines.
 Polynomial degree: configurable (default 2 = quadratic = handles curves).
 """
 
+import math
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Any, Optional, Tuple
 
 import numpy as np
 
@@ -105,6 +106,15 @@ class LaneGeometry:
     curvature_left_m:  Optional[float] = None
     curvature_right_m: Optional[float] = None
 
+    # BEV Metric Polynomials and Errors (Phase 4 Section 5)
+    left_poly_bev:      Optional[np.ndarray] = None
+    right_poly_bev:     Optional[np.ndarray] = None
+    center_poly_bev:    Optional[np.ndarray] = None
+    lateral_offset_m:   Optional[float]      = None
+    heading_error_rad:  Optional[float]      = None
+    curvature_inv_m:    Optional[float]      = None
+    track_quality:      float                = 1.0
+
     # Model dimensions
     model_h:            int = 360
     model_w:            int = 640
@@ -125,7 +135,7 @@ class LaneGeometry:
 
     @property
     def geometry_valid(self) -> bool:
-        return self.has_left or self.has_right
+        return self.has_left or self.has_right or (self.center_poly_bev is not None)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -142,6 +152,7 @@ def estimate_geometry(
     lanes: PostprocessedLanes,
     model_h: int,
     model_w: int,
+    bev_transformer: Optional[Any] = None,
 ) -> LaneGeometry:
     """
     Fit polynomials to lane point arrays and compute geometry.
@@ -150,6 +161,7 @@ def estimate_geometry(
     ----------
     lanes : PostprocessedLanes
     model_h, model_w : int — image dimensions in model space
+    bev_transformer : BEVTransformer | None — optional metric BEV transformer
 
     Returns
     -------
@@ -157,7 +169,7 @@ def estimate_geometry(
     """
     t0 = time.perf_counter()
 
-    # ── Fit left lane ──────────────────────────────────────────────────────
+    # ── Fit left lane in pixel space (backwards compatible) ─────────────────
     left_poly  = _fit_poly(lanes.left_pts)
     right_poly = _fit_poly(lanes.right_pts)
 
@@ -166,7 +178,7 @@ def estimate_geometry(
     x_left   = float(np.polyval(left_poly,  y_bottom)) if left_poly  is not None else None
     x_right  = float(np.polyval(right_poly, y_bottom)) if right_poly is not None else None
 
-    # ── Lane center estimation ─────────────────────────────────────────────
+    # ── Lane center estimation in pixel space ──────────────────────────────
     one_estimated = False
     if x_left is not None and x_right is not None:
         lane_center = (x_left + x_right) / 2.0
@@ -183,11 +195,67 @@ def estimate_geometry(
     else:
         lane_center = None
 
-    # ── Curvature (pixels → approximate metres) ────────────────────────────
-    # Without calibration, pixel-to-metre is ~0.003 m/px (rough).
-    # Only compute for quadratic fit (degree >= 2).
+    # ── Curvature in pixel space ───────────────────────────────────────────
     curv_left  = _curvature_radius(left_poly,  y_bottom) if left_poly  is not None else None
     curv_right = _curvature_radius(right_poly, y_bottom) if right_poly is not None else None
+
+    # ── BEV Metric Fitting (Phase 4 Section 5) ─────────────────────────────
+    left_poly_bev: Optional[np.ndarray] = None
+    right_poly_bev: Optional[np.ndarray] = None
+    center_poly_bev: Optional[np.ndarray] = None
+    lat_offset_m: Optional[float] = None
+    heading_err_rad: Optional[float] = None
+    curv_inv_m: Optional[float] = None
+    quality: float = 1.0
+
+    if bev_transformer is not None:
+        nom_w = float(getattr(bev_transformer, "nominal_track_width_m", 1.80))
+        w_min, w_max = getattr(bev_transformer, "track_width_range_m", (1.0, 4.5))
+
+        # Project image points to metric ground plane
+        left_m = bev_transformer.image_to_metric(lanes.left_pts) if lanes.left_pts is not None and len(lanes.left_pts) >= _MIN_PTS else None
+        right_m = bev_transformer.image_to_metric(lanes.right_pts) if lanes.right_pts is not None and len(lanes.right_pts) >= _MIN_PTS else None
+
+        if left_m is not None:
+            left_poly_bev = bev_transformer.fit_metric_polynomial(left_m, degree=2, ransac=True)
+        if right_m is not None:
+            right_poly_bev = bev_transformer.fit_metric_polynomial(right_m, degree=2, ransac=True)
+
+        # Plausibility check: track width at Z=5.0m
+        if left_poly_bev is not None and right_poly_bev is not None:
+            w_eval = float(np.polyval(right_poly_bev, 5.0) - np.polyval(left_poly_bev, 5.0))
+            if not (w_min <= w_eval <= w_max):
+                # Boundary violation: drop weaker line
+                len_l = len(lanes.left_pts) if lanes.left_pts is not None else 0
+                len_r = len(lanes.right_pts) if lanes.right_pts is not None else 0
+                if len_l >= len_r:
+                    right_poly_bev = None
+                else:
+                    left_poly_bev = None
+
+        if left_poly_bev is not None and right_poly_bev is not None:
+            center_poly_bev = (left_poly_bev + right_poly_bev) / 2.0
+            quality = 0.95
+        elif left_poly_bev is not None:
+            center_poly_bev = left_poly_bev.copy()
+            center_poly_bev[-1] += nom_w / 2.0
+            quality = 0.70
+        elif right_poly_bev is not None:
+            center_poly_bev = right_poly_bev.copy()
+            center_poly_bev[-1] -= nom_w / 2.0
+            quality = 0.70
+        else:
+            quality = 0.0
+
+        if center_poly_bev is not None:
+            # Lateral offset at vehicle bumper (Z = 2.0m)
+            lat_offset_m = round(float(np.polyval(center_poly_bev, 2.0)), 3)
+            # Tangent heading angle at Z = 2.0m: theta = atan(d X_m / d Z_m)
+            tan_slope = 2.0 * center_poly_bev[0] * 2.0 + center_poly_bev[1]
+            heading_err_rad = round(float(math.atan(tan_slope)), 4)
+            # Curvature at Z = 5.0m: kappa = 2*a / (1 + (2*a*Z + b)^2)^(3/2)
+            slope_5 = 2.0 * center_poly_bev[0] * 5.0 + center_poly_bev[1]
+            curv_inv_m = round(float((2.0 * center_poly_bev[0]) / ((1.0 + slope_5**2) ** 1.5)), 5)
 
     elapsed_ms = (time.perf_counter() - t0) * 1000.0
 
@@ -200,6 +268,13 @@ def estimate_geometry(
         one_lane_estimated = one_estimated,
         curvature_left_m   = curv_left,
         curvature_right_m  = curv_right,
+        left_poly_bev      = left_poly_bev,
+        right_poly_bev     = right_poly_bev,
+        center_poly_bev    = center_poly_bev,
+        lateral_offset_m   = lat_offset_m,
+        heading_error_rad  = heading_err_rad,
+        curvature_inv_m    = curv_inv_m,
+        track_quality      = quality,
         model_h            = model_h,
         model_w            = model_w,
         estimate_ms        = elapsed_ms,

@@ -1,0 +1,89 @@
+# ============================================================
+# APEX-LKA Fault Injection Matrix & Safety Certification Matrix
+# ============================================================
+global_safety_budget_ms: 500
+
+faults:
+  F1:
+    name: "Camera Disconnect"
+    description: "Abrupt termination of camera capture thread / sensor unbind"
+    mechanism: "kill_capture_thread"
+    expected_safe_state_ms: 500
+    expected_mode: "EMERGENCY_STOP"
+    expected_health_code: 3
+    recovers_on_clear: true
+    attenuation_only: false
+
+  F2:
+    name: "CAN Bus Error Storm"
+    description: "Injection of corrupted CAN frames / bus-off state"
+    mechanism: "corrupt_can_frames"
+    expected_safe_state_ms: 500
+    expected_mode: "EMERGENCY_STOP"
+    expected_health_code: 3
+    recovers_on_clear: true
+    attenuation_only: false
+
+  F3:
+    name: "Serial Disconnect"
+    description: "Node 1 / Node 2 serial port unbind / device node loss"
+    mechanism: "close_serial_port"
+    expected_safe_state_ms: 500
+    expected_mode: "EMERGENCY_STOP"
+    expected_health_code: 3
+    recovers_on_clear: true
+    attenuation_only: false
+
+  F4:
+    name: "Model Inference Exception"
+    description: "Forced CUDA/TensorRT runtime exception inside forward pass"
+    mechanism: "force_inference_exception"
+    expected_safe_state_ms: 500
+    expected_mode: "EMERGENCY_STOP"
+    expected_health_code: 3
+    recovers_on_clear: true
+    attenuation_only: false
+
+  F5:
+    name: "Lens Occlusion Event"
+    description: "Sustained dust, mud, or water droplet blur covering optical lens"
+    mechanism: "force_lens_occlusion"
+    expected_safe_state_ms: 500
+    expected_mode: "DEGRADED"
+    expected_health_code: 1
+    recovers_on_clear: true
+    attenuation_only: true
+    attenuation_factor: 0.30
+
+  F6:
+    name: "Manual Override Pin Triggered"
+    description: "Driver manual override intervention detected via GPIO/Node 1 pin"
+    mechanism: "trigger_manual_override_pin"
+    expected_safe_state_ms: 500
+    expected_mode: "MANUAL_OVERRIDE"
+    expected_health_code: 2
+    recovers_on_clear: true
+    attenuation_only: false
+
+  F7:
+    name: "Low Confidence Sustained"
+    description: "Perception track_quality drops < 0.20 for consecutive time window"
+    mechanism: "inject_low_confidence"
+    duration_s: 1.5
+    expected_safe_state_ms: 500
+    expected_mode: "EMERGENCY_STOP"
+    expected_health_code: 3
+    recovers_on_clear: true
+    attenuation_only: false
+
+  F8:
+    name: "Thermal Spike Simulated"
+    description: "SoC temperature exceeds 85°C threshold requiring cooldown"
+    mechanism: "simulate_thermal_spike"
+    target_temp_c: 90.0
+    expected_safe_state_ms: 1000
+    expected_mode: "COOLDOWN"
+    expected_health_code: 4
+    recovers_on_clear: true
+    attenuation_only: false
+    requires_zero_crash: true

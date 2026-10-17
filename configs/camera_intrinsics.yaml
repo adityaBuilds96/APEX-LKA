@@ -1,0 +1,28 @@
+# ============================================================
+# Camera Intrinsic Calibration Parameters (APEX-LKA)
+# ============================================================
+image_width: 640
+image_height: 360
+
+fx: 500.0
+fy: 500.0
+cx: 320.0
+cy: 180.0
+
+distortion_coefficients:
+  k1: -0.0450
+  k2:  0.0080
+  p1:  0.0005
+  p2: -0.0002
+  k3:  0.0000
+
+camera_matrix:
+  - [500.0,   0.0, 320.0]
+  - [  0.0, 500.0, 180.0]
+  - [  0.0,   0.0,   1.0]
+
+distortion_vector: [-0.0450, 0.0080, 0.0005, -0.0002, 0.0000]
+
+rms_reprojection_error: 0.24
+calibration_date: "2026-10-01"
+sensor_model: "Sony IMX219 (CSI-2 / USB)"

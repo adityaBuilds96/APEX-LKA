@@ -1,0 +1,18 @@
+{
+  "session_dir": "C:\\Users\\chavh\\OneDrive\\LKA.MAIN\\results\\benchmarks\\last_session",
+  "timestamp": "2026-10-06T07:11:45Z",
+  "passed": false,
+  "verdict": "AUDIT_FAIL",
+  "frame_counts": 25,
+  "monotonic_timestamps": true,
+  "max_gap_ms": 47.0,
+  "gaps_over_100ms_count": 0,
+  "latency_p50_ms": 0.2,
+  "latency_p95_ms": 0.34,
+  "latency_p99_ms": 0.36,
+  "mean_fps": 30.89,
+  "min_fps": 28.5,
+  "peak_ram_mb": 2154.9,
+  "frame_hashes_recorded": 25,
+  "camera_events_summary": {}
+}

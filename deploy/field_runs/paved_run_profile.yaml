@@ -1,0 +1,25 @@
+# ============================================================
+# Field Run Profile: Low-Speed Campus Paved Autonomous Run (Task 6.2)
+# ============================================================
+profile_id: "FIELD-PAVED-01"
+profile_name: "Campus Low-Speed Paved Autonomous Run"
+surface_type: "paved"
+vehicle_platform: "Universal Autonomous Vehicle Platform"
+operator: "APEX Validation Team"
+
+mission:
+  target_speed_mps: 2.5   # 9.0 km/h (nominal 5–15 km/h)
+  duration_frames: 120    # 4.0 seconds @ 30 FPS
+  target_fps: 30.0
+  road_geometry: "paved_straight_and_gentle_curves"
+
+pass_criteria:
+  rms_cross_track_straight_max_m: 0.20
+  peak_cross_track_curve_max_m: 0.50
+  rms_heading_error_max_deg: 5.0
+  max_unintended_lka_lost_s: 0.0
+
+camera_expectations:
+  c4_exposure_adaptation_required: true
+  c5_awb_lock_required: true
+  c7_tone_mapping_required: true

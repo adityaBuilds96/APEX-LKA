@@ -1,0 +1,55 @@
+# ============================================================
+# APEX-LKA HIL Sequence Manifest (Stationary Bench Validation)
+# ============================================================
+version: "1.0.0"
+vehicle_platform: "Universal Autonomous Vehicle Platform"
+hardware_target: "Jetson Orin Nano 4GB + 2x Arduino Mega 2560"
+
+scenarios:
+  - id: "HIL-SCEN-01"
+    name: "Paved Highway Straight Tracking"
+    clip_path: "data/raw_videos/hil_straight.mp4"
+    synthetic_pattern: "straight"
+    expected_behavior: "straight_centering"
+    duration_frames: 60
+    target_fps: 30.0
+    latency_budget_p99_ms: 40.0
+    latency_budget_p50_ms: 18.0
+    steering_range_deg: [-3.0, 3.0]
+    expected_lka_state: "LKA_ACTIVE"
+
+  - id: "HIL-SCEN-02"
+    name: "Campus High-Curvature Left Turn"
+    clip_path: "data/raw_videos/hil_left_curve.mp4"
+    synthetic_pattern: "left_curve"
+    expected_behavior: "left_curve_tracking"
+    duration_frames: 60
+    target_fps: 30.0
+    latency_budget_p99_ms: 40.0
+    latency_budget_p50_ms: 18.0
+    steering_range_deg: [-25.0, -2.0]
+    expected_lka_state: "LKA_ACTIVE"
+
+  - id: "HIL-SCEN-03"
+    name: "Campus High-Curvature Right Turn"
+    clip_path: "data/raw_videos/hil_right_curve.mp4"
+    synthetic_pattern: "right_curve"
+    expected_behavior: "right_curve_tracking"
+    duration_frames: 60
+    target_fps: 30.0
+    latency_budget_p99_ms: 40.0
+    latency_budget_p50_ms: 18.0
+    steering_range_deg: [2.0, 25.0]
+    expected_lka_state: "LKA_ACTIVE"
+
+  - id: "HIL-SCEN-04"
+    name: "Faded and Broken Lane Markings"
+    clip_path: "data/raw_videos/hil_broken_paint.mp4"
+    synthetic_pattern: "broken_paint"
+    expected_behavior: "degraded_state_tracking"
+    duration_frames: 60
+    target_fps: 30.0
+    latency_budget_p99_ms: 40.0
+    latency_budget_p50_ms: 18.0
+    steering_range_deg: [-15.0, 15.0]
+    expected_lka_state: "LKA_DEGRADED"

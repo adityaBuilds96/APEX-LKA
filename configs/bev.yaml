@@ -1,0 +1,25 @@
+# =============================================================
+# APEX-LKA: Bird's Eye View (BEV) Metric Grid & Homography Config
+# Coordinate frame: X right [m], Z forward [m]
+# =============================================================
+x_range_m: [-5.0, 5.0]
+z_range_m: [1.0, 20.0]
+meters_per_pixel: 0.025
+
+# 4 source ground-plane points in image space [x_px, y_px]
+# Evaluated on 640x360 image (below horizon y ~ 136)
+src_points:
+  - [120.0, 350.0]   # Bottom-left (near road)
+  - [520.0, 350.0]   # Bottom-right (near road)
+  - [395.0, 190.0]   # Top-right (far road)
+  - [245.0, 190.0]   # Top-left (far road)
+
+# 4 corresponding ground points in vehicle metric frame [X_m, Z_m]
+ground_points_m:
+  - [-1.75, 2.0]
+  - [ 1.75, 2.0]
+  - [ 1.75, 14.0]
+  - [-1.75, 14.0]
+
+nominal_track_width_m: 1.80
+track_width_range_m: [1.0, 4.5]

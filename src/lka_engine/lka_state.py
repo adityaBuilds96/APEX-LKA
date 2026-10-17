@@ -16,7 +16,7 @@ import time
 from collections import deque
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Deque, List, Optional, Tuple
+from typing import Any, Deque, List, Optional, Tuple
 
 import numpy as np
 
@@ -126,6 +126,12 @@ class LKATelemetry:
     consecutive_lost_frames: int = 0
     inference_ms: float = 0.0
     total_ms: float = 0.0
+
+    # Extended Scene & Perception Telemetry
+    scene_perception: Optional[Any] = None
+    risk_report: Optional[Any] = None
+    tracked_objects: Optional[Any] = None
+    trajectory_report: Optional[Any] = None
 
 
 # ═══════════════════════════════════════════════════════════════════════════

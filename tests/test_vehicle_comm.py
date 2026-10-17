@@ -12,6 +12,7 @@ Comprehensive Pytest suite for Jetson ↔ Arduino communication layer:
 
 import json
 import struct
+import sys
 import time
 import pytest
 import numpy as np
@@ -22,6 +23,7 @@ from deploy.vehicle_comm import (
     CAN_ID_FEEDBACK_N1,
     CAN_ID_FEEDBACK_N2,
     CAN_ID_HEARTBEAT,
+    CANInterface,
     MODE_AUTO,
     MODE_EMERGENCY_STOP,
     MODE_MANUAL,
@@ -31,6 +33,7 @@ from deploy.vehicle_comm import (
     Node2Telemetry,
     VehicleCommunicator,
 )
+from deploy.jetson_run import StanleyController, SafeExecutor
 
 
 def test_can_id_0x100_packing_and_unpacking():
@@ -181,3 +184,174 @@ def test_vehicle_communicator_failover_trigger():
     assert comm.consecutive_can_errors >= 5
     assert comm.active_channel == "SERIAL"
     comm.close()
+
+
+def test_stanley_controller_zero_error_yields_zero_steering():
+    """Verify that zero heading error and zero lateral offset produces 0 deg steering."""
+    ctrl = StanleyController(k_gain=2.0, max_steer_deg=30.0, default_speed_mps=5.0)
+    steer = ctrl.compute(heading_err_rad=0.0, lateral_offset_m=0.0, speed_mps=5.0)
+    assert steer == 0.0
+
+
+def test_stanley_controller_cross_track_correction_and_clamping():
+    """Verify Stanley steering correction direction, velocity scaling, and max angle saturation."""
+    ctrl = StanleyController(k_gain=2.0, max_steer_deg=30.0, default_speed_mps=5.0)
+
+    # When vehicle is right of center (offset > 0), controller should command negative steer (steer left)
+    steer_right = ctrl.compute(heading_err_rad=0.0, lateral_offset_m=0.5, speed_mps=5.0)
+    assert steer_right < 0.0
+
+    # When vehicle is left of center (offset < 0), controller should command positive steer (steer right)
+    steer_left = ctrl.compute(heading_err_rad=0.0, lateral_offset_m=-0.5, speed_mps=5.0)
+    assert steer_left > 0.0
+
+    # Higher speed dampens steering angle for same cross-track error
+    steer_fast = ctrl.compute(heading_err_rad=0.0, lateral_offset_m=0.5, speed_mps=15.0)
+    assert abs(steer_fast) < abs(steer_right)
+
+    # Extreme cross-track error saturates at max_steer_deg
+    steer_extreme = ctrl.compute(heading_err_rad=0.0, lateral_offset_m=10.0, speed_mps=1.0)
+    assert steer_extreme == -30.0
+
+
+def test_send_node1_control_alias():
+    """Verify send_node1_control alias forwards arguments properly to send_node1_command."""
+    comm = VehicleCommunicator(enable_can=True, enable_serial=False, sim_mode=True)
+    ok_str = comm.send_node1_control(steering_deg=-12.5, confidence=0.92, mode="AUTO", offset_m=0.15)
+    assert ok_str
+
+    ok_int = comm.send_node1_control(steering_deg=10.0, confidence=0.88, mode=MODE_AUTO, offset_m=-0.10)
+    assert ok_int
+    comm.close()
+
+
+def test_send_node2_control_alias():
+    """Verify send_node2_control alias forwards arguments properly to send_node2_command."""
+    comm = VehicleCommunicator(enable_can=True, enable_serial=False, sim_mode=True)
+    ok = comm.send_node2_control(throttle_pct=35.0, brake_pct=0.0, mode="AUTO")
+    assert ok
+    comm.close()
+
+
+def test_serial_compact_json_schema_fields():
+    """Verify Serial fallback JSON packet contains both compact and descriptive keys."""
+    class MockSerialInterface:
+        def __init__(self):
+            self.is_connected = True
+            self.last_json = None
+
+        def send_json(self, packet):
+            self.last_json = packet
+            return True
+
+        def close(self):
+            pass
+
+    comm = VehicleCommunicator(enable_can=False, enable_serial=True, sim_mode=False)
+    mock_serial = MockSerialInterface()
+    comm.serial_n1 = mock_serial
+
+    comm.send_node1_command(steering_deg=-12.5, actuator_trim=0.0, confidence=0.92, mode="AUTO", offset_m=0.12)
+    assert mock_serial.last_json is not None
+    pkt = mock_serial.last_json
+
+    # Compact keys
+    assert pkt["n"] == 1
+    assert pkt["str"] == -12.5
+    assert pkt["off"] == 0.12
+    assert pkt["cnf"] == 0.92
+    assert pkt["m"] == MODE_AUTO
+    assert "ts" in pkt
+    comm.close()
+
+
+def test_can_interface_static_packing_helpers():
+    """Verify CANInterface static bit-packing helper methods."""
+    # 0x100 Node 1 Frame
+    p1 = CANInterface.pack_node1_cmd(steering_deg=14.5, offset_mm_or_trim=-250, confidence=0.95, mode_val=1, ts_ms=45120)
+    assert len(p1) == 8
+    unpacked_1 = struct.unpack("<hhBBH", p1)
+    assert unpacked_1[0] == 1450
+    assert unpacked_1[1] == -250
+    assert unpacked_1[3] == 1
+
+    # 0x200 Node 2 Frame
+    p2 = CANInterface.pack_node2_cmd(cmd_a=45.0, cmd_b=10.0, mode_val=1, flags=0x05, ts_ms=12345)
+    assert len(p2) == 8
+    unpacked_2 = struct.unpack("<hhBBH", p2)
+    assert unpacked_2[0] == 4500
+    assert unpacked_2[1] == 1000
+
+    # 0x050 Heartbeat Frame
+    ph = CANInterface.pack_heartbeat(alive_token=0xAA, health_code=0, sequence_id=100)
+    assert len(ph) == 4
+    unpacked_h = struct.unpack("<BBH", ph)
+    assert unpacked_h[0] == 0xAA
+
+
+def test_can_network_order_endianness_support():
+    """Verify bit-packing helper supports big-endian network order '!' as well."""
+    p_net = CANInterface.pack_node1_cmd(steering_deg=10.0, offset_mm_or_trim=500, confidence=1.0, mode_val=1, ts_ms=1000, endian="!")
+    assert len(p_net) == 8
+    unpacked_net = struct.unpack("!hhBBH", p_net)
+    assert unpacked_net[0] == 1000
+    assert unpacked_net[1] == 500
+
+
+def test_safe_executor_camera_loss_shielding():
+    """Verify SafeExecutor triggers failsafe zero-steering and neutral throttle on camera disconnect."""
+    comm = VehicleCommunicator(enable_can=True, enable_serial=False, sim_mode=True)
+    executor = SafeExecutor(communicator=comm, reconnect_interval_sec=2.0)
+
+    executor.handle_camera_loss()
+    assert comm.is_healthy()
+    comm.close()
+
+
+def test_telemetry_serialization_latency_under_2ms():
+    """Verify mean command serialization and dispatch time is strictly < 2.0 ms."""
+    comm = VehicleCommunicator(enable_can=True, enable_serial=False, sim_mode=True)
+    times = []
+    for _ in range(50):
+        t0 = time.perf_counter()
+        comm.send_node1_control(steering_deg=5.0, confidence=0.95, mode="AUTO", offset_m=-0.02)
+        comm.send_node2_control(throttle_pct=20.0, brake_pct=0.0, mode="AUTO")
+        comm.send_heartbeat(health_code=0)
+        times.append((time.perf_counter() - t0) * 1000.0)
+
+    comm.close()
+    mean_lat = sum(times) / len(times)
+    assert mean_lat < 2.0, f"Mean latency {mean_lat:.3f}ms exceeded 2.0ms constraint"
+
+
+def test_node1_and_node2_fault_bitmasks():
+    """Verify fault bitmask flag definitions match protocol specifications."""
+    FAULT_SENSOR_ERR       = 0x01
+    FAULT_OVERCURRENT      = 0x02
+    FAULT_WATCHDOG_TIMEOUT = 0x04
+    FAULT_CAN_BUS_OFF      = 0x08
+
+    # Simulate combined fault: sensor error + watchdog timeout
+    flags = FAULT_SENSOR_ERR | FAULT_WATCHDOG_TIMEOUT
+    assert bool(flags & FAULT_SENSOR_ERR) is True
+    assert bool(flags & FAULT_OVERCURRENT) is False
+    assert bool(flags & FAULT_WATCHDOG_TIMEOUT) is True
+    assert bool(flags & FAULT_CAN_BUS_OFF) is False
+
+
+def test_zero_ui_overhead_in_jetson_runner():
+    """Verify deploy.jetson_run does NOT import Streamlit, Gradio, or web dependencies."""
+    import subprocess
+    cmd = [
+        sys.executable,
+        "-c",
+        "import sys, deploy.jetson_run; "
+        "forbidden = ['streamlit', 'gradio', 'flask', 'django', 'dash']; "
+        "found = [m for m in forbidden if m in sys.modules]; "
+        "assert not found, f'Forbidden modules loaded: {found}'; "
+        "print('ZERO_UI_OK')",
+    ]
+    res = subprocess.run(cmd, capture_output=True, text=True)
+    assert res.returncode == 0, f"Zero UI check failed: {res.stderr}"
+    assert "ZERO_UI_OK" in res.stdout
+

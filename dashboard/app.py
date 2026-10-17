@@ -389,7 +389,6 @@ def _render_header(
 def _render_sidebar() -> None:
     with st.sidebar:
         st.markdown("### 🏎️ APEX LKA")
-        st.caption("SAE BAJA & Autonomous Lane Perception")
         st.markdown("---")
 
         # ── Backend indicator & selector ──────────────────────────────────

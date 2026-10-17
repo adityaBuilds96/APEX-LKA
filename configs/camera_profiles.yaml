@@ -1,0 +1,47 @@
+# ============================================================
+# Multi-Source Camera Fallback Profiles (APEX-LKA Tier-1)
+# ============================================================
+priority_order:
+  - "csi"
+  - "usb"
+  - "file"
+
+sources:
+  csi:
+    description: "Jetson Hardware-Accelerated CSI-2 (Sony IMX219) via nvarguscamerasrc"
+    sensor_id: 0
+    flip_method: 0
+    width: 640
+    height: 360
+    fps: 30
+    pipeline: >-
+      nvarguscamerasrc sensor-id=0 !
+      video/x-raw(memory:NVMM), width=(int)640, height=(int)360, format=(string)NV12, framerate=(fraction)30/1 !
+      nvvidconv flip-method=0 !
+      video/x-raw, width=(int)640, height=(int)360, format=(string)BGRx !
+      videoconvert !
+      video/x-raw, format=(string)BGR !
+      appsink drop=true max-buffers=1 sync=false
+
+  usb:
+    description: "Hardware V4L2 USB 3.0 UVC Camera"
+    device_id: 0
+    width: 640
+    height: 360
+    fps: 30
+    pipeline: >-
+      v4l2src device=/dev/video0 !
+      video/x-raw, width=(int)640, height=(int)360, framerate=(fraction)30/1 !
+      videoconvert !
+      video/x-raw, format=(string)BGR !
+      appsink drop=true max-buffers=1 sync=false
+    opencv_fallback_api: "CAP_V4L2"
+
+  file:
+    description: "Filesystem Video Source / HIL Replay / Synthetic Stream"
+    default_clip: "data/raw_videos/hil_benchmark_stream.mp4"
+    loop: true
+    fps: 30
+    synthetic_fallback: true
+    width: 640
+    height: 360

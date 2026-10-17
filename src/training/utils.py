@@ -180,13 +180,18 @@ def find_latest_checkpoint(checkpoint_dir: Union[str, Path]) -> Optional[Path]:
     """
     Auto-detect the most recent valid checkpoint in checkpoint_dir.
     Priority:
-    1. last_checkpoint.pt
-    2. crash_checkpoint.pt
-    3. Highest numbered epoch_*.pth or ckpt_epoch_*.pt
+    1. checkpoint_latest.pth
+    2. last_checkpoint.pt
+    3. crash_checkpoint.pt
+    4. Highest numbered epoch_*.pth or ckpt_epoch_*.pt
     """
     cdir = Path(checkpoint_dir)
     if not cdir.exists():
         return None
+
+    latest_pth = cdir / "checkpoint_latest.pth"
+    if latest_pth.exists():
+        return latest_pth
 
     last_pt = cdir / "last_checkpoint.pt"
     if last_pt.exists():
@@ -212,7 +217,7 @@ def find_latest_checkpoint(checkpoint_dir: Union[str, Path]) -> Optional[Path]:
 def cleanup_old_checkpoints(checkpoint_dir: Union[str, Path], keep_last: int = 5) -> None:
     """
     Rolling cleanup: keep only the last `keep_last` epoch checkpoints.
-    Never deletes best_model.pth, crash_checkpoint.pt, or last_checkpoint.pt.
+    Never deletes best_model.pth, checkpoint_latest.pth, crash_checkpoint.pt, or last_checkpoint.pt.
     """
     cdir = Path(checkpoint_dir)
     if not cdir.exists():

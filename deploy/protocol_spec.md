@@ -111,6 +111,8 @@ When CAN Bus is offline or during diagnostic bench testing, high-speed bidirecti
 | :---: | :---: | :---: | :--- | :---: | :---: |
 | `0x050` | Jetson | All Nodes | Master Heartbeat | 10 | 4 |
 | `0x100` | Jetson | Arduino Node 1 | Node 1 Control Command | 30 | 8 |
+| `0x150` | Jetson | All Nodes | Obstacle Threat Alert | 30 | 8 |
+| `0x160` | Jetson | All Nodes | 3D Obstacle Spatial Alert | 30 | 8 |
 | `0x200` | Jetson | Arduino Node 2 | Node 2 Control Command | 30 | 8 |
 | `0x300` | Arduino Node 1 | Jetson | Node 1 Sensor Feedback | 30 | 8 |
 | `0x301` | Arduino Node 2 | Jetson | Node 2 Sensor Feedback | 30 | 8 |
@@ -131,6 +133,60 @@ Broadcast by the Jetson every 100 ms to confirm autonomous stack health.
 ```python
 # Packing format (4 bytes):
 data = struct.pack("<BBH", 0xAA, health_code, cycle_counter)
+```
+
+---
+
+#### CAN ID `0x150` — Obstacle Threat Alert Broadcast
+Broadcast by Jetson at 30 Hz containing telemetry for the highest-threat detected entity.
+
+| Byte | Field | Type | Scaling | Range | Description |
+| :---: | :--- | :---: | :---: | :---: | :--- |
+| 0-1 | `distance_mm` | `uint16` | 1 mm / LSB | 0 to 65535 | Distance to highest-threat obstacle in millimeters |
+| 2 | `class_enum` | `uint8` | 1 | 0 to 8 | 0=Vehicle, 1=Pedestrian, 2=Cyclist, 3=Cone, 4=Barrier, 5=Animal, 6=Debris, 7=Sign, 8=Light |
+| 3 | `risk_score` | `uint8` | 1 / LSB | 0 to 100 | Threat Risk Score: clamp(100*(0.5*S_prox + 0.3*InCorridor + 0.2*Severity)) |
+| 4 | `estop_flag` | `uint8` | 1 | 0 or 1 | 0 = Clear, 1 = BRAKE_IMMINENT (Emergency Stop Triggered) |
+| 5-7 | `seq_counter` | `uint24` | 1 / LSB | 0 to $2^{24}-1$ | Sequence counter and frame verification tag |
+
+```python
+# Packing format (8 bytes):
+data = struct.pack("<HBBBBH", dist_mm, class_enum, risk_score, 1 if emergency_stop else 0, seq & 0xFF, (seq >> 8) & 0xFFFF)
+```
+
+---
+
+#### CAN ID `0x160` — 3D Obstacle Spatial Alert Broadcast
+Broadcast by Jetson at 30 Hz containing 3D metric spatial coordinates and Time-to-Impact (TTI) for the nearest detected obstacle.
+
+| Byte | Field | Type | Scaling | Range | Description |
+| :---: | :--- | :---: | :---: | :---: | :--- |
+| 0-1 | `x_mm` | `int16` | 1 mm / LSB | -32768 to 32767 | Lateral offset relative to vehicle centerline (- = left, + = right) |
+| 2-3 | `z_mm` | `uint16` | 1 mm / LSB | 0 to 65535 | Longitudinal distance along forward optical axis |
+| 4-5 | `tti_ms` | `uint16` | 1 ms / LSB | 0 to 65535 | Collision Time-to-Impact in milliseconds (65535 = no impact / stopped) |
+| 6 | `class_enum` | `uint8` | 1 | 0 to 8 | Detected obstacle class enum |
+| 7 | `threat_level` | `uint8` | 1 | 0 to 3 | 0=CLEAR, 1=CAUTION, 2=WARNING, 3=CRITICAL_STOP |
+
+```python
+# Packing format (8 bytes):
+data = struct.pack("<hHHBB", x_mm, z_mm, tti_ms, class_enum, threat_level)
+```
+
+---
+
+#### CAN ID `0x170` — Trajectory Collision Alert Broadcast
+Broadcast by Jetson at 30 Hz containing critical object trajectory, projected cross-path lateral intersection, Time-to-Impact (TTI), risk level, and emergency evasive action flag.
+
+| Byte | Field | Type | Scaling | Range | Description |
+| :---: | :--- | :---: | :---: | :---: | :--- |
+| 0-1 | `track_id` | `uint16` | 1 | 0 to 65535 | Persistent Track ID of highest collision risk object |
+| 2-3 | `min_tti_ms` | `uint16` | 1 ms / LSB | 0 to 65535 | Minimum Time-To-Impact in milliseconds (65535 = no collision) |
+| 4-5 | `cross_x_mm` | `int16` | 1 mm / LSB | -32768 to 32767 | Projected path intersection lateral offset relative to vehicle center (mm) |
+| 6 | `risk_level` | `uint8` | 1 | 0 to 3 | 0=CLEAR, 1=MONITOR, 2=WARNING, 3=IMMINENT_COLLISION |
+| 7 | `action_flag` | `uint8` | 1 | 0 to 3 | 0=NONE, 1=BRAKE_NOW, 2=SWERVE_LEFT, 3=SWERVE_RIGHT |
+
+```python
+# Packing format (8 bytes):
+data = struct.pack("<HHhBB", track_id, min_tti_ms, cross_x_mm, risk_level, action_flag)
 ```
 
 ---

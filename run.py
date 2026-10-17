@@ -206,6 +206,14 @@ def cmd_export(args):
     console.print(f"[bold green][OK] Exported ONNX (Opset {res['opset_version']}):[/bold green] {onnx_file} ({res['file_size_mb']} MB)")
     console.print(f"  Numerical verification: max diff {res['max_abs_diff']:.2e} -> {'[green]PASSED[/green]' if res['verification_passed'] else '[yellow]WARNING[/yellow]'}")
 
+    # Parity verification over 100 frames
+    try:
+        from src.training.export import verify_model_parity
+        parity_res = verify_model_parity(pytorch_model_or_path=ckpt_path, onnx_path=onnx_file, num_test_frames=100)
+        console.print(f"  Parity verification (100 frames): agreement {parity_res['agreement_percent']}% (min 99.5%), MAE {parity_res['mean_mae']:.2e} -> {'[green]PASSED[/green]' if parity_res['passed'] else '[yellow]WARNING[/yellow]'}")
+    except Exception as e:
+        console.print(f"  [yellow]Parity check skipped: {e}[/yellow]")
+
     # 2. FP16 export
     if getattr(args, "fp16", False):
         fp16_res = export_fp16(onnx_path=onnx_file)
@@ -255,6 +263,21 @@ def cmd_infer(args):
     cmd = [sys.executable, str(script), "--source", args.source]
     if args.file:
         cmd += ["--file", args.file]
+    enable_all = getattr(args, "enable_all", False)
+    if enable_all or getattr(args, "enable_object_detection", False):
+        cmd += ["--enable-object-detection"]
+    if enable_all or getattr(args, "enable_depth", False):
+        cmd += ["--enable-depth"]
+    if enable_all or getattr(args, "enable_occupancy", False):
+        cmd += ["--enable-occupancy"]
+    if getattr(args, "show_depth_heatmap", False):
+        cmd += ["--show-depth-heatmap"]
+    if enable_all or getattr(args, "enable_tracking", False):
+        cmd += ["--enable-tracking"]
+    if enable_all or getattr(args, "enable_trajectory", False):
+        cmd += ["--enable-trajectory"]
+    if enable_all:
+        cmd += ["--enable-all"]
     subprocess.run(cmd, check=True)
 
 
@@ -597,11 +620,16 @@ def main():
     p_bench.add_argument("--iterations", type=int, default=50, help="Number of benchmark iterations")
     p_bench.add_argument("--warmup", type=int, default=10, help="Number of warmup iterations")
 
-    # infer
     p_infer = sub.add_parser("infer", help="Run live inference")
-    p_infer.add_argument("--source", choices=["webcam", "video", "image"],
-                         default="webcam")
+    p_infer.add_argument("--source", type=str, default="webcam", help="Source ('webcam', 'video', 'image') or file path")
     p_infer.add_argument("--file", type=str, help="Path for video/image source")
+    p_infer.add_argument("--enable-object-detection", action="store_true", help="Enable multi-object detection and threat risk assessment")
+    p_infer.add_argument("--enable-depth", action="store_true", help="Enable monocular metric depth estimation")
+    p_infer.add_argument("--enable-occupancy", action="store_true", help="Enable 3D top-down occupancy grid rasterization")
+    p_infer.add_argument("--show-depth-heatmap", action="store_true", help="Overlay false-color depth heatmap on viewport")
+    p_infer.add_argument("--enable-tracking", action="store_true", help="Enable ByteTrack multi-object tracking")
+    p_infer.add_argument("--enable-trajectory", action="store_true", help="Enable trajectory prediction and TTI calculation")
+    p_infer.add_argument("--enable-all", action="store_true", help="Enable all Phase 5 modules (detection, depth, occupancy, tracking, trajectory)")
 
     # dashboard
     sub.add_parser("dashboard", help="Launch Streamlit dashboard")

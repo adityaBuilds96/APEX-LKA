@@ -1,0 +1,16 @@
+# =============================================================
+# APEX-LKA: Camera Extrinsic Calibration Parameters
+# Reference Frame: Vehicle Front Axle Center Ground Contact
+# Pitch: down-positive [rad]
+# Roll: right-down positive [rad]
+# Yaw: right-positive [rad]
+# =============================================================
+mount_height_m: 1.20
+pitch_rad: 0.08726646
+roll_rad: 0.0
+yaw_rad: 0.0
+x_offset_m: 0.0
+z_offset_m: 0.50
+y_horizon_px: 136
+calibration_method: "synthetic_default"
+timestamp: "2026-10-02T19:30:00Z"

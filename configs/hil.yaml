@@ -1,0 +1,24 @@
+# ============================================================
+# Hardware-In-The-Loop (HIL) Bench Test Configuration
+# ============================================================
+hil_runtime:
+  manifest_path: "deploy/hil_scenarios/hil_sequence_manifest.yaml"
+  report_path: "results/benchmarks/hil_test_report.json"
+  target_fps: 30
+  frame_time_budget_ms: 33.33
+  latency_p99_budget_ms: 40.0
+  latency_p50_budget_ms: 15.0
+  sustained_fps_floor: 30.0
+  watchdog_timeout_ms: 500
+  sim_hardware: true
+  enable_can_loopback: true
+  enable_serial_echo: true
+  generate_synthetic_if_missing: true
+
+scenarios_root: "deploy/hil_scenarios"
+
+budgets:
+  max_loop_latency_ms: 40.0
+  typical_latency_ms: 22.0
+  min_sustained_fps: 30.0
+  max_watchdog_delay_ms: 500.0

@@ -122,6 +122,7 @@ class Trainer:
             or t_cfg.get("batch_size", 8)
         )
         self.initial_batch_size = self.batch_size
+        self._batch_size_overridden = batch_size_override is not None
         self.lr = lr_override or t_cfg.get("learning_rate", 1e-3)
         self.weight_decay = t_cfg.get("weight_decay", 1e-4)
         self.num_workers = rtx_cfg.get("default_num_workers", t_cfg.get("num_workers", 0))
@@ -216,7 +217,7 @@ class Trainer:
 
         # 8. Checkpoint resume detection
         target_ckpt = resume_checkpoint
-        if target_ckpt is None and not fresh:
+        if target_ckpt is None and not fresh and train_dataset is None:
             # Auto-detect latest checkpoint in models/checkpoints
             auto_found = find_latest_checkpoint(PATHS.checkpoints)
             if auto_found:
@@ -365,7 +366,7 @@ class Trainer:
             return
 
         e_thresh1 = self.unfreeze_schedule[0] if len(self.unfreeze_schedule) > 0 else 5
-        e_thresh2 = self.unfreeze_schedule[1] if len(self.unfreeze_schedule) > 1 else 15
+        e_thresh2 = self.unfreeze_schedule[1] if len(self.unfreeze_schedule) > 1 else None
 
         encoder = self.model.encoder
         features = getattr(encoder, "features", None)
@@ -378,26 +379,20 @@ class Trainer:
             if len(self.optimizer.param_groups) > 1:
                 self.optimizer.param_groups[1]["lr"] = 0.0
 
-        elif epoch < e_thresh2:
-            # Phase 2: Unfreeze last 2 encoder stages with 0.1x LR
-            if features is not None:
-                for idx, block in enumerate(features):
-                    req = (idx >= 8)  # Last stages C3 (48ch) and C4 (96ch)
-                    for p in block.parameters():
-                        p.requires_grad = req
-            else:
-                for p in encoder.parameters():
-                    p.requires_grad = True
-
+        elif e_thresh2 is not None and epoch < e_thresh2:
+            # Phase 2 (Epochs 6-15): Unfreeze entire backbone with 0.1x LR
+            for p in encoder.parameters():
+                p.requires_grad = True
             if len(self.optimizer.param_groups) > 1:
                 self.optimizer.param_groups[1]["lr"] = current_base_lr * 0.1
 
         else:
-            # Phase 3: Full model unfreezing with uniform LR
+            # Phase 3 / Epochs 6+ (if single thresh) or Epochs 16+ (if two thresh): Full model unfreezing
             for p in encoder.parameters():
                 p.requires_grad = True
             if len(self.optimizer.param_groups) > 1:
-                self.optimizer.param_groups[1]["lr"] = current_base_lr
+                lr_mult = 1.0 if e_thresh2 is not None else 0.1
+                self.optimizer.param_groups[1]["lr"] = current_base_lr * lr_mult
 
     # ── Checkpointing & Crash Recovery ─────────────────────────────────────────
 
@@ -413,23 +408,29 @@ class Trainer:
         log.info("Loading training checkpoint: %s", ckpt_path)
         state = torch.load(ckpt_path, map_location=self.device)
 
-        if "model_state_dict" in state:
-            self.model.load_state_dict(state["model_state_dict"])
-        if "optimizer_state_dict" in state:
-            saved_groups = state["optimizer_state_dict"].get("param_groups", [])
+        model_state = state.get("model_state", state.get("model_state_dict"))
+        if model_state is not None:
+            self.model.load_state_dict(model_state)
+
+        opt_state = state.get("optimizer_state", state.get("optimizer_state_dict"))
+        if opt_state is not None:
+            saved_groups = opt_state.get("param_groups", [])
             if len(saved_groups) != len(self.optimizer.param_groups):
                 # Adapt optimizer to match saved parameter groups structure
                 self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
-            self.optimizer.load_state_dict(state["optimizer_state_dict"])
+            self.optimizer.load_state_dict(opt_state)
 
-        if self.scheduler and state.get("scheduler_state_dict"):
-            self.scheduler.load_state_dict(state["scheduler_state_dict"])
+        sched_state = state.get("scheduler_state", state.get("scheduler_state_dict"))
+        if self.scheduler and sched_state is not None:
+            self.scheduler.load_state_dict(sched_state)
 
-        if self.ema and state.get("ema_state_dict"):
-            self.ema.load_state_dict(state["ema_state_dict"])
+        ema_state = state.get("ema_state", state.get("ema_state_dict"))
+        if self.ema and ema_state is not None:
+            self.ema.load_state_dict(ema_state)
 
-        if self.scaler and state.get("scaler_state_dict"):
-            self.scaler.load_state_dict(state["scaler_state_dict"])
+        scaler_state = state.get("scaler_state", state.get("scaler_state_dict"))
+        if self.scaler and scaler_state is not None:
+            self.scaler.load_state_dict(scaler_state)
 
         if "random_states" in state and isinstance(state["random_states"], dict):
             set_random_states(state["random_states"])
@@ -440,10 +441,11 @@ class Trainer:
 
         # Restore saved batch size & grad_accum_steps if modified by OOM handler
         saved_bs = state.get("batch_size")
-        if saved_bs and saved_bs != self.batch_size:
-            log.info("Restoring batch size from checkpoint: %d -> %d", self.batch_size, saved_bs)
-            self.batch_size = saved_bs
-            self._build_dataloaders()
+        if saved_bs and not getattr(self, "_batch_size_overridden", False):
+            if saved_bs != self.batch_size:
+                log.info("Restoring batch size from checkpoint: %d -> %d", self.batch_size, saved_bs)
+                self.batch_size = saved_bs
+                self._build_dataloaders()
 
         if "gradient_accumulation_steps" in state:
             self.grad_accum_steps = int(state["gradient_accumulation_steps"])
@@ -510,8 +512,13 @@ class Trainer:
                     targets = targets.to(self.device, non_blocking=self.pin_memory)
 
                     with autocast_ctx:
-                        logits = self.model(images)
-                        loss, l_ce, l_dice = self.criterion(logits, targets)
+                        outputs = self.model(images)
+                        if isinstance(outputs, tuple):
+                            logits, aux_logits = outputs
+                        else:
+                            logits, aux_logits = outputs, None
+                        loss_out = self.criterion(logits, targets, aux_logits=aux_logits)
+                        loss, l_ce, l_dice = loss_out.total, loss_out.ce, loss_out.dice
                         loss_normalized = loss / max(1, self.grad_accum_steps)
 
                     # Backward with AMP scaling
@@ -632,8 +639,10 @@ class Trainer:
             images = images.to(self.device, non_blocking=self.pin_memory)
             targets = targets.to(self.device, non_blocking=self.pin_memory)
 
-            logits = self.model(images)
-            loss, l_ce, l_dice = self.criterion(logits, targets)
+            outputs = self.model(images)
+            logits = outputs[0] if isinstance(outputs, tuple) else outputs
+            loss_out = self.criterion(logits, targets)
+            loss, l_ce, l_dice = loss_out.total, loss_out.ce, loss_out.dice
 
             total_loss += loss.item()
             total_ce += l_ce.item() if hasattr(l_ce, "item") else float(l_ce)

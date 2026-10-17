@@ -1,0 +1,15 @@
+{
+  "session_id": "SESSION_1791250684_706919",
+  "profile": "TEST-PAVED",
+  "operator": "APEX Validation",
+  "date": "2026-10-06",
+  "passed": true,
+  "metrics": {
+    "rms_cross_track_m": 0.032,
+    "peak_cross_track_m": 0.054,
+    "rms_heading_error_deg": 0.21,
+    "max_sustained_lka_lost_s": 0.0,
+    "peak_steer_rate_dps": 3.45,
+    "ram_peak_mb": 2154.9
+  }
+}

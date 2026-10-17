@@ -1,0 +1,24 @@
+{
+  "session_id": "SESSION_1791250684_706919",
+  "timestamp": "2026-10-06T07:08:05Z",
+  "profile": "TEST-PAVED",
+  "surface_type": "paved",
+  "duration_frames": 25,
+  "passed": true,
+  "metrics": {
+    "rms_cross_track_m": 0.032,
+    "peak_cross_track_m": 0.054,
+    "rms_heading_error_deg": 0.21,
+    "max_sustained_lka_lost_s": 0.0,
+    "peak_steer_rate_dps": 3.45,
+    "ram_peak_mb": 2154.9
+  },
+  "perception_modes": {
+    "MODE_A_PAINTED": 25,
+    "MODE_B_CONTRAST": 0,
+    "MODE_C_CENTROID": 0
+  },
+  "camera_events_count": 0,
+  "camera_events": [],
+  "telemetry_csv": "C:\\Users\\chavh\\OneDrive\\LKA.MAIN\\results\\benchmarks\\last_session\\telemetry.csv"
+}

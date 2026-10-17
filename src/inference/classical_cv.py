@@ -55,6 +55,7 @@ from src.inference.predictor import (
 )
 from src.inference.preprocessing import PreprocessResult
 from src.inference.temporal_smoother import TemporalLaneSmoother, rasterize_poly_mask
+from src.control.ekf_tracker import EKF8StateLaneTracker
 
 # Conversion constant: standard 3.7m lane width / ~200px at model resolution (640x360)
 METERS_PER_PIXEL_DEFAULT = 0.0185
@@ -203,10 +204,12 @@ class ClassicalCVPredictor(BaseLanePredictor):
             outlier_threshold=float(smooth_cfg.get("outlier_threshold", 0.30)),
             max_gap_frames=int(smooth_cfg.get("max_gap_frames", 3)),
         )
+        self.ekf_tracker = EKF8StateLaneTracker()
 
     def reset(self) -> None:
         """Reset temporal smoother and state."""
         self.smoother.reset()
+        self.ekf_tracker.reset()
 
     @property
     def model_status(self) -> ModelStatus:
@@ -357,8 +360,9 @@ class ClassicalCVPredictor(BaseLanePredictor):
         # Search ONLY within drivable road surface below horizon
         search_region = cv2.bitwise_and(colour_mask, drivable_dilated)
 
-        # Canny edge detection
+        # Canny edge detection & road-surface masking constraint
         edges = cv2.Canny(search_region, 50, 150)
+        edges = cv2.bitwise_and(edges, drivable_dilated)
 
         # Hough transform
         min_line_len = max(20, int(self.min_line_length_ratio * h))
@@ -375,11 +379,29 @@ class ClassicalCVPredictor(BaseLanePredictor):
         )
 
         left_mask, left_conf, left_intercept, left_coeffs = _fit_and_rasterise(
-            left_pts, h, w, horizon_y, side="left"
+            left_pts, h, w, horizon_y, side="left", ransac=True
         )
         right_mask, right_conf, right_intercept, right_coeffs = _fit_and_rasterise(
-            right_pts, h, w, horizon_y, side="right"
+            right_pts, h, w, horizon_y, side="right", ransac=True
         )
+
+        # Enforce rigid track width sanity constraint (150 px <= W_lane <= 380 px at y = H - 1)
+        nom_w_px = 200.0
+        if left_intercept is not None and right_intercept is not None:
+            lane_w_px = right_intercept - left_intercept
+            if not (150.0 <= lane_w_px <= 380.0):
+                if left_conf >= right_conf:
+                    right_coeffs = left_coeffs.copy()
+                    right_coeffs[2] += nom_w_px
+                    right_intercept = float(np.polyval(right_coeffs, h - 1))
+                    right_mask = rasterize_poly_mask(right_coeffs, h, w, horizon_y)
+                    right_conf = left_conf * 0.85
+                else:
+                    left_coeffs = right_coeffs.copy()
+                    left_coeffs[2] -= nom_w_px
+                    left_intercept = float(np.polyval(left_coeffs, h - 1))
+                    left_mask = rasterize_poly_mask(left_coeffs, h, w, horizon_y)
+                    left_conf = right_conf * 0.85
 
         geom_plausibility = _calculate_geometry_plausibility(left_intercept, right_intercept, w)
 
@@ -726,27 +748,37 @@ def segment_road_surface(img_bgr: np.ndarray, horizon_y: int) -> np.ndarray:
 
 def _colour_mask(img_bgr: np.ndarray) -> np.ndarray:
     """
-    Extract lane markings using strict HLS color bounds.
+    Extract lane markings using adaptive LAB + HLS dual color bandpass filtering:
+    - Yellow lines: LAB b* in [145, 255] AND HLS H in [15, 35]
+    - White lines: HLS L in [200, 255] with local adaptive CLAHE contrast boost
     Rejects low-saturation grey metallic guardrails.
     """
+    lab = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2LAB)
     hls = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2HLS)
 
-    # Yellow lanes: H: 15–35, L: 30–204, S: 115–255
-    yellow_lo = np.array([15, 30, 115], dtype=np.uint8)
-    yellow_hi = np.array([35, 204, 255], dtype=np.uint8)
-    yellow_mask = cv2.inRange(hls, yellow_lo, yellow_hi)
+    b_channel = lab[:, :, 2]
+    h_channel = hls[:, :, 0]
+    l_channel = hls[:, :, 1]
+    s_channel = hls[:, :, 2]
 
-    # White lanes: H: 0–180, L: 185–255, S: 0–60
-    white_lo = np.array([0, 185, 0], dtype=np.uint8)
-    white_hi = np.array([180, 255, 60], dtype=np.uint8)
-    white_mask = cv2.inRange(hls, white_lo, white_hi)
+    # Yellow lines: LAB b* in [145, 255] AND HLS H in [15, 35]
+    yellow_mask = (b_channel >= 145) & (b_channel <= 255) & (h_channel >= 15) & (h_channel <= 35)
 
-    # High-contrast grayscale fallback for faint white paint
+    # Saturated yellow HLS fallback for synthetic/real paint
+    yellow_hls_fallback = (h_channel >= 15) & (h_channel <= 35) & (s_channel >= 115) & (l_channel >= 30)
+    yellow_combined = yellow_mask | yellow_hls_fallback
+
+    # White lines: HLS L in [200, 255] with local adaptive CLAHE contrast boost
+    clahe = cv2.createCLAHE(clipLimit=2.5, tileGridSize=(8, 8))
+    l_clahe = clahe.apply(l_channel)
+    white_mask = (l_clahe >= 200) & (l_clahe <= 255)
+
+    # High-contrast grayscale fallback for sharp white markings
     gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
-    _, high_white = cv2.threshold(gray, 215, 255, cv2.THRESH_BINARY)
+    _, high_white = cv2.threshold(gray, 205, 255, cv2.THRESH_BINARY)
+    white_combined = white_mask | (high_white > 0)
 
-    combined = cv2.bitwise_or(white_mask, yellow_mask)
-    combined = cv2.bitwise_or(combined, high_white)
+    combined = (yellow_combined | white_combined).astype(np.uint8) * 255
 
     # Morphological opening to purge small isolated noise specs
     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
@@ -778,14 +810,14 @@ def _separate_lines_vectorized(
     h: int,
     horizon_y: int,
     min_length: float,
-    max_slope: float = 1.85,
+    max_slope: float = 2.2,
     min_slope: float = 0.30,
     road_mask: Optional[np.ndarray] = None,
 ) -> Tuple[list, list, bool, bool]:
     """
     Split Hough lines into left and right candidates using vectorized NumPy operations.
     Rejects:
-    - Vertical guardrail posts (|slope| > max_slope)
+    - Vertical guardrail posts (|slope| > max_slope, default 2.2)
     - Horizontal crosswalks/shadows (|slope| < min_slope)
     - Lines originating outside the road surface region (tested against road_mask)
     - Lines extending above the horizon
@@ -879,6 +911,67 @@ def _separate_lines_vectorized(
     return left_pts, right_pts, has_outside_lines, has_extreme_slopes
 
 
+def fit_parabola_ransac(
+    ys: np.ndarray,
+    xs: np.ndarray,
+    n_iterations: int = 50,
+    threshold_px: float = 3.0,
+) -> Tuple[Optional[np.ndarray], int]:
+    """
+    RANSAC 2nd-degree polynomial curve fitting: x = a*y^2 + b*y + c.
+    Returns:
+        (coeffs, inlier_count)
+    """
+    n = len(ys)
+    if n < 4:
+        return None, 0
+
+    best_inlier_count = 0
+    best_coeffs = None
+    best_inlier_mask = None
+
+    rng = np.random.default_rng(42)
+
+    for _ in range(n_iterations):
+        sample_indices = rng.choice(n, size=3, replace=False)
+        sample_ys = ys[sample_indices]
+        sample_xs = xs[sample_indices]
+
+        if len(np.unique(sample_ys)) < 3:
+            continue
+
+        try:
+            coeffs = np.polyfit(sample_ys, sample_xs, deg=2)
+        except (np.linalg.LinAlgError, ValueError):
+            continue
+
+        pred_x = np.polyval(coeffs, ys)
+        residuals = np.abs(xs - pred_x)
+        inlier_mask = residuals <= threshold_px
+        inlier_count = int(np.count_nonzero(inlier_mask))
+
+        if inlier_count > best_inlier_count:
+            best_inlier_count = inlier_count
+            best_coeffs = coeffs
+            best_inlier_mask = inlier_mask
+
+    if best_inlier_count >= 4 and best_inlier_mask is not None:
+        try:
+            refined_coeffs = np.polyfit(ys[best_inlier_mask], xs[best_inlier_mask], deg=2)
+            return refined_coeffs, best_inlier_count
+        except (np.linalg.LinAlgError, ValueError):
+            return best_coeffs, best_inlier_count
+
+    # Fallback to least-squares on all points
+    try:
+        ls_coeffs = np.polyfit(ys, xs, deg=2)
+        residuals = np.abs(xs - np.polyval(ls_coeffs, ys))
+        inliers = int(np.count_nonzero(residuals <= threshold_px))
+        return ls_coeffs, inliers
+    except (np.linalg.LinAlgError, ValueError):
+        return None, 0
+
+
 def _fit_and_rasterise(
     pts: list,
     h: int,
@@ -886,9 +979,10 @@ def _fit_and_rasterise(
     horizon_y: int,
     side: str,
     line_thickness: int = 6,
+    ransac: bool = True,
 ) -> Tuple[Optional[np.ndarray], float, Optional[float], Optional[np.ndarray]]:
     """
-    Fit 2nd-degree polynomial x = a*y^2 + b*y + c and rasterise to binary mask.
+    Fit 2nd-degree polynomial x = a*y^2 + b*y + c using RANSAC and rasterise to binary mask.
 
     Returns
     -------
@@ -904,9 +998,17 @@ def _fit_and_rasterise(
     if (ys.max() - ys.min()) < 0.15 * h:
         return None, 0.0, None, None
 
-    try:
-        coeffs = np.polyfit(ys, xs, deg=2)
-    except (np.linalg.LinAlgError, ValueError):
+    if ransac:
+        coeffs, inliers = fit_parabola_ransac(ys, xs, n_iterations=50, threshold_px=3.0)
+    else:
+        try:
+            coeffs = np.polyfit(ys, xs, deg=2)
+            inliers = len(ys)
+        except (np.linalg.LinAlgError, ValueError):
+            coeffs = None
+            inliers = 0
+
+    if coeffs is None:
         return None, 0.0, None, None
 
     # Derive bottom intercept at y = h - 1
@@ -923,10 +1025,11 @@ def _fit_and_rasterise(
 
     # Confidence calculation: point density and vertical reach
     y_span_frac = float((ys.max() - ys.min()) / float(h - horizon_y))
-    point_density_frac = min(1.0, len(pts) / 35.0)
-    conf = float(np.clip(0.55 * y_span_frac + 0.45 * point_density_frac, 0.0, 1.0))
+    inlier_density_frac = min(1.0, max(len(pts), inliers) / 35.0)
+    conf = float(np.clip(0.55 * y_span_frac + 0.45 * inlier_density_frac, 0.0, 1.0))
 
     return mask, conf, bottom_intercept_x, coeffs
+
 
 
 def _calculate_geometry_plausibility(

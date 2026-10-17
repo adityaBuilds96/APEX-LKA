@@ -1,0 +1,37 @@
+# ============================================================
+# APEX-LKA Multi-Object Detection Engine Configuration (Phase 5 Section 1)
+# ============================================================
+
+model:
+  task_type: "multitask_or_standalone"
+  primary_engine: "models/exported/multitask_best.plan"
+  onnx_fallback: "models/exported/multitask_best.onnx"
+  standalone_fallback: "models/exported/yolo11n.onnx"
+  input_width: 640
+  input_height: 360
+  precision: "fp16"
+
+detection_thresholds:
+  confidence_threshold: 0.35
+  nms_iou_threshold: 0.45
+  max_detections_per_frame: 100
+
+classes:
+  count: 9
+  labels:
+    0: "vehicle"
+    1: "pedestrian"
+    2: "cyclist"
+    3: "traffic_cone"
+    4: "barrier"
+    5: "animal"
+    6: "debris"
+    7: "traffic_sign"
+    8: "traffic_light"
+
+inference_runtime:
+  prefer_tensorrt: true
+  device: "cuda:0"
+  zero_copy_pinned_memory: true
+  fail_operational: true
+  max_inference_ms_budget: 18.0

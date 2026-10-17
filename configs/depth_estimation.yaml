@@ -1,0 +1,20 @@
+# configs/depth_estimation.yaml
+# ============================
+# APEX LKA Monocular Depth Estimation Engine Configuration
+# Supported models: MiDaS-Small, DepthAnything-V2-Small
+# Target hardware: Jetson Orin Nano 4GB (TensorRT FP16) / CPU ONNX Fallback
+
+depth_estimation:
+  enabled: true
+  model_path: "models/exported/depth_best.onnx"
+  engine_path: "models/exported/depth_best.plan"
+  input_width: 640
+  input_height: 360
+  metric_scale: 15.0
+  metric_shift: 0.1
+  min_depth_m: 0.2
+  max_depth_m: 80.0
+  normalize_input: true
+  mean: [0.485, 0.456, 0.406]
+  std: [0.229, 0.224, 0.225]
+  device: "cuda"  # Auto-falls back to cpu if cuda unavailable

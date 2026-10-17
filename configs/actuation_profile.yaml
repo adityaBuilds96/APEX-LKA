@@ -1,0 +1,23 @@
+# =============================================================
+# APEX-LKA: Steering Actuation Profile & Electromechanical Calibration
+# Vehicle Profile: SAE India BAJA 2027 Autonomous Category
+# =============================================================
+direction_sign: 1              # +1 = normal (pos deg -> pos counts), -1 = inverted wiring
+center_offset_counts: 0         # mechanical zero trim counts
+counts_per_deg: 12.5            # nominal linear slope near center
+nonlinear_lut:                  # deg -> motor driver / encoder counts
+  - [-30.0, -410]
+  - [-20.0, -260]
+  - [-10.0, -125]
+  - [  0.0,    0]
+  - [ 10.0,  128]
+  - [ 20.0,  272]
+  - [ 30.0,  430]
+deadband_counts: 2
+max_rate_counts_per_tick: 25
+use_counts_in_can: true         # true: CAN 0x100 carries raw counts; false: deg * 100
+counts_max: 450
+metadata:
+  date: "2026-10-02"
+  operator: "Lead Control Engineer"
+  notes: "Calibrated Ackermann steering profile with deadband and rate limiting"

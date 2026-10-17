@@ -120,6 +120,11 @@ class OffsetResult:
     steering_command:    Optional[float]         = None
     recommendation:      SteeringRecommendation  = SteeringRecommendation.NO_RECOMMENDATION
 
+    # Metric Geometry (Phase 4 Section 5)
+    metric_lateral_error_m: Optional[float] = None
+    heading_error_rad:      Optional[float] = None
+    curvature_inv_m:        Optional[float] = None
+
     # Confidence
     confidence:          float = 0.0
     one_lane_estimated:  bool  = False
@@ -129,7 +134,9 @@ class OffsetResult:
 
     @property
     def lateral_error_m(self) -> Optional[float]:
-        """Lateral error converted to metric units assuming 0.0185 m/px standard lane scale."""
+        """Lateral error in metric meters."""
+        if self.metric_lateral_error_m is not None:
+            return round(self.metric_lateral_error_m, 3)
         if self.lateral_error_px is None:
             return None
         return round(self.lateral_error_px * 0.0185, 3)
@@ -243,14 +250,17 @@ class OffsetCalculator:
         elapsed_ms = (time.perf_counter() - t0) * 1000.0
 
         return OffsetResult(
-            vehicle_center_x   = vehicle_cx,
-            lane_center_x      = lane_cx,
-            lateral_error_px   = round(err_px,   2),
-            lateral_error_norm = round(err_norm, 4),
-            drift_direction    = drift,
-            steering_command   = round(cmd, 4),
-            recommendation     = rec,
-            confidence         = round(confidence, 3),
-            one_lane_estimated = geometry.one_lane_estimated,
-            calc_ms            = elapsed_ms,
+            vehicle_center_x       = vehicle_cx,
+            lane_center_x          = lane_cx,
+            lateral_error_px       = round(err_px,   2),
+            lateral_error_norm     = round(err_norm, 4),
+            metric_lateral_error_m = getattr(geometry, "lateral_offset_m", None),
+            heading_error_rad      = getattr(geometry, "heading_error_rad", None),
+            curvature_inv_m        = getattr(geometry, "curvature_inv_m", None),
+            drift_direction        = drift,
+            steering_command       = round(cmd, 4),
+            recommendation         = rec,
+            confidence             = round(confidence, 3),
+            one_lane_estimated     = geometry.one_lane_estimated,
+            calc_ms                = elapsed_ms,
         )

@@ -1,0 +1,30 @@
+# ============================================================
+# Field Run Profile: Off-Road Dirt, Shadow, and Dust Run (Task 6.3)
+# ============================================================
+profile_id: "FIELD-OFFROAD-01"
+profile_name: "Off-Road Dirt, Shadow, and Dust Autonomous Run"
+surface_type: "offroad"
+vehicle_platform: "Universal Autonomous Vehicle Platform"
+operator: "APEX Validation Team"
+
+mission:
+  target_speed_mps: 2.0   # 7.2 km/h
+  duration_frames: 150    # 5.0 seconds @ 30 FPS
+  target_fps: 30.0
+  road_geometry: "unpainted_dirt_with_shadows_and_glare"
+
+pass_criteria:
+  rms_cross_track_dirt_straight_max_m: 0.35
+  peak_cross_track_dirt_curve_max_m: 0.70
+  max_sustained_lka_lost_s: 1.0
+  delta_rate_max_dps: 120.0  # Zero actuator jerk above delta_dot_max
+
+camera_expectations:
+  c7_shadow_tonemap_required: true
+  c8_glare_suppression_required: true
+  c9_dust_occlusion_required: true
+
+perception_modes:
+  allow_mode_a_painted: true
+  allow_mode_b_contrast_edges: true
+  allow_mode_c_drivable_centroid: true

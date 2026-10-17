@@ -1,0 +1,96 @@
+{
+  "timestamp": "2026-10-06T07:07:47Z",
+  "standard": "ISO 26262 ASIL-B / SAE BAJA Safe-State Watchdog Certification",
+  "global_safe_state_budget_ms": 500.0,
+  "overall_certified": true,
+  "verdict": "CERTIFIED",
+  "faults_evaluated": 8,
+  "faults_passed": 8,
+  "audit_matrix": {
+    "F1": {
+      "time_to_safe_state_ms": 58.24,
+      "safe_mode_engaged": "EMERGENCY_STOP",
+      "steer_command_at_safe": 0.0,
+      "recovered_cleanly": true,
+      "passed": true,
+      "fault_id": "F1",
+      "name": "Camera Disconnect",
+      "budget_ms": 500.0,
+      "total_eval_time_ms": 63.25
+    },
+    "F2": {
+      "time_to_safe_state_ms": 25.93,
+      "safe_mode_engaged": "EMERGENCY_STOP",
+      "recovered_cleanly": true,
+      "passed": true,
+      "fault_id": "F2",
+      "name": "CAN Bus Error Storm",
+      "budget_ms": 500.0,
+      "total_eval_time_ms": 25.95
+    },
+    "F3": {
+      "time_to_safe_state_ms": 30.0,
+      "safe_mode_engaged": "EMERGENCY_STOP",
+      "recovered_cleanly": true,
+      "passed": true,
+      "fault_id": "F3",
+      "name": "Serial Disconnect",
+      "budget_ms": 500.0,
+      "total_eval_time_ms": 30.03
+    },
+    "F4": {
+      "time_to_safe_state_ms": 15.59,
+      "exception_shield_caught": true,
+      "safe_mode_engaged": "EMERGENCY_STOP",
+      "passed": true,
+      "fault_id": "F4",
+      "name": "Model Inference Exception",
+      "budget_ms": 500.0,
+      "total_eval_time_ms": 15.6
+    },
+    "F5": {
+      "time_to_safe_state_ms": 15.73,
+      "safe_mode_engaged": "DEGRADED",
+      "attenuation_observed": true,
+      "nominal_steer_deg": 15.0,
+      "attenuated_steer_deg": 4.5,
+      "passed": true,
+      "fault_id": "F5",
+      "name": "Lens Occlusion Event",
+      "budget_ms": 500.0,
+      "total_eval_time_ms": 15.77
+    },
+    "F6": {
+      "time_to_safe_state_ms": 16.22,
+      "safe_mode_engaged": "MANUAL_OVERRIDE",
+      "override_detected": true,
+      "steer_command_at_safe": 0.0,
+      "passed": true,
+      "fault_id": "F6",
+      "name": "Manual Override Pin Triggered",
+      "budget_ms": 500.0,
+      "total_eval_time_ms": 16.3
+    },
+    "F7": {
+      "time_to_safe_state_ms": 29.72,
+      "safe_mode_engaged": "EMERGENCY_STOP",
+      "estop_triggered": true,
+      "passed": true,
+      "fault_id": "F7",
+      "name": "Low Confidence Sustained",
+      "budget_ms": 500.0,
+      "total_eval_time_ms": 29.77
+    },
+    "F8": {
+      "time_to_safe_state_ms": 31.49,
+      "safe_mode_engaged": "COOLDOWN",
+      "cooldown_inserted": true,
+      "simulated_temp_c": 91.5,
+      "passed": true,
+      "fault_id": "F8",
+      "name": "Thermal Spike Simulated",
+      "budget_ms": 1000.0,
+      "total_eval_time_ms": 31.52
+    }
+  }
+}

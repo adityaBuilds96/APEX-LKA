@@ -1,0 +1,12 @@
+# =============================================================
+# APEX-LKA Multi-Object Tracking Configuration (ByteTrack / OC-SORT)
+# =============================================================
+object_tracking:
+  enabled: true
+  track_thresh: 0.45
+  track_buffer_frames: 30
+  match_thresh: 0.80
+  min_box_area_px: 100
+  kalman_process_noise: 0.05
+  kalman_measurement_noise: 0.10
+  cost_metric: "iou_3d"

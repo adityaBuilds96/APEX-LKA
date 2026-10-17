@@ -75,92 +75,116 @@ _IMAGENET_STD  = (0.229, 0.224, 0.225)
 # Augmentation Pipelines
 # ═══════════════════════════════════════════════════════════════════════════════
 
+# List of explicitly forbidden augmentations that destroy autonomous perception geometry
+FORBIDDEN_TRANSFORMS: Tuple[str, ...] = (
+    "HorizontalFlip",   # INVERTS left (2) vs right (3) lane classes and mirrors steering sign
+    "VerticalFlip",     # Inverts ground-plane geometry and horizon perspective
+    "ElasticTransform", # Non-rigid warping creates artificial non-physical road curvatures
+    "GridDistortion",   # Distorts straight highway geometry into non-planar artifacts
+)
+
+
 def _build_train_transforms(
-    height: int,
-    width: int,
-    brightness_limit: float = 0.30,
+    height: int = 360,
+    width: int = 640,
+    brightness_limit: float = 0.20,
     contrast_limit: float = 0.20,
     blur_limit: int = 5,
     shadow_simulation: bool = True,
 ) -> Optional[object]:
     """
     Build albumentations pipeline strictly containing SAFE transforms for lane segmentation.
-    Explicitly excludes HorizontalFlip, large rotations, and non-rigid distortion.
+    Explicitly excludes HorizontalFlip, VerticalFlip, ElasticTransform, and GridDistortion.
+    Horizontal flips invert left/right lane classes and mirror steering geometry sign conventions.
     """
     if not _ALBUMENTATIONS_AVAILABLE:
         return None
 
-    # Safe scale and crop (0.8 - 1.0)
+    # Allowed Geometric Augmentation 1: RandomResizedCrop (scale 0.85 - 1.0, p=0.5)
     try:
         crop_transform = A.RandomResizedCrop(
             size=(height, width),
-            scale=(0.80, 1.0),
+            scale=(0.85, 1.0),
             ratio=(width / height * 0.95, width / height * 1.05),
-            p=0.4,
+            p=0.5,
         )
     except (TypeError, ValueError):
         crop_transform = A.RandomResizedCrop(
             height=height,
             width=width,
-            scale=(0.80, 1.0),
+            scale=(0.85, 1.0),
             ratio=(width / height * 0.95, width / height * 1.05),
-            p=0.4,
+            p=0.5,
         )
 
+    # Allowed Geometric Augmentation 2: ShiftScaleRotate (shift_limit=0.05, scale_limit=0.0, rotate_limit=3, p=0.3)
+    try:
+        shift_rotate = A.ShiftScaleRotate(
+            shift_limit=0.05,
+            scale_limit=0.0,
+            rotate_limit=3,
+            border_mode=cv2.BORDER_REFLECT_101,
+            p=0.3,
+        )
+    except Exception:
+        shift_rotate = A.Affine(
+            translate_percent={"x": (-0.05, 0.05), "y": (-0.05, 0.05)},
+            rotate=(-3, 3),
+            scale=(1.0, 1.0),
+            border_mode=cv2.BORDER_REFLECT_101,
+            p=0.3,
+        )
+
+    # Allowed Photometric Augmentations:
+    # 1. RandomBrightnessContrast(p=0.5)
+    # 2. GaussNoise(var_limit=(10, 50), p=0.3)
+    # 3. GaussianBlur(blur_limit=(3, 5), p=0.3)
+    # 4. RandomShadow(num_shadows_lower=1, num_shadows_upper=3, p=0.4)
+    # 5. HueSaturationValue(hue_shift_limit=10, sat_shift_limit=20, val_shift_limit=20, p=0.4)
     transforms: List[Any] = [
         crop_transform,
+        shift_rotate,
         A.Resize(height=height, width=width),
-
-        # Vertical shift (±5%) and small rotation (±3°)
-        A.Affine(
-            translate_percent={"x": (-0.02, 0.02), "y": (-0.05, 0.05)},
-            rotate=(-3, 3),
-            scale=(0.95, 1.05),
-            border_mode=cv2.BORDER_REFLECT_101,
-            p=0.5,
-        ),
-
-        # Photometric variations
         A.RandomBrightnessContrast(
             brightness_limit=brightness_limit,
             contrast_limit=contrast_limit,
-            p=0.6,
+            p=0.5,
         ),
         A.HueSaturationValue(
             hue_shift_limit=10,
             sat_shift_limit=20,
-            val_shift_limit=15,
+            val_shift_limit=20,
             p=0.4,
         ),
-
-        # Sensor noise and camera blur
-        A.GaussNoise(std_range=(0.02, 0.1), p=0.3)
-        if "std_range" in inspect.signature(A.GaussNoise.__init__).parameters
-        else A.GaussNoise(var_limit=(10.0, 50.0), p=0.3),
-        A.GaussianBlur(blur_limit=(3, blur_limit), p=0.2),
+        A.GaussNoise(var_limit=(10.0, 50.0), p=0.3)
+        if "var_limit" in inspect.signature(A.GaussNoise.__init__).parameters
+        else A.GaussNoise(std_range=(0.02, 0.1), p=0.3),
+        A.GaussianBlur(blur_limit=(3, blur_limit), p=0.3),
     ]
 
-    # Synthetic shadow simulation
+    # Synthetic shadow simulation (p=0.4)
     if shadow_simulation:
-        if "num_shadows_limit" in inspect.signature(A.RandomShadow.__init__).parameters:
-            transforms.append(
-                A.RandomShadow(
-                    shadow_roi=(0, 0.4, 1, 1),
-                    num_shadows_limit=(1, 3),
-                    shadow_dimension=5,
-                    p=0.3,
-                )
-            )
-        else:
+        if "num_shadows_lower" in inspect.signature(A.RandomShadow.__init__).parameters:
             transforms.append(
                 A.RandomShadow(
                     shadow_roi=(0, 0.4, 1, 1),
                     num_shadows_lower=1,
                     num_shadows_upper=3,
                     shadow_dimension=5,
-                    p=0.3,
+                    p=0.4,
                 )
             )
+        elif "num_shadows_limit" in inspect.signature(A.RandomShadow.__init__).parameters:
+            transforms.append(
+                A.RandomShadow(
+                    shadow_roi=(0, 0.4, 1, 1),
+                    num_shadows_limit=(1, 3),
+                    shadow_dimension=5,
+                    p=0.4,
+                )
+            )
+        else:
+            transforms.append(A.RandomShadow(p=0.4))
 
     # Normalization + Tensor conversion
     transforms += [
@@ -168,11 +192,23 @@ def _build_train_transforms(
         ToTensorV2(),
     ]
 
-    return A.Compose(transforms)
+    pipeline = A.Compose(transforms)
+
+    # Runtime assertion: Guarantee no geometry-inverting transforms exist
+    for t in transforms:
+        t_name = t.__class__.__name__
+        if t_name in FORBIDDEN_TRANSFORMS:
+            raise ValueError(
+                f"Forbidden augmentation '{t_name}' detected! Horizontal flips and non-rigid "
+                "distortions invert left/right lane classes and corrupt steering geometry."
+            )
+
+    return pipeline
 
 
 # Public alias for safe augmentation builder
 build_safe_train_augmentations = _build_train_transforms
+
 
 
 
@@ -224,6 +260,7 @@ class LaneSegDataset(Dataset):
         width: int = 640,
         augment: Optional[bool] = None,
         return_metadata: bool = False,
+        transform: Optional[Any] = None,
     ) -> None:
         self.root_dir = Path(root_dir)
         self.split = split
@@ -243,7 +280,18 @@ class LaneSegDataset(Dataset):
 
         self._pairs: List[Tuple[Path, Path]] = self._discover_pairs()
 
-        if self._use_augment:
+        if transform is not None:
+            # Runtime validation: Strictly prohibit geometry-inverting transforms
+            transforms_list = getattr(transform, "transforms", [transform])
+            for t in transforms_list:
+                t_name = t.__class__.__name__
+                if t_name in FORBIDDEN_TRANSFORMS:
+                    raise ValueError(
+                        f"CRITICAL: Forbidden augmentation '{t_name}' detected! Horizontal flips "
+                        "and non-rigid distortions invert steering geometry sign conventions."
+                    )
+            self._transform = transform
+        elif self._use_augment:
             self._transform = _build_train_transforms(height, width)
         else:
             self._transform = _build_val_transforms(height, width)

@@ -36,6 +36,13 @@ const unsigned long TELEMETRY_RATE_MS   = 33;   // ~30 Hz feedback loop
 const float MAX_STEER_RATE_DEG_PER_SEC = 60.0;  // Slew-rate limiter: prevents current spikes
 const float MAX_STEER_ANGLE_DEG        = 30.0;
 
+// --- Phase 4 Section 5: Actuation Profile Unit Flag & Rate Limiter ---
+#ifndef APEX_CMD_UNIT_COUNTS
+#define APEX_CMD_UNIT_COUNTS 1   // 1 = CAN 0x100 carries actuator counts; 0 = deg * 100
+#endif
+const float COUNTS_PER_DEG             = 12.5;
+const int MAX_RATE_COUNTS_PER_TICK     = 25;
+
 // --- CAN Identifiers ---
 const unsigned long CAN_ID_HEARTBEAT   = 0x050;
 const unsigned long CAN_ID_CMD_NODE1   = 0x100;
@@ -201,7 +208,14 @@ void processCANInput() {
       uint8_t mode         = rx_buf[5];
       uint16_t ts          = (uint16_t)(rx_buf[6] | (rx_buf[7] << 8));
 
-      g_target_steering_deg = constrain(steer_scaled / 100.0, -MAX_STEER_ANGLE_DEG, MAX_STEER_ANGLE_DEG);
+#if APEX_CMD_UNIT_COUNTS
+      // Command carried in physical actuator counts
+      float target_deg = (float)steer_scaled / COUNTS_PER_DEG;
+#else
+      // Command carried in hundredths of a degree (deg * 100)
+      float target_deg = (float)steer_scaled / 100.0;
+#endif
+      g_target_steering_deg = constrain(target_deg, -MAX_STEER_ANGLE_DEG, MAX_STEER_ANGLE_DEG);
       g_active_mode = (VehicleMode)mode;
       g_last_seq_ts = ts;
       g_last_valid_cmd_ms = millis();

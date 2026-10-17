@@ -52,13 +52,26 @@ log = logging.getLogger("apex_predictor")
 
 class ModelStatus(Enum):
     """Describes the current status of the prediction backend."""
-    NOT_TRAINED     = "MODEL NOT TRAINED"
-    READY           = "MODEL READY"
-    NOT_LOADED      = "MODEL NOT LOADED"
-    LOAD_ERROR      = "MODEL LOAD ERROR"
-    INFERENCE_ERROR = "INFERENCE ERROR"
-    CLASSICAL_CV    = "CLASSICAL CV BASELINE"
-    DEGRADED        = "MODEL DEGRADED"
+    NOT_TRAINED        = "MODEL NOT TRAINED"
+    READY              = "MODEL READY"
+    READY_TENSORRT     = "READY_TENSORRT"
+    READY_ONNX         = "READY_ONNX"
+    READY_PYTORCH      = "READY_PYTORCH"
+    CLASSICAL_FALLBACK = "CLASSICAL_FALLBACK"
+    NOT_LOADED         = "MODEL NOT LOADED"
+    LOAD_ERROR         = "MODEL LOAD ERROR"
+    INFERENCE_ERROR    = "INFERENCE ERROR"
+    CLASSICAL_CV       = "CLASSICAL CV BASELINE"
+    DEGRADED           = "MODEL DEGRADED"
+
+    @property
+    def is_ready(self) -> bool:
+        return self in (
+            ModelStatus.READY,
+            ModelStatus.READY_TENSORRT,
+            ModelStatus.READY_ONNX,
+            ModelStatus.READY_PYTORCH,
+        )
 
 
 class DetectionStatus(Enum):
@@ -186,43 +199,132 @@ class BaseLanePredictor(ABC):
 # ═══════════════════════════════════════════════════════════════════════════
 
 class MLSegmentationPredictor(BaseLanePredictor):
-    """Trained PyTorch segmentation model (LaneSegNet)."""
+    """
+    Multi-backend auto-swapping segmentation predictor:
+    1. Check for 'models/exported/best_model.plan' -> Load TensorRT Engine (Status: READY_TENSORRT)
+    2. Fallback to 'models/exported/best_model.onnx' -> Load ONNX Runtime CUDA/CPU (Status: READY_ONNX)
+    3. Fallback to 'models/exported/best_model.pth' -> Load PyTorch Model (Status: READY_PYTORCH)
+    4. Fallback if missing -> Switch to Universal Classical CV (Status: CLASSICAL_FALLBACK)
+    """
 
-    MODEL_PATH = PROJECT_ROOT / "models" / "exported" / "best_model.pth"
+    PLAN_PATH = PROJECT_ROOT / "models" / "exported" / "best_model.plan"
+    ONNX_PATH = PROJECT_ROOT / "models" / "exported" / "best_model.onnx"
+    PTH_PATH = PROJECT_ROOT / "models" / "exported" / "best_model.pth"
+    MODEL_PATH = PTH_PATH  # backward compatibility alias
 
-    def __init__(self, device: Optional[str] = None):
+    def __init__(
+        self,
+        device: Optional[str] = None,
+        model_path: Optional[Union[str, Path]] = None,
+        allow_classical_fallback: bool = True,
+    ):
         self._status = ModelStatus.NOT_LOADED
-        self._model = None
         self._device = device
+        self._allow_classical_fallback = allow_classical_fallback
+        self._custom_model_path = Path(model_path) if model_path else None
+        self._active_backend = None
+        self._sub_predictor = None
+        self._model = None
         self._load_error: Optional[str] = None
         self._try_load()
 
     def _try_load(self) -> None:
-        if not self.MODEL_PATH.exists():
-            self._status = ModelStatus.NOT_TRAINED
+        # If custom path provided, target that specific format
+        if self._custom_model_path:
+            p = self._custom_model_path
+            if p.suffix == ".plan":
+                self._try_load_tensorrt(p)
+            elif p.suffix == ".onnx":
+                self._try_load_onnx(p)
+            elif p.suffix in (".pth", ".pt"):
+                self._try_load_pytorch(p)
             return
 
+        # 1. Check for TensorRT Engine
+        if self.PLAN_PATH.exists():
+            if self._try_load_tensorrt(self.PLAN_PATH):
+                return
+
+        # 2. Fallback to ONNX Runtime
+        if self.ONNX_PATH.exists():
+            if self._try_load_onnx(self.ONNX_PATH):
+                return
+
+        # 3. Fallback to PyTorch Model
+        if self.PTH_PATH.exists():
+            if self._try_load_pytorch(self.PTH_PATH):
+                return
+
+        # 4. Fallback if missing -> Switch to Universal Classical CV
+        if self._allow_classical_fallback:
+            try:
+                from src.inference.classical_cv import ClassicalCVPredictor
+                self._sub_predictor = ClassicalCVPredictor()
+                self._status = ModelStatus.CLASSICAL_FALLBACK
+                self._active_backend = "classical"
+                log.info("MLSegmentationPredictor: Switched to Universal Classical CV fallback.")
+                return
+            except Exception as e:
+                log.error("Classical CV fallback failed to load: %s", e)
+                self._load_error = str(e)
+
+        self._status = ModelStatus.NOT_TRAINED
+        self._active_backend = None
+
+    def _try_load_tensorrt(self, plan_path: Path) -> bool:
+        try:
+            from src.inference.predictor import TensorRTLanePredictor
+            trt_pred = TensorRTLanePredictor(plan_path)
+            if trt_pred.model_status in (ModelStatus.READY, ModelStatus.READY_TENSORRT):
+                self._sub_predictor = trt_pred
+                self._status = ModelStatus.READY_TENSORRT
+                self._active_backend = "tensorrt"
+                log.info("MLSegmentationPredictor loaded TensorRT engine: %s", plan_path)
+                return True
+        except Exception as e:
+            log.warning("TensorRT engine load error: %s", e)
+        return False
+
+    def _try_load_onnx(self, onnx_path: Path) -> bool:
+        try:
+            from src.inference.onnx_predictor import ONNXLanePredictor
+            onnx_pred = ONNXLanePredictor(model_path=onnx_path, device=self._device)
+            if onnx_pred.model_status in (ModelStatus.READY, ModelStatus.READY_ONNX):
+                self._sub_predictor = onnx_pred
+                self._status = ModelStatus.READY_ONNX
+                self._active_backend = "onnx"
+                log.info("MLSegmentationPredictor loaded ONNX model: %s", onnx_path)
+                return True
+        except Exception as e:
+            log.warning("ONNX model load error: %s", e)
+        return False
+
+    def _try_load_pytorch(self, pth_path: Path) -> bool:
         try:
             import torch
             if self._device is None:
                 self._device = "cuda" if torch.cuda.is_available() else "cpu"
 
-            checkpoint = torch.load(str(self.MODEL_PATH), map_location=self._device)
-
+            checkpoint = torch.load(str(pth_path), map_location=self._device, weights_only=False)
             from src.training.model import LaneSegNet
             self._model = LaneSegNet(num_classes=4, with_aux_head=False)
             state_dict = checkpoint.get("model_state_dict", checkpoint)
-            # Remove aux head weights if not needed
+            if "ema_model" in checkpoint:
+                state_dict = checkpoint["ema_model"]
+            elif "ema_state_dict" in checkpoint and checkpoint["ema_state_dict"] is not None:
+                state_dict = checkpoint["ema_state_dict"]
             filtered_state = {k: v for k, v in state_dict.items() if not k.startswith("aux_head.")}
             self._model.load_state_dict(filtered_state, strict=False)
             self._model.to(self._device)
             self._model.eval()
-            self._status = ModelStatus.READY
-        except Exception as exc:
-            self._status = ModelStatus.LOAD_ERROR
-            self._model = None
-            self._load_error = str(exc)
-            log.warning("MLSegmentationPredictor failed to load: %s", exc)
+            self._status = ModelStatus.READY_PYTORCH
+            self._active_backend = "pytorch"
+            log.info("MLSegmentationPredictor loaded PyTorch model: %s", pth_path)
+            return True
+        except Exception as e:
+            log.warning("PyTorch model load error: %s", e)
+            self._load_error = str(e)
+        return False
 
     @property
     def model_status(self) -> ModelStatus:
@@ -230,85 +332,102 @@ class MLSegmentationPredictor(BaseLanePredictor):
 
     @property
     def backend_name(self) -> str:
-        dev = self._device or "cpu"
-        return f"PyTorch (LaneSegNet on {dev.upper()})"
+        if self._active_backend == "tensorrt":
+            return "TensorRT Engine (best_model.plan)"
+        elif self._active_backend == "onnx":
+            return f"ONNX Runtime ({self._device or 'auto'})"
+        elif self._active_backend == "pytorch":
+            dev = self._device or "cpu"
+            return f"PyTorch (LaneSegNet on {dev.upper()})"
+        elif self._active_backend == "classical":
+            return "Universal Classical CV Fallback"
+        return "None"
 
     def predict(self, preprocessed: PreprocessResult) -> LanePrediction:
-        if self._status != ModelStatus.READY or self._model is None:
+        if self._status in (ModelStatus.NOT_TRAINED, ModelStatus.NOT_LOADED):
             return LanePrediction(
                 status=DetectionStatus.MODEL_UNAVAILABLE,
                 model_status=self._status,
                 backend_name=self.backend_name,
-                error_message=self._load_error or "PyTorch model not ready.",
+                error_message=self._load_error or "Model not trained or unavailable.",
             )
 
-        try:
-            import torch
-            t0 = time.perf_counter()
-            # input_tensor: (H, W, 3) float32 [0, 1] -> (1, 3, H, W)
-            tensor = torch.from_numpy(
-                preprocessed.input_tensor.transpose(2, 0, 1)
-            ).unsqueeze(0).to(self._device)
+        if self._sub_predictor is not None:
+            pred = self._sub_predictor.predict(preprocessed)
+            pred.model_status = self._status
+            return pred
 
-            with torch.no_grad():
-                logits = self._model(tensor)
-                probs = torch.softmax(logits, dim=1).squeeze(0).cpu().numpy()
+        if self._active_backend == "pytorch" and self._model is not None:
+            try:
+                import torch
+                t0 = time.perf_counter()
+                tensor = torch.from_numpy(
+                    preprocessed.input_tensor.transpose(2, 0, 1)
+                ).unsqueeze(0).to(self._device)
 
-            elapsed_ms = (time.perf_counter() - t0) * 1000.0
+                with torch.no_grad():
+                    logits = self._model(tensor)
+                    probs = torch.softmax(logits, dim=1).squeeze(0).cpu().numpy()
 
-            # Class mapping: 0=bg, 1=road, 2=left_lane, 3=right_lane
-            # Or 0=bg, 1=left_lane, 2=right_lane
-            num_classes = probs.shape[0]
-            if num_classes >= 4:
-                left_prob = probs[2]
-                right_prob = probs[3]
-                road_prob = probs[1]
-                road_mask = (road_prob >= 0.50).astype(np.uint8) * 255
-            else:
-                left_prob = probs[1]
-                right_prob = probs[2]
-                road_mask = None
+                elapsed_ms = (time.perf_counter() - t0) * 1000.0
 
-            thresh = 0.50
-            left_mask = (left_prob >= thresh).astype(np.uint8) * 255
-            right_mask = (right_prob >= thresh).astype(np.uint8) * 255
-            left_conf = float(left_prob.max())
-            right_conf = float(right_prob.max())
+                num_classes = probs.shape[0]
+                if num_classes >= 4:
+                    left_prob = probs[2]
+                    right_prob = probs[3]
+                    road_prob = probs[1]
+                    road_mask = (road_prob >= 0.50).astype(np.uint8) * 255
+                else:
+                    left_prob = probs[1]
+                    right_prob = probs[2]
+                    road_mask = None
 
-            both = bool(left_mask.any() and right_mask.any())
-            one = bool(left_mask.any() or right_mask.any())
-            det_status = (
-                DetectionStatus.LANE_DETECTED if both else
-                DetectionStatus.PARTIAL_LANE_DETECTED if one else
-                DetectionStatus.LANE_NOT_DETECTED
-            )
+                thresh = 0.50
+                left_mask = (left_prob >= thresh).astype(np.uint8) * 255
+                right_mask = (right_prob >= thresh).astype(np.uint8) * 255
+                left_conf = float(left_prob.max())
+                right_conf = float(right_prob.max())
 
-            # Explicit tensor cleanup
-            del tensor, logits
+                both = bool(left_mask.any() and right_mask.any())
+                one = bool(left_mask.any() or right_mask.any())
+                det_status = (
+                    DetectionStatus.LANE_DETECTED if both else
+                    DetectionStatus.PARTIAL_LANE_DETECTED if one else
+                    DetectionStatus.LANE_NOT_DETECTED
+                )
 
-            return LanePrediction(
-                status=det_status,
-                model_status=ModelStatus.READY,
-                backend_name=self.backend_name,
-                degradation_level=DegradationLevel.LEVEL_3_GPU_PYTORCH if self._device == "cuda" else DegradationLevel.LEVEL_4_CPU_ONNX,
-                left_mask=left_mask,
-                right_mask=right_mask,
-                left_confidence=left_conf,
-                right_confidence=right_conf,
-                road_mask=road_mask,
-                model_h=preprocessed.model_h,
-                model_w=preprocessed.model_w,
-                inference_ms=elapsed_ms,
-                accuracy_score=round((left_conf + right_conf) / 2.0, 3),
-            )
-        except Exception as exc:
-            log.error("PyTorch inference error: %s", exc)
-            return LanePrediction(
-                status=DetectionStatus.INFERENCE_ERROR,
-                model_status=ModelStatus.INFERENCE_ERROR,
-                backend_name=self.backend_name,
-                error_message=str(exc),
-            )
+                del tensor, logits
+
+                return LanePrediction(
+                    status=det_status,
+                    model_status=self._status,
+                    backend_name=self.backend_name,
+                    degradation_level=DegradationLevel.LEVEL_3_GPU_PYTORCH if self._device == "cuda" else DegradationLevel.LEVEL_4_CPU_ONNX,
+                    left_mask=left_mask,
+                    right_mask=right_mask,
+                    left_confidence=left_conf,
+                    right_confidence=right_conf,
+                    road_mask=road_mask,
+                    model_h=preprocessed.model_h,
+                    model_w=preprocessed.model_w,
+                    inference_ms=elapsed_ms,
+                    accuracy_score=round((left_conf + right_conf) / 2.0, 3),
+                )
+            except Exception as exc:
+                log.error("PyTorch inference error: %s", exc)
+                return LanePrediction(
+                    status=DetectionStatus.INFERENCE_ERROR,
+                    model_status=ModelStatus.INFERENCE_ERROR,
+                    backend_name=self.backend_name,
+                    error_message=str(exc),
+                )
+
+        return LanePrediction(
+            status=DetectionStatus.MODEL_UNAVAILABLE,
+            model_status=self._status,
+            backend_name=self.backend_name,
+            error_message="No active predictor backend available.",
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -484,7 +603,7 @@ class GracefulDegradationPredictor(BaseLanePredictor):
                     providers=["CUDAExecutionProvider", "TensorrtExecutionProvider"]
                 )
             elif level == DegradationLevel.LEVEL_3_GPU_PYTORCH:
-                self._predictors[level] = MLSegmentationPredictor(device="cuda")
+                self._predictors[level] = MLSegmentationPredictor(device="cuda", allow_classical_fallback=False)
             elif level == DegradationLevel.LEVEL_4_CPU_ONNX:
                 from src.inference.onnx_predictor import ONNXLanePredictor
                 self._predictors[level] = ONNXLanePredictor(
@@ -521,7 +640,7 @@ class GracefulDegradationPredictor(BaseLanePredictor):
         if highest_viable.value < self.current_level.value:
             # Attempt instantiation
             cand = self._get_or_create_predictor(highest_viable)
-            if cand and cand.model_status == ModelStatus.READY:
+            if cand and (cand.model_status == ModelStatus.READY or getattr(cand.model_status, "is_ready", False)):
                 self._record_transition(
                     self.current_level,
                     highest_viable,
@@ -671,3 +790,11 @@ def get_predictor(backend: str = "auto") -> BaseLanePredictor:
             f"Unknown backend: '{backend}'. "
             "Choose 'auto', 'degradation_stack', 'classical_cv', 'ml_segmentation', 'onnx', or 'tensorrt'."
         )
+
+
+def get_depth_predictor() -> Any:
+    """
+    Return initialized MonocularDepthEngine instance for 3D monocular depth perception.
+    """
+    from src.perception.depth_engine import MonocularDepthEngine
+    return MonocularDepthEngine()

@@ -1,30 +1,31 @@
 """
 src/training/model.py
 ======================
-LaneSegNet — Universal 4-Class Semantic Segmentation Neural Network.
+LaneSegNet — Universal 4-Class Semantic Segmentation Neural Network for APEX-LKA.
 
 Architecture
 ------------
-Encoder : MobileNetV3-Small (ImageNet-pretrained via torchvision)
+Encoder : MobileNetV3-Small (Torchvision pretrained)
           Multi-scale intermediate feature maps:
-            • P2  —  H/4   ×  W/4   (24 ch)
-            • P3  —  H/8   ×  W/8   (40 ch)
-            • P4  —  H/16  ×  W/16  (48 ch)
-            • P5  —  H/32  ×  W/32  (96 ch)
+            • C1  —  H/4   ×  W/4   (24 ch)
+            • C2  —  H/8   ×  W/8   (40 ch)
+            • C3  —  H/16  ×  W/16  (48 ch)
+            • C4  —  H/32  ×  W/32  (96 ch)
 
-Decoder : Feature Pyramid Network (FPN) with Dual Attention:
-            • Lateral 1×1 projections to unified FPN feature space (256 ch)
-            • Top-down progressive feature fusion
-            • Squeeze-and-Excitation (SE) channel attention
-            • Spatial Attention (7×7 conv) for road and lane focus
+Decoder : Feature Pyramid Network (FPN) mapping all feature maps to 128 channels
+          via 1×1 lateral convolutions, followed by bilinear upsampling, element-wise
+          addition, and dual attention:
+            • Channel Attention: Squeeze-and-Excitation (SE) with reduction r=16
+            • Spatial Attention: 7×7 conv with sigmoid activation to suppress sky/background
 
 Heads   :
-  1. Primary Segmentation Head:
-     1×1 conv → 4-class logits (Background, Road, Left Lane, Right Lane)
-  2. Auxiliary Boundary Head (training only, discarded at inference):
-     1-channel boundary distance/edge logits to sharpen thin lane contours
+  1. Primary Head:
+     1×1 conv → 4-class logits (0=Background, 1=Road, 2=Left Lane, 3=Right Lane)
+  2. Auxiliary Boundary Head (Training Only):
+     1×1 conv predicting 1-channel continuous boundary distance map.
+     Automatically bypassed during inference (model.eval()).
 
-Parameters: ~3.4 million (optimized for RTX 4060 training and Jetson Orin Nano deployment).
+Parameters: ~4.7 million (constrained to 3.0M–5.0M for RTX 4060 training and Jetson Orin Nano deployment).
 """
 
 from __future__ import annotations
@@ -39,7 +40,7 @@ from torchvision.models import MobileNet_V3_Small_Weights, mobilenet_v3_small
 
 # ── Configuration Defaults ───────────────────────────────────────────────────
 NUM_CLASSES: int = 4
-FPN_CHANNELS: int = 224
+FPN_CHANNELS: int = 128
 SE_REDUCTION: int = 16
 
 
@@ -49,19 +50,20 @@ SE_REDUCTION: int = 16
 
 class SEBlock(nn.Module):
     """
-    Channel-wise Squeeze-and-Excitation attention.
+    Channel-wise Squeeze-and-Excitation attention with reduction ratio r=16.
     Recalibrates channel responses to emphasize thin lane markings over background.
     """
 
-    def __init__(self, channels: int, reduction: int = SE_REDUCTION) -> None:
+    def __init__(self, channels: Optional[int] = None, reduction: int = SE_REDUCTION, in_channels: Optional[int] = None) -> None:
         super().__init__()
-        mid = max(4, channels // reduction)
+        ch = in_channels if in_channels is not None else (channels if channels is not None else FPN_CHANNELS)
+        mid = max(4, ch // reduction)
         self.fc = nn.Sequential(
             nn.AdaptiveAvgPool2d(1),
             nn.Flatten(),
-            nn.Linear(channels, mid, bias=False),
+            nn.Linear(ch, mid, bias=False),
             nn.ReLU(inplace=True),
-            nn.Linear(mid, channels, bias=False),
+            nn.Linear(mid, ch, bias=False),
             nn.Sigmoid(),
         )
 
@@ -70,10 +72,14 @@ class SEBlock(nn.Module):
         return x * scale
 
 
+# Alias for channel attention specification
+ChannelAttention = SEBlock
+
+
 class SpatialAttention(nn.Module):
     """
-    Lightweight 7×7 Spatial Attention module.
-    Focuses the network on drivable corridors and road boundaries.
+    Lightweight 7×7 Spatial Attention module with sigmoid activation.
+    Filters out sky and background features, focusing on road surface and lane boundaries.
     """
 
     def __init__(self, kernel_size: int = 7) -> None:
@@ -95,7 +101,7 @@ class SpatialAttention(nn.Module):
 
 class LateralBlock(nn.Module):
     """
-    Projects encoder feature map to FPN_CHANNELS and applies SE channel attention.
+    Projects encoder feature map to 128 channels via 1×1 convolution and applies SE attention.
     """
 
     def __init__(self, in_channels: int, out_channels: int = FPN_CHANNELS) -> None:
@@ -114,20 +120,24 @@ class LateralBlock(nn.Module):
 class FPNFusionBlock(nn.Module):
     """
     Fuses top-down upsampled features with lateral features.
-    Applies standard 3×3 convolutions, SE channel attention, and spatial attention.
+    Applies refinement convolutions, SE channel attention, and spatial attention.
     """
 
     def __init__(self, channels: int = FPN_CHANNELS) -> None:
         super().__init__()
+        mid_ch = 256
         self.conv = nn.Sequential(
-            nn.Conv2d(channels, channels, kernel_size=3, padding=1, bias=False),
-            nn.BatchNorm2d(channels),
+            nn.Conv2d(channels, mid_ch, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(mid_ch),
             nn.ReLU(inplace=True),
-            nn.Conv2d(channels, channels, kernel_size=3, padding=1, bias=False),
+            nn.Conv2d(mid_ch, mid_ch, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(mid_ch),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(mid_ch, channels, kernel_size=3, padding=1, bias=False),
             nn.BatchNorm2d(channels),
             nn.ReLU(inplace=True),
         )
-        self.se = SEBlock(channels)
+        self.se = SEBlock(channels, reduction=SE_REDUCTION)
         self.spatial = SpatialAttention(kernel_size=7)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -143,7 +153,11 @@ class FPNFusionBlock(nn.Module):
 
 class MobileNetV3Encoder(nn.Module):
     """
-    MobileNetV3-Small backbone exposing 4 pyramid scales (1/4, 1/8, 1/16, 1/32).
+    MobileNetV3-Small backbone exposing 4 pyramid scales:
+      C1: 1/4  resolution (24 ch)
+      C2: 1/8  resolution (40 ch)
+      C3: 1/16 resolution (48 ch)
+      C4: 1/32 resolution (96 ch)
     """
 
     _TAPS = (2, 4, 8, 11)
@@ -151,7 +165,7 @@ class MobileNetV3Encoder(nn.Module):
 
     def __init__(self, pretrained: bool = True) -> None:
         super().__init__()
-        weights = MobileNet_V3_Small_Weights.IMAGENET1K_V1 if pretrained else None
+        weights = MobileNet_V3_Small_Weights.DEFAULT if pretrained else None
         backbone = mobilenet_v3_small(weights=weights)
         self.features = backbone.features
 
@@ -168,7 +182,7 @@ class MobileNetV3Encoder(nn.Module):
             x = block(x)
             if idx in tap_set:
                 outs.append(x)
-        return outs  # [p2 (1/4), p3 (1/8), p4 (1/16), p5 (1/32)]
+        return outs  # [C1 (1/4), C2 (1/8), C3 (1/16), C4 (1/32)]
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -177,7 +191,8 @@ class MobileNetV3Encoder(nn.Module):
 
 class FPNDecoder(nn.Module):
     """
-    Top-down Feature Pyramid Network decoder with dual attention fusion.
+    Top-down Feature Pyramid Network decoder mapping all feature maps to 128 channels
+    via 1×1 lateral convolutions, bilinear upsampling, element-wise addition, and dual attention.
     """
 
     _IN_CHANNELS = (24, 40, 48, 96)
@@ -187,7 +202,7 @@ class FPNDecoder(nn.Module):
         self.laterals = nn.ModuleList([
             LateralBlock(c, fpn_ch) for c in self._IN_CHANNELS
         ])
-        # Smooth and refine merged levels
+        # Smooth and refine top level (C4)
         self.smooth_p5 = nn.Sequential(
             nn.Conv2d(fpn_ch, fpn_ch, kernel_size=3, padding=1, bias=False),
             nn.BatchNorm2d(fpn_ch),
@@ -201,10 +216,10 @@ class FPNDecoder(nn.Module):
         """
         Returns finest fused feature map at 1/4 resolution (B, fpn_ch, H/4, W/4).
         """
-        # Lateral 1x1 projections
+        # Lateral 1x1 projections to 128 channels
         lat = [lat_blk(f) for lat_blk, f in zip(self.laterals, feats)]
 
-        # Top-down feature aggregation
+        # Top-down feature aggregation: bilinear upsampling + element-wise addition
         top = self.smooth_p5(lat[-1])
         for i in range(len(lat) - 2, -1, -1):
             top = F.interpolate(top, size=lat[i].shape[-2:], mode="bilinear", align_corners=False)
@@ -222,11 +237,12 @@ class LaneSegNet(nn.Module):
     """
     Universal Lane & Path Segmentation Neural Network.
 
-    Encoder : MobileNetV3-Small (pretrained)
-    Decoder : FPN with SE Channel Attention and Spatial Attention
-    Heads   :
-      - Primary Head: 1x1 conv → num_classes (4 classes)
-      - Auxiliary Head: boundary distance estimator (training only)
+    Backbone : MobileNetV3-Small (DEFAULT weights)
+    Decoder  : FPN with 128 channels, SE Channel Attention, and Spatial Attention
+    Heads    :
+      - Primary Head: 1x1 conv → 4 output logits (0=Background, 1=Road, 2=Left Lane, 3=Right Lane)
+      - Auxiliary Boundary Head: 1x1 conv predicting 1-channel continuous boundary distance map.
+        Automatically bypassed during inference (model.eval()).
     """
 
     def __init__(
@@ -243,13 +259,13 @@ class LaneSegNet(nn.Module):
         self.encoder = MobileNetV3Encoder(pretrained=pretrained)
         self.decoder = FPNDecoder(fpn_ch=fpn_channels)
 
-        # Primary segmentation head
+        # Primary segmentation head: 1x1 conv -> 4 logits
         self.head = nn.Sequential(
             nn.Dropout2d(p=0.1),
             nn.Conv2d(fpn_channels, num_classes, kernel_size=1),
         )
 
-        # Auxiliary boundary distance head
+        # Auxiliary boundary head (training only): 1x1 conv -> 1-channel boundary distance map
         self.aux_head = nn.Sequential(
             nn.Conv2d(fpn_channels, 64, kernel_size=3, padding=1, bias=False),
             nn.BatchNorm2d(64),
@@ -271,7 +287,7 @@ class LaneSegNet(nn.Module):
     def forward(
         self,
         x: torch.Tensor,
-        return_aux: bool = False,
+        return_aux: Optional[bool] = None,
     ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
         """
         Forward pass.
@@ -279,15 +295,21 @@ class LaneSegNet(nn.Module):
         Parameters
         ----------
         x : (B, 3, H, W)
-        return_aux : bool
-            If True, returns tuple (logits, aux_boundary_logits).
-            Defaults to False for standard inference and export.
+        return_aux : Optional[bool]
+            If None: defaults to self.training and self.with_aux_head (bypassed during eval).
+            If True: returns (logits, aux_boundary_logits).
+            If False: returns logits only.
 
         Returns
         -------
         logits : (B, num_classes, H, W) float32 logits
         aux    : Optional (B, 1, H, W) float32 boundary logits
         """
+        if return_aux is None:
+            should_return_aux = self.training and self.with_aux_head
+        else:
+            should_return_aux = return_aux and self.with_aux_head
+
         feats = self.encoder(x)
         fused = self.decoder(feats)           # (B, FPN_CH, H/4, W/4)
 
@@ -297,7 +319,7 @@ class LaneSegNet(nn.Module):
             logits_s4, size=x.shape[-2:], mode="bilinear", align_corners=False
         )
 
-        if return_aux and self.with_aux_head:
+        if should_return_aux:
             aux_s4 = self.aux_head(fused)
             aux_out = F.interpolate(
                 aux_s4, size=x.shape[-2:], mode="bilinear", align_corners=False
@@ -320,3 +342,22 @@ class LaneSegNet(nn.Module):
     def total_param_count(self) -> int:
         """Total parameters including frozen weights."""
         return sum(p.numel() for p in self.parameters())
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 6. Multi-Task HydraNet Export
+# ═══════════════════════════════════════════════════════════════════════════
+
+def get_hydranet(
+    num_seg_classes: int = NUM_CLASSES,
+    num_obj_classes: int = 9,
+    pretrained: bool = True,
+):
+    """Factory helper to construct APEXHydraNet multi-task network."""
+    from src.training.multitask_head import APEXHydraNet
+    return APEXHydraNet(
+        num_seg_classes=num_seg_classes,
+        num_obj_classes=num_obj_classes,
+        pretrained=pretrained,
+    )
+

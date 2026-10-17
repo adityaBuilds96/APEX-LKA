@@ -1,13 +1,13 @@
 {
-  "last_updated": "2026-09-29T13:08:29.991835",
+  "last_updated": "2026-10-03T18:37:05.462221",
   "total_images": 2,
-  "completed_masks": 0,
-  "pending_images": 2,
+  "completed_masks": 2,
+  "pending_images": 0,
   "orphaned_masks": 0,
-  "progress_percent": 0.0,
-  "completed_stems": [],
-  "pending_stems": [
+  "progress_percent": 100.0,
+  "completed_stems": [
     "highway_lane_02",
     "straight_road_01"
-  ]
+  ],
+  "pending_stems": []
 }
