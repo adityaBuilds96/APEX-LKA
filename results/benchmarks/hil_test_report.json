@@ -1,14 +1,14 @@
 {
-  "timestamp": "2026-10-06T07:07:48Z",
+  "timestamp": "2026-10-17T11:16:30Z",
   "platform": "APEX Universal",
   "target_hardware": "Jetson Orin Nano 4GB",
   "total_scenarios": 1,
-  "overall_pass": true,
+  "overall_pass": false,
   "aggregate_metrics": {
-    "latency_p50_ms": 12.65,
-    "latency_p95_ms": 14.94,
-    "latency_p99_ms": 17.01,
-    "sustained_fps_min": 29.99,
+    "latency_p50_ms": 27.79,
+    "latency_p95_ms": 30.42,
+    "latency_p99_ms": 30.43,
+    "sustained_fps_min": 22.48,
     "watchdog_trips": 0,
     "total_exceptions": 0
   },
@@ -17,14 +17,14 @@
       "id": "TEST-01",
       "name": "Synthetic Straight Test",
       "frames_processed": 15,
-      "fps_sustained": 29.99,
-      "latency_p50_ms": 12.65,
-      "latency_p95_ms": 14.94,
-      "latency_p99_ms": 17.01,
+      "fps_sustained": 22.48,
+      "latency_p50_ms": 27.79,
+      "latency_p95_ms": 30.42,
+      "latency_p99_ms": 30.43,
       "budget_p99_ms": 40.0,
       "steering_range_deg_actual": [
         -0.2,
-        0.26
+        0.29
       ],
       "steering_range_deg_expected": [
         -5.0,
@@ -33,23 +33,23 @@
       "exceptions_count": 0,
       "watchdog_trips": 0,
       "latencies_ms": [
-        17.53,
-        12.22,
-        12.59,
-        13.38,
-        12.65,
-        12.48,
-        12.44,
-        12.78,
-        13.41,
-        13.83,
-        13.04,
-        12.44,
-        12.76,
-        12.1,
-        12.58
+        30.02,
+        30.41,
+        28.83,
+        30.3,
+        27.12,
+        28.35,
+        27.51,
+        27.79,
+        30.43,
+        25.19,
+        28.29,
+        26.93,
+        25.94,
+        27.41,
+        22.75
       ],
-      "passed": true
+      "passed": false
     }
   ]
 }

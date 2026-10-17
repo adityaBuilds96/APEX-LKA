@@ -44,17 +44,64 @@ class TrackState:
 class TrackedObject:
     """Represents a persistent tracked dynamic entity across streaming frames."""
     track_id: int
-    class_id: int
-    class_name: str
-    bbox_2d: np.ndarray                     # [x1, y1, x2, y2] in pixels
-    bbox_3d: Optional[Object3D]             # 3D spatial properties (x, y, z, dimensions)
-    velocity_3d: np.ndarray                 # [vx, vy, vz] in m/s (metric camera coordinate frame)
-    age_frames: int = 1                     # Total frames active since creation
+    class_id: int = 0
+    class_name: str = "vehicle"
+    bbox_2d: np.ndarray = field(default_factory=lambda: np.zeros(4, dtype=np.float32))
+    bbox_3d: Optional[Any] = None
+    velocity_3d: np.ndarray = field(default_factory=lambda: np.zeros(3, dtype=np.float32))
+    age_frames: int = 1
     state: str = TrackState.TRACKED
     confidence: float = 1.0
     time_since_update: int = 0
+    hit_streak: int = 1
     history_2d: List[np.ndarray] = field(default_factory=list)
     history_3d: List[np.ndarray] = field(default_factory=list)
+
+    def __init__(
+        self,
+        track_id: int,
+        class_id: int = 0,
+        class_name: str = "vehicle",
+        bbox_2d: Optional[np.ndarray] = None,
+        box_2d: Optional[np.ndarray] = None,
+        bbox_3d: Optional[Any] = None,
+        velocity_3d: Optional[np.ndarray] = None,
+        age_frames: int = 1,
+        state: str = TrackState.TRACKED,
+        confidence: Optional[float] = None,
+        score: Optional[float] = None,
+        time_since_update: int = 0,
+        hit_streak: int = 1,
+        history_2d: Optional[List[np.ndarray]] = None,
+        history_3d: Optional[List[np.ndarray]] = None,
+    ):
+        self.track_id = int(track_id)
+        self.class_id = int(class_id)
+        self.class_name = str(class_name)
+        if box_2d is not None:
+            self.bbox_2d = np.asarray(box_2d, dtype=np.float32)
+        elif bbox_2d is not None:
+            self.bbox_2d = np.asarray(bbox_2d, dtype=np.float32)
+        else:
+            self.bbox_2d = np.zeros(4, dtype=np.float32)
+
+        self.bbox_3d = bbox_3d
+        self.velocity_3d = np.asarray(velocity_3d, dtype=np.float32) if velocity_3d is not None else np.zeros(3, dtype=np.float32)
+        self.age_frames = int(age_frames)
+        self.state = state
+        self.confidence = float(score if score is not None else (confidence if confidence is not None else 1.0))
+        self.time_since_update = int(time_since_update)
+        self.hit_streak = int(hit_streak)
+        self.history_2d = history_2d or []
+        self.history_3d = history_3d or []
+
+    @property
+    def box_2d(self) -> np.ndarray:
+        return self.bbox_2d
+
+    @property
+    def score(self) -> float:
+        return self.confidence
 
     @property
     def speed_mps(self) -> float:
@@ -65,14 +112,30 @@ class TrackedObject:
     def x_m(self) -> float:
         """Lateral position in meters (+ = right, - = left)."""
         if self.bbox_3d is not None:
-            return float(self.bbox_3d.x)
+            if hasattr(self.bbox_3d, "x"):
+                return float(self.bbox_3d.x)
+            if hasattr(self.bbox_3d, "__getitem__") and len(self.bbox_3d) > 0:
+                return float(self.bbox_3d[0])
+        return 0.0
+
+    @property
+    def y_m(self) -> float:
+        """Vertical position in meters."""
+        if self.bbox_3d is not None:
+            if hasattr(self.bbox_3d, "y"):
+                return float(self.bbox_3d.y)
+            if hasattr(self.bbox_3d, "__getitem__") and len(self.bbox_3d) > 1:
+                return float(self.bbox_3d[1])
         return 0.0
 
     @property
     def z_m(self) -> float:
         """Longitudinal distance in meters forward."""
         if self.bbox_3d is not None:
-            return float(self.bbox_3d.z)
+            if hasattr(self.bbox_3d, "z"):
+                return float(self.bbox_3d.z)
+            if hasattr(self.bbox_3d, "__getitem__") and len(self.bbox_3d) > 2:
+                return float(self.bbox_3d[2])
         return 0.0
 
     def to_dict(self) -> Dict[str, Any]:
@@ -224,6 +287,16 @@ class ObjectKalmanFilter:
 # Internal Track Entity
 # ═══════════════════════════════════════════════════════════════════════════
 
+def _extract_pos_3d(obj_3d: Any) -> Optional[np.ndarray]:
+    if obj_3d is None:
+        return None
+    if hasattr(obj_3d, "x") and hasattr(obj_3d, "y") and hasattr(obj_3d, "z"):
+        return np.array([float(obj_3d.x), float(obj_3d.y), float(obj_3d.z)], dtype=np.float64)
+    if hasattr(obj_3d, "__getitem__") and len(obj_3d) >= 3:
+        return np.array([float(obj_3d[0]), float(obj_3d[1]), float(obj_3d[2])], dtype=np.float64)
+    return None
+
+
 class SingleTrack:
     """Internal representation of a single track maintaining Kalman filter and lifecycle."""
 
@@ -240,11 +313,12 @@ class SingleTrack:
         self.bbox_2d = np.asarray(detection.box, dtype=np.float32)
         self.bbox_3d = obj_3d
 
-        pos_3d = np.array([obj_3d.x, obj_3d.y, obj_3d.z], dtype=np.float64) if obj_3d is not None else None
+        pos_3d = _extract_pos_3d(obj_3d)
         self.kf = ObjectKalmanFilter(self.bbox_2d, pos_3d=pos_3d)
 
         self.age_frames = 1
         self.time_since_update = 0
+        self.hit_streak = 1
         self.state = TrackState.NEW
         self.history_2d: List[np.ndarray] = [self.bbox_2d.copy()]
         self.history_3d: List[np.ndarray] = [pos_3d.copy()] if pos_3d is not None else []
@@ -264,10 +338,11 @@ class SingleTrack:
         self.class_name = detection.class_name
         self.bbox_3d = obj_3d
 
-        pos_3d = np.array([obj_3d.x, obj_3d.y, obj_3d.z], dtype=np.float64) if obj_3d is not None else None
+        pos_3d = _extract_pos_3d(obj_3d)
         self.kf.update(self.bbox_2d, pos_3d=pos_3d)
 
         self.time_since_update = 0
+        self.hit_streak += 1
         self.state = TrackState.TRACKED
 
         self.history_2d.append(self.bbox_2d.copy())
@@ -282,6 +357,7 @@ class SingleTrack:
     def mark_missed(self) -> None:
         """Mark track as missed in this frame."""
         self.time_since_update += 1
+        self.hit_streak = 0
         if self.state == TrackState.NEW:
             self.state = TrackState.REMOVED
         elif self.state == TrackState.TRACKED:
@@ -300,6 +376,7 @@ class SingleTrack:
             state=self.state,
             confidence=self.confidence,
             time_since_update=self.time_since_update,
+            hit_streak=self.hit_streak,
             history_2d=list(self.history_2d),
             history_3d=list(self.history_3d),
         )
@@ -392,16 +469,19 @@ class APEXMultiObjectTracker:
         track_thresh: float = 0.45,
         track_buffer_frames: int = 30,
         match_thresh: float = 0.80,
+        max_lost_frames: Optional[int] = None,
     ) -> None:
         # Load from config if provided
         cfg = self._load_config(config_or_path)
         self.track_thresh = float(cfg.get("track_thresh", track_thresh))
-        self.track_buffer_frames = int(cfg.get("track_buffer_frames", track_buffer_frames))
+        buf = max_lost_frames if max_lost_frames is not None else cfg.get("track_buffer_frames", track_buffer_frames)
+        self.track_buffer_frames = int(buf)
         self.match_thresh = float(cfg.get("match_thresh", match_thresh))
 
         self.tracks: List[SingleTrack] = []
         self.next_track_id: int = 1
         self.frame_count: int = 0
+        self.last_timestamp_s: Optional[float] = None
 
     def _load_config(self, config_or_path: Optional[Union[str, Path, Dict[str, Any]]]) -> Dict[str, Any]:
         if isinstance(config_or_path, dict):
@@ -427,12 +507,14 @@ class APEXMultiObjectTracker:
         self.tracks.clear()
         self.next_track_id = 1
         self.frame_count = 0
+        self.last_timestamp_s = None
 
     def update(
         self,
         detections: Optional[Union[DetectionResult, List[Detection]]] = None,
         objects_3d: Optional[List[Object3D]] = None,
         dt: float = 0.033,
+        timestamp_s: Optional[float] = None,
     ) -> List[TrackedObject]:
         """
         Step multi-object tracker for one frame.
@@ -452,8 +534,10 @@ class APEXMultiObjectTracker:
             Active tracked objects with persistent Track IDs and 3D velocities.
         """
         self.frame_count += 1
-
-        # 1. Parse input detections and map 3D objects
+        if timestamp_s is not None:
+            if self.last_timestamp_s is not None and timestamp_s > self.last_timestamp_s:
+                dt = float(np.clip(timestamp_s - self.last_timestamp_s, 1e-3, 0.2))
+            self.last_timestamp_s = timestamp_s
         det_list: List[Detection] = []
         obj_3d_map: List[Optional[Object3D]] = []
 
@@ -567,3 +651,13 @@ class APEXMultiObjectTracker:
     ) -> List[TrackedObject]:
         """Alias for update()."""
         return self.update(detections=detections, objects_3d=objects_3d, dt=dt)
+
+    def get_active_tracks(self) -> List[TrackedObject]:
+        """Return currently active tracked objects."""
+        return [t.to_tracked_object() for t in self.tracks if t.state in (TrackState.TRACKED, TrackState.NEW) and t.time_since_update <= 3]
+
+
+# Public alias
+MultiObjectTracker = APEXMultiObjectTracker
+
+

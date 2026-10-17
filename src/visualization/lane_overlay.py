@@ -74,7 +74,7 @@ def draw_overlay(
         canvas = _draw_lane_fill(canvas, geometry, scale_x, scale_y, h, w)
 
     # ── 2. Left & Right Lane Polylines ────────────────────────────────────
-    y_top = int(0.35 * mh)
+    y_top = int(0.48 * mh)
 
     # Left Lane (Bright Cyan/Green)
     if geometry.left_poly is not None:
@@ -91,7 +91,7 @@ def draw_overlay(
     # ── 3. Drivable Lane Center Path (Yellow Dashed) ──────────────────────
     if offset.lane_center_x is not None:
         lc_x = int(offset.lane_center_x * scale_x)
-        _draw_dashed_vline(canvas, lc_x, int(0.35 * h), h, C_LANE_CENTER, thickness=2, dash_len=16, gap_len=10)
+        _draw_dashed_vline(canvas, lc_x, int(0.48 * h), h, C_LANE_CENTER, thickness=2, dash_len=16, gap_len=10)
 
     # ── 4. Vehicle Center Reference ───────────────────────────────────────
     vc_x = int(offset.vehicle_center_x * scale_x)
@@ -159,11 +159,22 @@ def _draw_lane_fill(
     sx: float, sy: float,
     h: int, w: int,
 ) -> np.ndarray:
-    y_top = int(0.35 * geometry.model_h)
+    mh = geometry.model_h
+    y_top = int(0.48 * mh)
     n = 45
 
-    left_pts = eval_poly_y_range(geometry.left_poly, y_top, geometry.model_h, n)
-    right_pts = eval_poly_y_range(geometry.right_poly, y_top, geometry.model_h, n)
+    left_pts = eval_poly_y_range(geometry.left_poly, y_top, mh, n)
+    right_pts = eval_poly_y_range(geometry.right_poly, y_top, mh, n)
+
+    # Sanity check: Left must be strictly to the left of Right
+    valid_mask = (left_pts[:, 0] < right_pts[:, 0] - 5)
+    if not np.any(valid_mask):
+        return canvas
+
+    # Only include y-levels where lanes do not cross
+    first_valid = int(np.argmax(valid_mask))
+    left_pts = left_pts[first_valid:]
+    right_pts = right_pts[first_valid:]
 
     left_sc = _scale_pts(left_pts, sx, sy, w, h).reshape(-1, 2)
     right_sc = _scale_pts(right_pts[::-1], sx, sy, w, h).reshape(-1, 2)

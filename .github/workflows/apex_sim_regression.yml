@@ -1,0 +1,52 @@
+name: APEX-LKA Digital Twin Simulation Regression
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  simulation_regression:
+    name: Golden Scenario Suite (100+ Tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: "pip"
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1-mesa-glx libglib2.0-0
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pyyaml numpy opencv-python-headless python-can
+
+      - name: Run Pytest Unit Test Suite
+        run: |
+          pytest tests/ -v --durations=10
+
+      - name: Execute Golden Scenario Simulation Regression
+        run: |
+          python deploy/sim_run.py --regression --min-pass-rate 95.0 --report-html results/regression_report.html
+
+      - name: Upload HTML Regression Report Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: simulation-regression-report
+          path: |
+            results/regression_report.html
+            results/regression_summary.json

@@ -234,10 +234,20 @@ class InferenceWorker(threading.Thread):
         self,
         frame_buffer: LatestFrameBuffer,
         backend: str = "classical_cv",
+        enable_object_detection: bool = True,
+        enable_depth: bool = True,
+        enable_occupancy: bool = True,
+        enable_tracking: bool = True,
+        enable_trajectory: bool = True,
     ) -> None:
         super().__init__(daemon=True, name="InferenceWorker")
         self.frame_buffer = frame_buffer
         self.backend = backend
+        self.enable_object_detection = enable_object_detection
+        self.enable_depth = enable_depth
+        self.enable_occupancy = enable_occupancy
+        self.enable_tracking = enable_tracking
+        self.enable_trajectory = enable_trajectory
 
         self._stop_event = threading.Event()
         self.lka_tracker = LKAStateTracker()
@@ -268,6 +278,11 @@ class InferenceWorker(threading.Thread):
                 frame,
                 backend=self.backend,
                 reset_pd_state=reset_pd,
+                enable_object_detection=self.enable_object_detection,
+                enable_depth=self.enable_depth,
+                enable_occupancy=self.enable_occupancy,
+                enable_tracking=self.enable_tracking,
+                enable_trajectory=self.enable_trajectory,
             )
 
             # Run LKA state engine
@@ -325,14 +340,31 @@ class StreamManager:
         self._cached_cpu: float = 0.0
         self._cached_ram: float = 0.0
 
-    def start(self, source: Union[int, str] = 0, backend: str = "classical_cv") -> bool:
+    def start(
+        self,
+        source: Union[int, str] = 0,
+        backend: str = "classical_cv",
+        enable_object_detection: bool = True,
+        enable_depth: bool = True,
+        enable_occupancy: bool = True,
+        enable_tracking: bool = True,
+        enable_trajectory: bool = True,
+    ) -> bool:
         """Start both camera and inference threads."""
         if self.is_running:
             self.stop()
 
         self.frame_buffer.clear()
         self.camera_thread = CameraThread(source=source, frame_buffer=self.frame_buffer)
-        self.inference_worker = InferenceWorker(frame_buffer=self.frame_buffer, backend=backend)
+        self.inference_worker = InferenceWorker(
+            frame_buffer=self.frame_buffer,
+            backend=backend,
+            enable_object_detection=enable_object_detection,
+            enable_depth=enable_depth,
+            enable_occupancy=enable_occupancy,
+            enable_tracking=enable_tracking,
+            enable_trajectory=enable_trajectory,
+        )
 
         self.camera_thread.start()
         # Brief wait for camera initialization

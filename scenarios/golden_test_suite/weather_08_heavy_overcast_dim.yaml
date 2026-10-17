@@ -1,0 +1,15 @@
+scenario_id: WTH_08
+category: WEATHER_SCENARIOS
+description: Dark thunderstorm clouds dropping light to twilight levels
+map: college_campus
+weather: cloudy_afternoon
+seed: 408
+duration_sec: 12.0
+ego_vehicle:
+  spawn_x: 120.5
+  spawn_y: 48.2
+  initial_speed_kmh: 22.0
+actors: []
+success_criteria:
+  collision: false
+  max_path_deviation_m: 0.9

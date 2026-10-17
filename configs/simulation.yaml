@@ -1,0 +1,235 @@
+# configs/simulation.yaml
+# ========================
+# APEX-LKA Phase 5 Section 7: CARLA Simulation Bridge & Autonomous Scenario Testing Configuration
+
+simulation:
+  enabled: true
+  bridge:
+    host: "localhost"
+    port: 2000
+    timeout_seconds: 10.0
+    synchronous_mode: true
+    fixed_delta_seconds: 0.03333333  # 30.0 FPS fixed simulation step
+    no_rendering_mode: false
+    map: "college_campus"
+
+  ego_vehicle:
+    blueprint: "vehicle.tesla.model3"
+    role_name: "hero"
+    color: "255,255,255"
+    initial_speed_mps: 5.55          # 20.0 km/h
+    spawn_transform:
+      x: 120.5
+      y: 48.2
+      z: 0.5
+      pitch: 0.0
+      yaw: 0.0
+      roll: 0.0
+
+  sensors:
+    camera:
+      type: "sensor.camera.rgb"
+      width: 640
+      height: 360
+      fov: 90.0
+      mount:
+        x: 1.50                      # Front bumper forward offset
+        y: 0.0                       # Lateral center
+        z: 1.25                      # Camera height 1.25m matching physical rig
+        pitch: -5.0                  # -5 deg optical tilt down
+        yaw: 0.0
+        roll: 0.0
+      gamma: 2.2
+      motion_blur_intensity: 0.05
+
+    depth_camera:
+      type: "sensor.camera.depth"
+      width: 640
+      height: 360
+      fov: 90.0
+      mount:
+        x: 1.50
+        y: 0.0
+        z: 1.25
+        pitch: -5.0
+        yaw: 0.0
+        roll: 0.0
+
+    semantic_camera:
+      type: "sensor.camera.semantic_segmentation"
+      width: 640
+      height: 360
+      fov: 90.0
+      mount:
+        x: 1.50
+        y: 0.0
+        z: 1.25
+        pitch: -5.0
+        yaw: 0.0
+        roll: 0.0
+
+    imu:
+      type: "sensor.other.imu"
+      rate_hz: 100.0
+      noise_accel_stddev_x: 0.001
+      noise_accel_stddev_y: 0.001
+      noise_accel_stddev_z: 0.001
+      noise_gyro_stddev_x: 0.0005
+      noise_gyro_stddev_y: 0.0005
+      noise_gyro_stddev_z: 0.0005
+
+    gnss:
+      type: "sensor.other.gnss"
+      rate_hz: 10.0
+      noise_alt_stddev: 0.05
+      noise_lat_stddev: 0.000005
+      noise_lon_stddev: 0.000005
+
+    wheel_encoders:
+      rate_hz: 100.0
+      pulses_per_revolution: 1024
+      wheel_radius_m: 0.33
+
+  can_bus:
+    interface: "virtual"
+    channel: "vcan0"
+    bitrate: 500000
+    emulate_mega_nodes: true
+
+digital_twin:
+  maps_directory: "simulation/maps"
+  available_maps:
+    college_campus:
+      xodr_path: "simulation/maps/college_campus.xodr"
+      umap_path: "simulation/maps/college_campus.umap"
+      name: "College Campus & Outer Loop Track"
+      speed_limit_kmh: 30.0
+    baja_track_2027:
+      xodr_path: "simulation/maps/baja_track_2027.xodr"
+      umap_path: "simulation/maps/baja_track_2027.umap"
+      name: "BAJA SAE Off-Road Endurance Track 2027"
+      speed_limit_kmh: 40.0
+
+  weather_presets:
+    clear_noon:
+      cloudiness: 10.0
+      precipitation: 0.0
+      precipitation_deposits: 0.0
+      wind_intensity: 5.0
+      sun_azimuth_angle: 0.0
+      sun_altitude_angle: 75.0
+      fog_density: 0.0
+      fog_distance: 1000.0
+      wetness: 0.0
+
+    cloudy_afternoon:
+      cloudiness: 70.0
+      precipitation: 0.0
+      precipitation_deposits: 0.0
+      wind_intensity: 15.0
+      sun_azimuth_angle: 45.0
+      sun_altitude_angle: 40.0
+      fog_density: 5.0
+      fog_distance: 500.0
+      wetness: 0.0
+
+    rain_moderate:
+      cloudiness: 90.0
+      precipitation: 45.0
+      precipitation_deposits: 60.0
+      wind_intensity: 35.0
+      sun_azimuth_angle: 90.0
+      sun_altitude_angle: 25.0
+      fog_density: 15.0
+      fog_distance: 200.0
+      wetness: 80.0
+
+    fog_dense:
+      cloudiness: 80.0
+      precipitation: 5.0
+      precipitation_deposits: 20.0
+      wind_intensity: 2.0
+      sun_azimuth_angle: 180.0
+      sun_altitude_angle: 30.0
+      fog_density: 65.0
+      fog_distance: 50.0
+      wetness: 30.0
+
+    dusk_golden:
+      cloudiness: 25.0
+      precipitation: 0.0
+      precipitation_deposits: 0.0
+      wind_intensity: 10.0
+      sun_azimuth_angle: 260.0
+      sun_altitude_angle: 8.0
+      fog_density: 4.0
+      fog_distance: 800.0
+      wetness: 0.0
+
+    night_streetlights:
+      cloudiness: 20.0
+      precipitation: 0.0
+      precipitation_deposits: 0.0
+      wind_intensity: 5.0
+      sun_azimuth_angle: 0.0
+      sun_altitude_angle: -45.0
+      fog_density: 2.0
+      fog_distance: 800.0
+      wetness: 0.0
+
+    night_pitch_black:
+      cloudiness: 85.0
+      precipitation: 0.0
+      precipitation_deposits: 0.0
+      wind_intensity: 8.0
+      sun_azimuth_angle: 0.0
+      sun_altitude_angle: -80.0
+      fog_density: 0.0
+      fog_distance: 1000.0
+      wetness: 0.0
+
+    dust_cloud_heavy:
+      cloudiness: 50.0
+      precipitation: 0.0
+      precipitation_deposits: 0.0
+      wind_intensity: 85.0
+      sun_azimuth_angle: 120.0
+      sun_altitude_angle: 45.0
+      fog_density: 50.0
+      fog_distance: 35.0
+      wetness: 0.0
+      dust_storm: 75.0
+
+synthetic_generation:
+  output_dir: "data/synthetic_dataset"
+  target_frames_per_hour: 10000
+  image_format: "png"
+  depth_format: "npy"
+  compression_level: 6
+  split_ratios:
+    train: 0.70
+    val: 0.15
+    test: 0.15
+  export_formats: ["coco", "yolo", "kitti"]
+
+monte_carlo_fuzz:
+  default_iterations: 100
+  random_seed: 42
+  perturbation_ranges:
+    weather_cloudiness_pct: 35.0
+    weather_precipitation_pct: 30.0
+    weather_fog_density_pct: 25.0
+    sun_azimuth_deg: 45.0
+    sun_altitude_deg: 25.0
+    actor_spawn_distance_m: 4.0
+    actor_spawn_lateral_m: 1.5
+    actor_speed_mps: 1.2
+    sensor_noise_sigma: 0.03
+
+ci_regression:
+  scenario_dir: "scenarios/golden_test_suite"
+  min_pass_rate_pct: 95.0
+  scenario_timeout_s: 30.0
+  report_output_html: "results/regression_report.html"
+  report_output_json: "results/regression_summary.json"
+  block_on_failure: true

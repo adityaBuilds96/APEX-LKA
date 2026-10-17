@@ -1,0 +1,25 @@
+scenario_id: PED_07
+category: PEDESTRIAN_INTERACTION
+description: Jogger with umbrella running into road in rain
+map: college_campus
+weather: rain_moderate
+seed: 107
+duration_sec: 12.0
+ego_vehicle:
+  spawn_x: 120.5
+  spawn_y: 48.2
+  initial_speed_kmh: 20.0
+actors:
+- type: walker.pedestrian.0001
+  spawn_x: 133.5
+  spawn_y: 45.0
+  trigger_distance_m: 10.0
+  target_x: 133.5
+  target_y: 51.5
+  walk_speed_mps: 3.2
+  behavior: cross
+success_criteria:
+  collision: false
+  min_distance_to_pedestrian_m: 1.5
+  emergency_brake_activated: true
+  max_path_deviation_m: 0.8

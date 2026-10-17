@@ -1,0 +1,9 @@
+{
+  "frame_id": 7,
+  "split": "train",
+  "weather": "rain_moderate",
+  "timestamp": 1791847797.8357768,
+  "width": 640,
+  "height": 360,
+  "objects": []
+}

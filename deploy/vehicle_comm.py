@@ -55,6 +55,9 @@ CAN_ID_CMD_NODE1    = 0x100
 CAN_ID_THREAT_ALERT = 0x150
 CAN_ID_SPATIAL_ALERT= 0x160
 CAN_ID_TRAJECTORY_ALERT = 0x170
+CAN_ID_KINEMATIC_STATE  = 0x180
+CAN_ID_PLANNING_STATE   = 0x190
+CAN_ID_FLEET_STATUS     = 0x1A0
 CAN_ID_CMD_NODE2    = 0x200
 CAN_ID_FEEDBACK_N1  = 0x300
 CAN_ID_FEEDBACK_N2  = 0x301
@@ -130,6 +133,7 @@ class SpatialAlertTelemetry:
     tti_ms: int = 65535
     class_enum: int = 0
     threat_level: int = THREAT_LEVEL_CLEAR
+    timestamp: float = 0.0
 @dataclass
 class TrajectoryAlertTelemetry:
     """Trajectory Collision Alert telemetry transmitted/received via CAN ID 0x170."""
@@ -139,6 +143,196 @@ class TrajectoryAlertTelemetry:
     risk_level: int = 0
     action_flag: int = 0
     timestamp: float = 0.0
+
+    def __init__(
+        self,
+        track_id: int = 0,
+        tti_ms: Optional[int] = None,
+        cross_x_mm: Optional[int] = None,
+        risk_level: int = 0,
+        action_flag: int = 0,
+        timestamp: float = 0.0,
+        min_tti_ms: Optional[int] = None,
+        projected_cross_x_mm: Optional[int] = None,
+    ):
+        self.track_id = int(track_id)
+        if min_tti_ms is not None:
+            self.tti_ms = int(min_tti_ms)
+        elif tti_ms is not None:
+            self.tti_ms = int(tti_ms)
+        else:
+            self.tti_ms = 65535
+
+        if projected_cross_x_mm is not None:
+            self.cross_x_mm = int(projected_cross_x_mm)
+        elif cross_x_mm is not None:
+            self.cross_x_mm = int(cross_x_mm)
+        else:
+            self.cross_x_mm = 0
+
+        self.risk_level = int(risk_level)
+        self.action_flag = int(action_flag)
+        self.timestamp = float(timestamp)
+
+    @property
+    def min_tti_ms(self) -> int:
+        return self.tti_ms
+
+    @property
+    def projected_cross_x_mm(self) -> int:
+        return self.cross_x_mm
+
+    def pack_frame(self) -> bytes:
+        t_id = int(np.clip(self.track_id, 0, 65535))
+        t_ms = int(np.clip(self.tti_ms, 0, 65535))
+        x_mm = int(np.clip(self.cross_x_mm, -32768, 32767))
+        r_lvl = int(np.clip(self.risk_level, 0, 3))
+        a_flg = int(np.clip(self.action_flag, 0, 3))
+        return struct.pack("<HHhBB", t_id, t_ms, x_mm, r_lvl, a_flg)
+
+    @classmethod
+    def unpack_frame(cls, data: bytes) -> TrajectoryAlertTelemetry:
+        if len(data) < 8:
+            raise ValueError(f"CAN Frame 0x170 requires 8 bytes, got {len(data)}")
+        t_id, t_ms, x_mm, r_lvl, a_flg = struct.unpack("<HHhBB", data[:8])
+        return cls(track_id=t_id, tti_ms=t_ms, cross_x_mm=x_mm, risk_level=r_lvl, action_flag=a_flg)
+
+
+# Localization Status Enums (matching CAN 0x180)
+LOC_STATUS_INIT           = 0
+LOC_STATUS_DEAD_RECKONING = 1
+LOC_STATUS_VIO_ACTIVE     = 2
+LOC_STATUS_GNSS_FIX       = 3
+LOC_STATUS_RTK_LOCKED     = 4
+
+LOC_STATUS_STR_TO_INT = {
+    "INIT": LOC_STATUS_INIT,
+    "DEAD_RECKONING": LOC_STATUS_DEAD_RECKONING,
+    "VIO_ACTIVE": LOC_STATUS_VIO_ACTIVE,
+    "GNSS_FIX": LOC_STATUS_GNSS_FIX,
+    "RTK_LOCKED": LOC_STATUS_RTK_LOCKED,
+}
+LOC_STATUS_INT_TO_STR = {v: k for k, v in LOC_STATUS_STR_TO_INT.items()}
+
+
+@dataclass
+class KinematicStateTelemetry:
+    """Kinematic Vehicle State telemetry transmitted/received via CAN ID 0x180."""
+    vx_mps: float = 0.0
+    vy_mps: float = 0.0
+    yaw_rate_radps: float = 0.0
+    slip_angle_deg: float = 0.0
+    localization_status: int = LOC_STATUS_INIT
+    timestamp: float = 0.0
+
+    def pack_frame(self) -> bytes:
+        vx_cm = int(np.clip(round(self.vx_mps * 100.0), -32768, 32767))
+        vy_cm = int(np.clip(round(self.vy_mps * 100.0), -32768, 32767))
+        wz_mrad = int(np.clip(round(self.yaw_rate_radps * 1000.0), -32768, 32767))
+        beta_decideg = int(np.clip(round(self.slip_angle_deg * 10.0), -128, 127))
+        loc_stat = int(np.clip(self.localization_status, 0, 255))
+        return struct.pack("<hhhbB", vx_cm, vy_cm, wz_mrad, beta_decideg, loc_stat)
+
+    @classmethod
+    def unpack_frame(cls, data: bytes) -> KinematicStateTelemetry:
+        if len(data) < 8:
+            raise ValueError(f"CAN Frame 0x180 requires 8 bytes, got {len(data)}")
+        vx_cm, vy_cm, wz_mrad, beta_decideg, loc_stat = struct.unpack("<hhhbB", data[:8])
+        return cls(
+            vx_mps=vx_cm / 100.0,
+            vy_mps=vy_cm / 100.0,
+            yaw_rate_radps=wz_mrad / 1000.0,
+            slip_angle_deg=beta_decideg / 10.0,
+            localization_status=loc_stat,
+            timestamp=time.time(),
+        )
+
+
+@dataclass
+class PlanningStateTelemetry:
+    """Autonomous Plan & Control State telemetry transmitted/received via CAN ID 0x190."""
+    target_speed_mps: float = 0.0
+    target_steer_deg: float = 0.0
+    behavior_state: int = 0
+    rss_override: bool = False
+    path_curvature: float = 0.0
+    timestamp: float = 0.0
+
+    def pack_frame(self) -> bytes:
+        v_cm = int(np.clip(round(self.target_speed_mps * 100.0), 0, 65535))
+        delta_cdeg = int(np.clip(round(self.target_steer_deg * 100.0), -32768, 32767))
+        state_enum = int(np.clip(self.behavior_state, 0, 255))
+        rss_flag = 1 if self.rss_override else 0
+        kappa_scaled = int(np.clip(round(self.path_curvature * 10000.0), -32768, 32767))
+        return struct.pack("<HhBBh", v_cm, delta_cdeg, state_enum, rss_flag, kappa_scaled)
+
+    @classmethod
+    def unpack_frame(cls, data: bytes) -> PlanningStateTelemetry:
+        if len(data) < 8:
+            raise ValueError(f"CAN Frame 0x190 requires 8 bytes, got {len(data)}")
+        v_cm, delta_cdeg, state_enum, rss_flag, kappa_scaled = struct.unpack("<HhBBh", data[:8])
+        return cls(
+            target_speed_mps=v_cm / 100.0,
+            target_steer_deg=delta_cdeg / 100.0,
+            behavior_state=state_enum,
+            rss_override=bool(rss_flag == 1),
+            path_curvature=kappa_scaled / 10000.0,
+            timestamp=time.time(),
+        )
+
+
+@dataclass
+class FleetStatusTelemetry:
+    """Fleet Remote Status & OTA telemetry transmitted/received via CAN ID 0x1A0."""
+    model_version_hash: int = 0         # uint16 lower 16 bits of model sha256
+    ota_sync_state: int = 0             # 0=IDLE, 1=CHECKING, 2=DOWNLOADING, 3=VERIFYING, 4=HOTSWAPPING, 5=SYNC_OK, 6=ERROR
+    shadow_discrepancy_score: int = 0   # 0-100 uint8
+    harvest_queue_count: int = 0        # uint8
+    active_backend: int = 0             # 0=CLASSICAL, 1=PYTORCH, 2=ONNX, 3=TENSORRT
+    reserved: int = 0                   # uint16
+    timestamp: float = 0.0
+
+    def pack_frame(self) -> bytes:
+        h_u16 = int(np.clip(self.model_version_hash, 0, 65535))
+        sync_u8 = int(np.clip(self.ota_sync_state, 0, 255))
+        disc_u8 = int(np.clip(self.shadow_discrepancy_score, 0, 255))
+        queue_u8 = int(np.clip(self.harvest_queue_count, 0, 255))
+        back_u8 = int(np.clip(self.active_backend, 0, 255))
+        res_u16 = int(np.clip(self.reserved, 0, 65535))
+        return struct.pack("<HBBBBH", h_u16, sync_u8, disc_u8, queue_u8, back_u8, res_u16)
+
+    @classmethod
+    def unpack_frame(cls, data: bytes) -> FleetStatusTelemetry:
+        if len(data) < 8:
+            raise ValueError(f"CAN Frame 0x1A0 requires 8 bytes, got {len(data)}")
+        h_u16, sync_u8, disc_u8, queue_u8, back_u8, res_u16 = struct.unpack("<HBBBBH", data[:8])
+        return cls(
+            model_version_hash=h_u16,
+            ota_sync_state=sync_u8,
+            shadow_discrepancy_score=disc_u8,
+            harvest_queue_count=queue_u8,
+            active_backend=back_u8,
+            reserved=res_u16,
+            timestamp=time.time(),
+        )
+
+    @property
+    def sync_state_enum(self) -> int:
+        return self.ota_sync_state
+
+    @property
+    def sync_state_str(self) -> str:
+        name_map = {0: "IDLE", 1: "CHECKING", 2: "DOWNLOADING", 3: "VERIFYING", 4: "HOTSWAPPING", 5: "SYNC_OK", 6: "ERROR"}
+        return name_map.get(self.ota_sync_state, "UNKNOWN")
+
+    @property
+    def backend_enum(self) -> int:
+        return self.active_backend
+
+    @property
+    def backend_str(self) -> str:
+        b_map = {0: "CLASSICAL", 1: "PYTORCH", 2: "ONNX", 3: "TENSORRT"}
+        return b_map.get(self.active_backend, "UNKNOWN")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -566,9 +760,16 @@ class VehicleCommunicator:
         baudrate: int = 115200,
         enable_can: bool = True,
         enable_serial: bool = True,
+        use_can: Optional[bool] = None,
+        use_serial: Optional[bool] = None,
         sim_mode: bool = False,
         actuation_profile: Optional[Union[str, Path, Dict[str, Any]]] = None,
     ) -> None:
+        if use_can is not None:
+            enable_can = use_can
+        if use_serial is not None:
+            enable_serial = use_serial
+
         self.sim_mode = sim_mode
         self.enable_can = enable_can
         self.enable_serial = enable_serial
@@ -610,8 +811,16 @@ class VehicleCommunicator:
         self.threat_alert_telemetry: Optional[ThreatAlertTelemetry] = None
         self.spatial_alert_telemetry: Optional[SpatialAlertTelemetry] = None
         self.trajectory_alert_telemetry: Optional[TrajectoryAlertTelemetry] = None
+        self.kinematic_state_telemetry: Optional[KinematicStateTelemetry] = None
+        self.planning_state_telemetry: Optional[PlanningStateTelemetry] = None
+        self.fleet_status_telemetry: Optional[FleetStatusTelemetry] = None
+        self._fleet_status_callbacks: List[Callable[[FleetStatusTelemetry], None]] = []
 
         self._setup_callbacks()
+
+    def register_fleet_status_callback(self, cb: Callable[[FleetStatusTelemetry], None]) -> None:
+        """Register a callback for FleetStatusTelemetry updates."""
+        self._fleet_status_callbacks.append(cb)
 
     def _setup_callbacks(self) -> None:
         if self.can_if:
@@ -620,6 +829,9 @@ class VehicleCommunicator:
             self.can_if.register_callback(CAN_ID_THREAT_ALERT, self._handle_can_threat_alert)
             self.can_if.register_callback(CAN_ID_SPATIAL_ALERT, self._handle_can_spatial_alert)
             self.can_if.register_callback(CAN_ID_TRAJECTORY_ALERT, self._handle_can_trajectory_alert)
+            self.can_if.register_callback(CAN_ID_KINEMATIC_STATE, self._handle_can_kinematic_state)
+            self.can_if.register_callback(CAN_ID_PLANNING_STATE, self._handle_can_planning_state)
+            self.can_if.register_callback(CAN_ID_FLEET_STATUS, self._handle_can_fleet_status)
 
         if self.serial_n1:
             self.serial_n1.register_callback(self._handle_serial_feedback)
@@ -681,6 +893,43 @@ class VehicleCommunicator:
         except Exception as e:
             log.debug("Error unpacking CAN 0x170: %s", e)
 
+    def _handle_can_kinematic_state(self, can_id: int, data: bytes) -> None:
+        """Decode CAN ID 0x180 (Kinematic Vehicle State Broadcast)."""
+        if len(data) < 8:
+            return
+        try:
+            telem = KinematicStateTelemetry.unpack_frame(data)
+            with self._lock:
+                self.kinematic_state_telemetry = telem
+        except Exception as e:
+            log.debug("Error unpacking CAN 0x180: %s", e)
+
+    def _handle_can_planning_state(self, can_id: int, data: bytes) -> None:
+        """Decode CAN ID 0x190 (Autonomous Plan & Control State)."""
+        if len(data) < 8:
+            return
+        try:
+            telem = PlanningStateTelemetry.unpack_frame(data)
+            with self._lock:
+                self.planning_state_telemetry = telem
+        except Exception as e:
+            log.debug("Error unpacking CAN 0x190: %s", e)
+
+    def _handle_can_fleet_status(self, can_id: int, data: bytes) -> None:
+        """Decode CAN ID 0x1A0 (Fleet & OTA Status Broadcast)."""
+        if len(data) < 8:
+            return
+        try:
+            telem = FleetStatusTelemetry.unpack_frame(data)
+            with self._lock:
+                self.fleet_status_telemetry = telem
+            for cb in self._fleet_status_callbacks:
+                try:
+                    cb(telem)
+                except Exception as e:
+                    log.debug("Fleet status callback error: %s", e)
+        except Exception as e:
+            log.debug("Error unpacking CAN 0x1A0: %s", e)
 
     def _handle_can_feedback_n1(self, can_id: int, data: bytes) -> None:
         """Decode CAN ID 0x300 (Node 1 Feedback)."""
@@ -1013,6 +1262,135 @@ class VehicleCommunicator:
         """Retrieve thread-safe latest trajectory collision alert telemetry."""
         with self._lock:
             return self.trajectory_alert_telemetry
+
+    def send_kinematic_state(
+        self,
+        vx_mps: float,
+        vy_mps: float,
+        yaw_rate_radps: float,
+        slip_angle_deg: float,
+        localization_status: int = LOC_STATUS_INIT,
+    ) -> bool:
+        """
+        Broadcast Kinematic Vehicle State frame on CAN ID 0x180 at 100 Hz.
+        Schema:
+          Bytes 0-1: Longitudinal Speed vx * 100 (int16 cm/s, <h)
+          Bytes 2-3: Lateral Speed vy * 100 (int16 cm/s, <h)
+          Bytes 4-5: Yaw Rate wz * 1000 (signed int16 mrad/s, <h)
+          Byte 6: Dynamic Slip Angle beta * 10 (signed int8 deci-deg, <b)
+          Byte 7: Localization Status (uint8, <B)
+        """
+        if not self.enable_can or not self.can_if or not self.can_if.is_connected:
+            return False
+
+        vx_cm = int(np.clip(round(vx_mps * 100.0), -32768, 32767))
+        vy_cm = int(np.clip(round(vy_mps * 100.0), -32768, 32767))
+        wz_mrad = int(np.clip(round(yaw_rate_radps * 1000.0), -32768, 32767))
+        beta_decideg = int(np.clip(round(slip_angle_deg * 10.0), -128, 127))
+        loc_stat = int(np.clip(localization_status, 0, 255))
+
+        payload = struct.pack("<hhhbB", vx_cm, vy_cm, wz_mrad, beta_decideg, loc_stat)
+        return self.can_if.send_frame(CAN_ID_KINEMATIC_STATE, payload)
+
+    def get_kinematic_state(self) -> Optional[KinematicStateTelemetry]:
+        """Retrieve thread-safe latest kinematic vehicle state telemetry."""
+        with self._lock:
+            return self.kinematic_state_telemetry
+
+    def send_planning_state(
+        self,
+        target_speed_mps: float,
+        target_steer_deg: float,
+        behavior_state: int,
+        rss_override: bool,
+        path_curvature: float,
+    ) -> bool:
+        """
+        Broadcast Autonomous Plan & Control State frame on CAN ID 0x190 at 30 Hz.
+        Schema:
+          Bytes 0-1: Target Vehicle Speed v_target * 100 (uint16 cm/s, <H)
+          Bytes 2-3: Target Steering Angle delta_target * 100 (signed int16 deg*100, <h)
+          Byte 4: Behavior FSM State Enum (uint8, <B)
+          Byte 5: RSS Shield Override Active (0=Normal, 1=RSS_OVERRIDE_BRAKE) (uint8, <B)
+          Bytes 6-7: Planned Path Curvature kappa * 10000 (signed int16, <h)
+        """
+        if not self.enable_can or not self.can_if or not self.can_if.is_connected:
+            return False
+
+        tel = PlanningStateTelemetry(
+            target_speed_mps=target_speed_mps,
+            target_steer_deg=target_steer_deg,
+            behavior_state=behavior_state,
+            rss_override=rss_override,
+            path_curvature=path_curvature,
+        )
+        payload = tel.pack_frame()
+        return self.can_if.send_frame(CAN_ID_PLANNING_STATE, payload)
+
+    def get_planning_state(self) -> Optional[PlanningStateTelemetry]:
+        """Retrieve thread-safe latest autonomous plan & control telemetry."""
+        with self._lock:
+            return self.planning_state_telemetry
+
+    def send_fleet_status(
+        self,
+        model_version_hash: int,
+        ota_sync_state: Optional[int] = None,
+        shadow_discrepancy_score: int = 0,
+        harvest_queue_count: int = 0,
+        active_backend: Optional[int] = None,
+        reserved: int = 0,
+        sync_state_enum: Optional[int] = None,
+        backend_enum: Optional[int] = None,
+    ) -> bool:
+        """
+        Broadcast Fleet Remote Status & OTA frame on CAN ID 0x1A0 at 30 Hz.
+        Schema:
+          Bytes 0-1: Active Model Version Hash (uint16, lower 16 bits of SHA-256)
+          Byte 2: OTA Sync State (uint8: 0=IDLE, 1=CHECKING, 2=DOWNLOADING, 3=VERIFYING, 4=HOTSWAPPING, 5=SYNC_OK, 6=ERROR)
+          Byte 3: Shadow Discrepancy Score (0-100, uint8)
+          Byte 4: Harvest Queue Package Count (uint8)
+          Byte 5: Active Model Backend Enum (uint8: 0=CLASSICAL, 1=PYTORCH, 2=ONNX, 3=TENSORRT)
+          Bytes 6-7: Reserved (uint16)
+        """
+        sync_val = sync_state_enum if sync_state_enum is not None else (ota_sync_state if ota_sync_state is not None else 0)
+        back_val = backend_enum if backend_enum is not None else (active_backend if active_backend is not None else 0)
+
+        # Clamping to valid types
+        v_hash_clamped = int(np.clip(model_version_hash, 0, 0xFFFF))
+        sync_clamped = sync_val if (0 <= sync_val <= 6) else 6  # 6=ERROR
+        disc_clamped = int(np.clip(shadow_discrepancy_score, 0, 100))
+        queue_clamped = int(np.clip(harvest_queue_count, 0, 255))
+        backend_clamped = back_val if (0 <= back_val <= 3) else 0
+
+        tel = FleetStatusTelemetry(
+            model_version_hash=v_hash_clamped,
+            ota_sync_state=sync_clamped,
+            shadow_discrepancy_score=disc_clamped,
+            harvest_queue_count=queue_clamped,
+            active_backend=backend_clamped,
+            reserved=reserved,
+        )
+
+        with self._lock:
+            self.fleet_status_telemetry = tel
+
+        for cb in self._fleet_status_callbacks:
+            try:
+                cb(tel)
+            except Exception as e:
+                log.debug("Fleet status callback error: %s", e)
+
+        if not self.enable_can or not self.can_if or not self.can_if.is_connected:
+            return True if (not self.enable_can or self.sim_mode) else False
+
+        payload = tel.pack_frame()
+        return self.can_if.send_frame(CAN_ID_FLEET_STATUS, payload)
+
+    def get_fleet_status(self) -> Optional[FleetStatusTelemetry]:
+        """Retrieve thread-safe latest fleet remote status and OTA telemetry."""
+        with self._lock:
+            return self.fleet_status_telemetry
 
     def get_node_telemetry(self, node_id: int = 1) -> Optional[Union[Node1Telemetry, Node2Telemetry]]:
         """Retrieve thread-safe latest telemetry cache for node."""

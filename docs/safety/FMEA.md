@@ -1,0 +1,11 @@
+# ISO 26262 ASIL-B Failure Mode and Effects Analysis (FMEA)
+## APEX-Vision Core v3.0 | Autonomous Platform
+
+| Item ID | Component | Failure Mode | Cause | Failure Effect | Sev (S) | Occ (O) | Det (D) | RPN | ASIL | Safety Mechanism / Mitigation |
+|---|---|---|---|---|---|---|---|---|---|---|
+| FM-01 | Camera Pipeline | Optical sensor blackout / tunnel entry / lens occlusion | Hardware fault or sudden illumination drop | Complete loss of visual lane & object detections | 8 | 3 | 2 | 48 | ASIL-B | Kinematic Lane Retention holds trajectory for up to 5.0s using 15-DOF ESKF (CAN 0x180). FSM transitions to SAFE_STOP if unrecovered. |
+| FM-02 | CAN Bus / Hardware | Physical CAN-H/CAN-L line open or bus-off | Wire fatigue or transceiver latch-up | Actuation commands drop; vehicle drifts | 9 | 2 | 1 | 18 | ASIL-B | Dual Arduino Mega watchdog timeout (500ms) brings brakes to safe stop on frame timeout. Dual-redundant CAN-FD link. |
+| FM-03 | Perception Core | Low neural confidence (< 0.35) due to extreme weather/glare | Rain, fog, or specular sun reflections | Unstable steering angles or missed obstacles | 7 | 4 | 2 | 56 | ASIL-B | Decimation optical flow fallback; Mobileye RSS Safety Shield enforces deterministic physical distance barrier. Edge harvester captures failure slice. |
+| FM-04 | Sensor Bridge | IMU bias drift or sensor disconnect | Thermal drift or I2C bus stall | Dead-reckoning position uncertainty expands | 7 | 3 | 2 | 42 | ASIL-B | ESKF covariance P monitoring. Covariance trace > 0.5m sets LocalizationStatus.DEAD_RECKONING and limits max speed to 15 km/h. |
+| FM-05 | Local Planner | Spline trajectory singularity or infeasible turn | Corrupted lane polynomial input | Sudden steering snap command | 9 | 2 | 2 | 36 | ASIL-B | Strict kinematic bicycle model limit (max steer 28 deg, max slew rate 100 deg/s). TEB planner clamps all actuation. |
+| FM-06 | OTA Manager | Tampered or corrupted neural model update (.plan / .onnx) | MITM attack or incomplete cellular transmission | Neural network crashes or generates rogue commands | 9 | 1 | 1 | 9 | ASIL-B | Ed25519 digital signature validation + SHA-256 manifest authentication. Quarantine isolation; atomic hot-swap only upon cryptographically verified integrity. |

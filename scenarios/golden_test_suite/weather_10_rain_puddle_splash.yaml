@@ -1,0 +1,15 @@
+scenario_id: WTH_10
+category: WEATHER_SCENARIOS
+description: Vehicle hitting deep standing puddle creating temporary blinding wall
+map: college_campus
+weather: rain_moderate
+seed: 410
+duration_sec: 12.0
+ego_vehicle:
+  spawn_x: 120.5
+  spawn_y: 48.2
+  initial_speed_kmh: 22.0
+actors: []
+success_criteria:
+  collision: false
+  max_path_deviation_m: 0.9

@@ -172,7 +172,7 @@ def _mask_to_points(mask: np.ndarray) -> np.ndarray:
     Convert a binary mask to an ordered array of (x, y) points.
 
     Strategy: for each row that has mask pixels, take the horizontal
-    centroid as the representative x coordinate.  This gives one
+    centroid as the representative x coordinate. This gives one
     (x, y) point per row, ordered top-to-bottom.
 
     Returns ndarray shape (N, 2) int32, or (0, 2) if mask is empty.
@@ -184,15 +184,8 @@ def _mask_to_points(mask: np.ndarray) -> np.ndarray:
     if len(ys) == 0:
         return np.empty((0, 2), dtype=np.int32)
 
-    # Group by row, compute centroid x
-    rows   = np.unique(ys)
-    result = []
-    for y in rows:
-        x_coords = xs[ys == y]
-        x_center = int(np.round(x_coords.mean()))
-        result.append((x_center, int(y)))
-
-    pts = np.array(result, dtype=np.int32)
-    # Sort top-to-bottom (increasing y)
-    order = np.argsort(pts[:, 1])
-    return pts[order]
+    cnt = np.bincount(ys, minlength=mask.shape[0])
+    sum_x = np.bincount(ys, weights=xs, minlength=mask.shape[0])
+    valid_rows = np.where(cnt > 0)[0]
+    mean_x = np.round(sum_x[valid_rows] / cnt[valid_rows]).astype(np.int32)
+    return np.column_stack([mean_x, valid_rows.astype(np.int32)])

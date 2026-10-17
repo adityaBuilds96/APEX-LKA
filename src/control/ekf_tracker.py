@@ -172,13 +172,14 @@ class EKF8StateLaneTracker:
         meas_noise_pose: float = 5.0e-2,
         max_innov_gate: float = 0.50,
         max_hold_frames: int = 3,
+        hold_lost_frames: Optional[int] = None,
     ) -> None:
         self.process_noise_poly = float(process_noise_poly)
         self.process_noise_pose = float(process_noise_pose)
         self.meas_noise_poly = float(meas_noise_poly)
         self.meas_noise_pose = float(meas_noise_pose)
         self.max_innov_gate = float(max_innov_gate)
-        self.max_hold_frames = int(max_hold_frames)
+        self.max_hold_frames = int(hold_lost_frames if hold_lost_frames is not None else max_hold_frames)
 
         # 8-state vector
         self.x = np.zeros(8, dtype=np.float64)

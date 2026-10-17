@@ -1,0 +1,10 @@
+[UnrealEngine_CARLA_Map_Descriptor]
+MapName=college_campus
+LevelPackage=/Game/Carla/Maps/CollegeCampus
+OpenDRIVEFile=college_campus.xodr
+TerrainMesh=StaticMesh'/Game/Carla/Static/Terrain/College_Terrain.College_Terrain'
+RoadMaterial=Material'/Game/Carla/Static/Materials/Asphalt_Wet_Inst.Asphalt_Wet_Inst'
+VegetationDensity=0.85
+Lighting=DynamicSky_SunSky
+BakeDate=2026-10-13T00:00:00Z
+Status=Cooked_For_CARLA_0.9.15

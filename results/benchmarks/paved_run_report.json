@@ -1,17 +1,17 @@
 {
-  "session_id": "SESSION_1791250684_706919",
-  "timestamp": "2026-10-06T07:08:05Z",
+  "session_id": "SESSION_1792216021_4e4318",
+  "timestamp": "2026-10-17T11:17:02Z",
   "profile": "TEST-PAVED",
   "surface_type": "paved",
   "duration_frames": 25,
   "passed": true,
   "metrics": {
-    "rms_cross_track_m": 0.032,
+    "rms_cross_track_m": 0.033,
     "peak_cross_track_m": 0.054,
     "rms_heading_error_deg": 0.21,
     "max_sustained_lka_lost_s": 0.0,
-    "peak_steer_rate_dps": 3.45,
-    "ram_peak_mb": 2154.9
+    "peak_steer_rate_dps": 3.03,
+    "ram_peak_mb": 1140.4
   },
   "perception_modes": {
     "MODE_A_PAINTED": 25,

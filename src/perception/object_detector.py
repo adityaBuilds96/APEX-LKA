@@ -54,6 +54,9 @@ class DetectionResult:
     class_ids: np.ndarray = field(default_factory=lambda: np.empty((0,), dtype=np.int32))
     class_names: List[str] = field(default_factory=list)
     inference_ms: float = 0.0
+    is_keyframe: bool = True
+    decimated: bool = False
+    tracking_method: str = "neural"
 
     def __len__(self) -> int:
         return len(self.boxes)
@@ -125,23 +128,61 @@ def vectorized_nms(
     return np.array(keep, dtype=np.int32)
 
 
+def batched_nms(
+    boxes: np.ndarray,
+    scores: np.ndarray,
+    class_ids: np.ndarray,
+    iou_threshold: float = 0.45,
+) -> np.ndarray:
+    """
+    Batched Non-Maximum Suppression with GPU acceleration if available,
+    falling back to high-speed vectorized NumPy NMS.
+    """
+    if len(boxes) == 0:
+        return np.empty((0,), dtype=np.int32)
+
+    try:
+        import torch
+        import torchvision
+        if torch.cuda.is_available() and isinstance(boxes, torch.Tensor) and boxes.is_cuda:
+            keep = torchvision.ops.batched_nms(boxes, scores, class_ids, iou_threshold)
+            return keep.cpu().numpy().astype(np.int32)
+    except Exception:
+        pass
+
+    return vectorized_nms(boxes, scores, class_ids, iou_threshold=iou_threshold)
+
+
 class ObjectDetector:
     """
-    Production-grade Object Detection Engine supporting TensorRT and ONNX Runtime.
+    Production-grade Object Detection Engine supporting TensorRT, ONNX Runtime,
+    and CUDA Zero-Lag Keyframe Decimation + Lucas-Kanade Optical Flow Tracking.
     """
 
     def __init__(
         self,
-        model_path: Optional[Union[str, Path]] = None,
+        model_path: Optional[Union[str, Path]] = "auto",
         conf_threshold: float = 0.35,
         nms_threshold: float = 0.45,
-        target_size: Tuple[int, int] = (640, 360),  # (width, height)
+        target_size: Tuple[int, int] = (480, 384),  # (width, height) aligned to 32
         prefer_tensorrt: bool = True,
+        keyframe_interval: int = 3,
+        enable_keyframe_decimation: bool = True,
+        enable_cuda_zerocopy: bool = True,
     ) -> None:
         self.conf_threshold = conf_threshold
         self.nms_threshold = nms_threshold
         self.target_size = target_size  # (W, H)
         self.prefer_tensorrt = prefer_tensorrt
+        self.keyframe_interval = max(1, int(keyframe_interval))
+        self.enable_keyframe_decimation = enable_keyframe_decimation
+        self.enable_cuda_zerocopy = enable_cuda_zerocopy
+
+        self._frame_count: int = 0
+        self._last_gray_frame: Optional[np.ndarray] = None
+        self._last_detections: Optional[DetectionResult] = None
+        self._tracked_points: Optional[np.ndarray] = None
+        self._point_box_ids: Optional[np.ndarray] = None
 
         self.session: Optional[Any] = None
         self.is_tensorrt: bool = False
@@ -153,8 +194,19 @@ class ObjectDetector:
         self.resolved_model_path = self._resolve_model_path(model_path)
         self._init_runtime()
 
+    def reset(self) -> None:
+        """Reset temporal decimation tracking state and frame counter."""
+        self._frame_count = 0
+        self._last_gray_frame = None
+        self._last_detections = None
+        self._tracked_points = None
+        self._point_box_ids = None
+
     def _resolve_model_path(self, model_path: Optional[Union[str, Path]]) -> Optional[Path]:
-        if model_path:
+        if model_path is None or str(model_path).lower() in ("mock", "none"):
+            return None
+
+        if model_path != "auto":
             p = Path(model_path)
             if p.exists():
                 return p
@@ -212,6 +264,15 @@ class ObjectDetector:
             )
             self.input_name = self.session.get_inputs()[0].name
             self.output_names = [o.name for o in self.session.get_outputs()]
+
+            in_shape = self.session.get_inputs()[0].shape
+            if len(in_shape) == 4 and isinstance(in_shape[2], int) and isinstance(in_shape[3], int):
+                self.target_size = (int(in_shape[3]), int(in_shape[2]))
+            else:
+                tw = max(32, int(np.round(self.target_size[0] / 32.0) * 32))
+                th = max(32, int(np.round(self.target_size[1] / 32.0) * 32))
+                self.target_size = (tw, th)
+
 
             if "det_preds" in self.output_names or len(self.output_names) >= 2:
                 self.model_type = "multitask"
@@ -334,17 +395,58 @@ class ObjectDetector:
         filtered_scores = scores[conf_mask]
         filtered_classes = class_ids[conf_mask]
 
-        # 2. Vectorized Class-Aware NMS
-        keep_indices = vectorized_nms(
+        # 2. Vectorized / Batched NMS
+        keep_indices = batched_nms(
             filtered_boxes, filtered_scores, filtered_classes, iou_threshold=self.nms_threshold
         )
 
         final_boxes = filtered_boxes[keep_indices]
         final_scores = filtered_scores[keep_indices]
-        final_classes = filtered_classes[keep_indices]
+        raw_classes = filtered_classes[keep_indices]
 
+        # COCO (80 classes) to Autonomous Driving 9-Class Mapping
+        COCO_MAP = {
+            0: (1, "pedestrian"),
+            1: (2, "cyclist"),
+            2: (0, "vehicle"),
+            3: (2, "cyclist"),
+            5: (0, "vehicle"),
+            6: (0, "vehicle"),
+            7: (0, "vehicle"),
+            9: (8, "traffic_light"),
+            11: (7, "traffic_sign"),
+            15: (5, "animal"),
+            16: (5, "animal"),
+            17: (5, "animal"),
+            18: (5, "animal"),
+            19: (5, "animal"),
+            20: (5, "animal"),
+        }
+
+        if n_channels >= 80:
+            mapped_boxes = []
+            mapped_scores = []
+            mapped_cids = []
+            mapped_names = []
+            for b, s, c in zip(final_boxes, final_scores, raw_classes):
+                if int(c) in COCO_MAP:
+                    apex_cid, apex_name = COCO_MAP[int(c)]
+                    mapped_boxes.append(b)
+                    mapped_scores.append(s)
+                    mapped_cids.append(apex_cid)
+                    mapped_names.append(apex_name)
+            if not mapped_boxes:
+                return DetectionResult()
+            return DetectionResult(
+                boxes=np.array(mapped_boxes, dtype=np.float32),
+                scores=np.array(mapped_scores, dtype=np.float32),
+                class_ids=np.array(mapped_cids, dtype=np.int32),
+                class_names=mapped_names,
+            )
+
+        final_classes = raw_classes
         class_names = [
-            OBJECT_CLASSES[c % len(OBJECT_CLASSES)] for c in final_classes
+            OBJECT_CLASSES[int(c) % len(OBJECT_CLASSES)] for c in final_classes
         ]
 
         return DetectionResult(
@@ -354,40 +456,176 @@ class ObjectDetector:
             class_names=class_names,
         )
 
-    def detect(self, frame: np.ndarray) -> DetectionResult:
+    def _extract_box_feature_points(self, boxes: np.ndarray, gray: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         """
-        Execute fail-operational multi-object detection pass.
-        Guaranteed not to throw exceptions; returns empty DetectionResult on error.
+        Samples feature tracking points inside bounding boxes for zero-lag optical flow propagation.
+        Uses a 3x3 uniform interior grid per box to guarantee tracking coverage.
+        """
+        pts_list: List[np.ndarray] = []
+        box_ids_list: List[int] = []
+
+        for idx, box in enumerate(boxes):
+            x1, y1, x2, y2 = box
+            w = max(4.0, x2 - x1)
+            h = max(4.0, y2 - y1)
+            xs = np.linspace(x1 + 0.2 * w, x2 - 0.2 * w, 3)
+            ys = np.linspace(y1 + 0.2 * h, y2 - 0.2 * h, 3)
+            grid_x, grid_y = np.meshgrid(xs, ys)
+            pts = np.stack([grid_x.ravel(), grid_y.ravel()], axis=1).astype(np.float32)
+            pts_list.append(pts)
+            box_ids_list.extend([idx] * len(pts))
+
+        if not pts_list:
+            return np.empty((0, 2), dtype=np.float32), np.empty((0,), dtype=np.int32)
+
+        return np.concatenate(pts_list, axis=0), np.array(box_ids_list, dtype=np.int32)
+
+    def _track_decimated_frame(self, frame: np.ndarray, curr_gray: np.ndarray, t_start: float) -> DetectionResult:
+        """
+        Sub-3ms Lucas-Kanade optical flow propagation for intermediate decimated frames.
+        """
+        if (
+            self._last_detections is None
+            or self._last_detections.is_empty
+            or self._last_gray_frame is None
+            or self._tracked_points is None
+            or len(self._tracked_points) == 0
+        ):
+            return self._detect_neural(frame, t_start=t_start)
+
+        orig_h, orig_w = frame.shape[:2]
+
+        prev_pts = self._tracked_points.reshape(-1, 1, 2)
+        next_pts, status, _ = cv2.calcOpticalFlowPyrLK(
+            self._last_gray_frame,
+            curr_gray,
+            prev_pts,
+            None,
+            winSize=(15, 15),
+            maxLevel=2,
+            criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.03),
+        )
+
+        status_mask = (status.flatten() == 1) if status is not None else np.zeros(len(prev_pts), dtype=bool)
+
+        old_boxes = self._last_detections.boxes
+        new_boxes = old_boxes.copy()
+
+        if np.any(status_mask):
+            p0 = prev_pts.reshape(-1, 2)[status_mask]
+            p1 = next_pts.reshape(-1, 2)[status_mask]
+            box_ids = self._point_box_ids[status_mask]
+
+            for b_idx in range(len(old_boxes)):
+                b_mask = (box_ids == b_idx)
+                if np.any(b_mask):
+                    disp = p1[b_mask] - p0[b_mask]
+                    dx, dy = np.median(disp, axis=0)
+                    new_boxes[b_idx, 0] = np.clip(old_boxes[b_idx, 0] + dx, 0, orig_w - 1)
+                    new_boxes[b_idx, 1] = np.clip(old_boxes[b_idx, 1] + dy, 0, orig_h - 1)
+                    new_boxes[b_idx, 2] = np.clip(old_boxes[b_idx, 2] + dx, 0, orig_w - 1)
+                    new_boxes[b_idx, 3] = np.clip(old_boxes[b_idx, 3] + dy, 0, orig_h - 1)
+
+            self._tracked_points = p1
+            self._point_box_ids = box_ids
+        else:
+            self._tracked_points, self._point_box_ids = self._extract_box_feature_points(new_boxes, curr_gray)
+
+        self._last_gray_frame = curr_gray
+
+        res = DetectionResult(
+            boxes=new_boxes.astype(np.float32),
+            scores=np.clip(self._last_detections.scores * 0.98, 0.0, 1.0).astype(np.float32),
+            class_ids=self._last_detections.class_ids.copy(),
+            class_names=list(self._last_detections.class_names),
+            inference_ms=(time.perf_counter() - t_start) * 1000.0,
+            is_keyframe=False,
+            decimated=True,
+            tracking_method="optical_flow",
+        )
+        self._last_detections = res
+        return res
+
+    def _detect_neural(self, frame: np.ndarray, t_start: float) -> DetectionResult:
+        """Execute full neural detection forward pass on keyframe."""
+        orig_h, orig_w = frame.shape[:2]
+        try:
+            if self.session is None or self.model_type == "mock":
+                return DetectionResult(
+                    inference_ms=(time.perf_counter() - t_start) * 1000.0,
+                    is_keyframe=True,
+                    decimated=False,
+                    tracking_method="neural",
+                )
+
+            input_tensor, sx, sy = self.preprocess(frame)
+            outputs = self.session.run(None, {self.input_name: input_tensor})
+
+            if self.model_type == "multitask" and len(outputs) >= 2:
+                raw_det = outputs[1]
+            else:
+                raw_det = outputs[0]
+
+            res = self.decode_raw_detections(raw_det, sx, sy, orig_w, orig_h)
+            res.inference_ms = (time.perf_counter() - t_start) * 1000.0
+            res.is_keyframe = True
+            res.decimated = False
+            res.tracking_method = "neural"
+            return res
+
+        except Exception as e:
+            log.warning("ObjectDetector exception in _detect_neural(): %s. Returning safe empty result.", e)
+            return DetectionResult(
+                inference_ms=(time.perf_counter() - t_start) * 1000.0,
+                is_keyframe=True,
+                decimated=False,
+                tracking_method="neural",
+            )
+
+    def detect(
+        self,
+        frame: Optional[np.ndarray],
+        frame_id: Optional[int] = None,
+        force_keyframe: bool = False,
+    ) -> DetectionResult:
+        """
+        Execute fail-operational zero-lag multi-object detection pass.
+        Runs full neural pass on keyframes (every Nth frame), and sub-3ms Lucas-Kanade
+        optical flow motion tracking on intermediate decimated frames.
         """
         if frame is None or frame.size == 0:
             return DetectionResult()
 
         t_start = time.perf_counter()
-        orig_h, orig_w = frame.shape[:2]
 
-        try:
-            if self.session is None or self.model_type == "mock":
-                # Fallback heuristic / mock detector (returns empty by default, or safe baseline)
-                return DetectionResult(inference_ms=(time.perf_counter() - t_start) * 1000.0)
+        if frame_id is not None:
+            self._frame_count = int(frame_id)
+        else:
+            self._frame_count += 1
 
-            # Preprocess frame
-            input_tensor, sx, sy = self.preprocess(frame)
+        curr_frame_id = self._frame_count
+        curr_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) if frame.ndim == 3 else frame
 
-            # Execute model
-            outputs = self.session.run(None, {self.input_name: input_tensor})
+        is_key = (
+            force_keyframe
+            or not self.enable_keyframe_decimation
+            or (curr_frame_id % self.keyframe_interval == 0)
+            or self._last_detections is None
+            or self._last_detections.is_empty
+            or self._last_gray_frame is None
+        )
 
-            # Resolve detection tensor
-            if self.model_type == "multitask" and len(outputs) >= 2:
-                # Output 0 = seg_logits, Output 1 = det_preds
-                raw_det = outputs[1]
-            else:
-                raw_det = outputs[0]
+        if not is_key:
+            return self._track_decimated_frame(frame, curr_gray, t_start=t_start)
 
-            # Decode and NMS
-            res = self.decode_raw_detections(raw_det, sx, sy, orig_w, orig_h)
-            res.inference_ms = (time.perf_counter() - t_start) * 1000.0
-            return res
+        res = self._detect_neural(frame, t_start=t_start)
+        self._last_gray_frame = curr_gray
+        self._last_detections = res
 
-        except Exception as e:
-            log.warning("ObjectDetector exception in detect(): %s. Returning safe empty result.", e)
-            return DetectionResult(inference_ms=(time.perf_counter() - t_start) * 1000.0)
+        if not res.is_empty and self.enable_keyframe_decimation:
+            self._tracked_points, self._point_box_ids = self._extract_box_feature_points(res.boxes, curr_gray)
+        else:
+            self._tracked_points = None
+            self._point_box_ids = None
+
+        return res

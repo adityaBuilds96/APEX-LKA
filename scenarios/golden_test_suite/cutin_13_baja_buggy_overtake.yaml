@@ -1,0 +1,25 @@
+scenario_id: CUTIN_13
+category: VEHICLE_CUTIN
+description: Competitor BAJA buggy overtaking and cutting across track
+map: baja_track_2027
+weather: dust_cloud_heavy
+seed: 213
+duration_sec: 12.0
+ego_vehicle:
+  spawn_x: 120.5
+  spawn_y: 48.2
+  initial_speed_kmh: 25.0
+actors:
+- type: vehicle.audi.a2
+  spawn_x: 135.0
+  spawn_y: 45.0
+  trigger_distance_m: 11.0
+  target_x: 145.0
+  target_y: 48.2
+  speed_mps: 7.0
+  behavior: cutin
+success_criteria:
+  collision: false
+  min_distance_m: 2.0
+  emergency_brake_activated: true
+  max_path_deviation_m: 1.0

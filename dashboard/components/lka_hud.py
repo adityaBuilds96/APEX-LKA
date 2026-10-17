@@ -11,6 +11,7 @@ Draws high-contrast, clean HUD elements directly onto the viewport frame:
 - Alerts: Lane Departure Warning (LDW) banner and diagnostic condition tags.
 """
 
+import math
 from typing import Any, Dict, List, Optional, Tuple, Union
 import cv2
 import numpy as np
@@ -49,13 +50,22 @@ def draw_hud_overlay(
     show_depth_heatmap: bool = False,
     tracked_objects: Optional[Any] = None,
     trajectory_report: Optional[Any] = None,
+    vio_trail: Optional[List[Tuple[float, float]]] = None,
+    vehicle_pose: Optional[Any] = None,
+    is_lane_retained: bool = False,
+    planned_trajectory: Optional[Any] = None,
+    behavior_context: Optional[Any] = None,
+    rss_result: Optional[Any] = None,
+    fleet_status: Optional[Any] = None,
+    ota_hotswap_alert: bool = False,
 ) -> np.ndarray:
     """
     Renders an automotive HUD onto the camera viewport image.
     Incorporates multi-task scene perception (free-space polygon, distance ticks,
     lane boundary polylines, drivable trajectory, environmental state badge,
     multi-object bounding boxes, 3D metric labels, Track IDs, motion vectors,
-    trajectory waypoints, top-down 3D occupancy grid widget, and collision risk badges)
+    trajectory waypoints, top-down 3D occupancy grid widget, VIO trajectory trail,
+    ESKF kinematic state panel, kinematic lane retention badge, and collision risk badges)
     with zero text overlap.
     """
     if image_bgr is None or image_bgr.size == 0:
@@ -108,6 +118,44 @@ def draw_hud_overlay(
     if t_rep is None and telemetry is not None:
         t_rep = getattr(telemetry, "trajectory_report", None)
 
+    # Resolve sensor fusion elements (VIO trail, Kinematic Vehicle Pose, Lane Retention)
+    v_trail = vio_trail
+    if v_trail is None and sp is not None:
+        v_trail = getattr(sp, "vio_trail", None)
+    if v_trail is None and telemetry is not None:
+        v_trail = getattr(telemetry, "vio_trail", None)
+
+    v_pose = vehicle_pose
+    if v_pose is None and sp is not None:
+        v_pose = getattr(sp, "vehicle_pose", None)
+    if v_pose is None and telemetry is not None:
+        v_pose = getattr(telemetry, "vehicle_pose", None)
+
+    lane_ret = is_lane_retained
+    if not lane_ret and sp is not None:
+        lane_ret = getattr(sp, "is_lane_retained", False)
+    if not lane_ret and telemetry is not None:
+        lane_ret = getattr(telemetry, "is_lane_retained", False)
+
+    # Resolve Section 5 planning elements
+    p_traj = planned_trajectory
+    if p_traj is None and sp is not None:
+        p_traj = getattr(sp, "planned_trajectory", None)
+    if p_traj is None and telemetry is not None:
+        p_traj = getattr(telemetry, "planned_trajectory", None)
+
+    b_ctx = behavior_context
+    if b_ctx is None and sp is not None:
+        b_ctx = getattr(sp, "behavior_context", None)
+    if b_ctx is None and telemetry is not None:
+        b_ctx = getattr(telemetry, "behavior_context", None)
+
+    rss_res = rss_result
+    if rss_res is None and sp is not None:
+        rss_res = getattr(sp, "rss_result", None)
+    if rss_res is None and telemetry is not None:
+        rss_res = getattr(telemetry, "rss_result", None)
+
     # ── 0. Optional Depth Heatmap Overlay (Magma False-Color α=0.35) ──────
     if show_depth_heatmap and d_map is not None and d_map.size > 0:
         try:
@@ -118,6 +166,14 @@ def draw_hud_overlay(
             cv2.addWeighted(heatmap, 0.35, canvas, 0.65, 0, canvas)
         except Exception:
             pass
+
+    # ── 0.5 VIO Trajectory Trail (Blue/Cyan Breadcrumb Trail) ─────────────
+    if v_trail:
+        _draw_vio_trajectory_trail(canvas, v_trail, w, h)
+
+    # ── 0.6 Planned Path Trajectory Spline (Bright Neon Green Line Ahead) ─
+    if p_traj is not None:
+        _draw_planned_trajectory_spline(canvas, p_traj, w, h)
 
     # ── 1. Free-Space Drivable Corridor Overlay (Cyan Polygon α=0.25) ─────
     if sp is not None and getattr(sp, "free_space", None) is not None:
@@ -146,6 +202,10 @@ def draw_hud_overlay(
             trajectory_report=t_rep,
         )
 
+    # ── 3.5 Mobileye RSS Safety Distance Envelope ──────────────────────────
+    if rss_res is not None:
+        _draw_rss_safety_envelope(canvas, rss_res, t_objs, w, h)
+
     # ── 4. Mini Top-Down 3D BEV Occupancy Grid Widget (Bottom-Right) ──────
     if occ_grid is not None:
         _draw_occupancy_grid_widget(canvas, occ_grid, w, h)
@@ -162,6 +222,14 @@ def draw_hud_overlay(
         if telemetry.ldw_state in (LDWState.WARNING, LDWState.DRIFT_LEFT, LDWState.DRIFT_RIGHT):
             _draw_ldw_banner(canvas, telemetry.ldw_state, w, h)
 
+    # ── 5.5 Lane Retention Active Status Badge (ESKF Dead Reckoning Hold) ──
+    if lane_ret:
+        _draw_lane_retention_badge(canvas, w, h)
+
+    # ── 5.6 Autonomous FSM Behavior Mode Badge (Top-Center) ────────────────
+    if b_ctx is not None or rss_res is not None:
+        _draw_fsm_behavior_badge(canvas, b_ctx, rss_res, w, h)
+
     # ── 6. Obstacle Emergency Brake / Trajectory Alert Banner ─────────────
     if t_rep is not None:
         _draw_trajectory_alert_banner(canvas, t_rep, w, h)
@@ -175,8 +243,20 @@ def draw_hud_overlay(
     bw, bh = _draw_minimal_corner_badge(canvas, mode_label, fps_val, lat_val, x=14, y=14)
 
     # ── 8. Environmental Adaptation Status Badge ───────────────────────────
+    curr_y = 14 + bh + 6
     if sp is not None and getattr(sp, "environmental", None) is not None:
-        _draw_environmental_badge(canvas, sp.environmental, x=14, y=14 + bh + 6, bw=bw)
+        _draw_environmental_badge(canvas, sp.environmental, x=14, y=curr_y, bw=bw)
+        curr_y += 36
+
+    # ── 9. ESKF Kinematic Vehicle State Panel ─────────────────────────────
+    if v_pose is not None:
+        _draw_kinematic_state_panel(canvas, v_pose, x=14, y=curr_y, bw=bw)
+
+    # ── 10. Fleet & OTA Status Panel & Hotswap Banner ─────────────────────
+    if fleet_status is not None:
+        _draw_fleet_ota_panel(canvas, fleet_status, x=14, y=h - 85, bw=bw)
+    if ota_hotswap_alert:
+        _draw_ota_hotswap_banner(canvas, w, h)
 
     return canvas
 
@@ -791,4 +871,315 @@ def _draw_obstacle_brake_banner(canvas: np.ndarray, w: int, h: int) -> None:
     _draw_semi_trans_box(canvas, bx, by, bw, bh, alpha=0.90, border_color=COLOR_RED)
     cv2.putText(canvas, "!! OBSTACLE BRAKE WARNING !!", (bx + 18, by + 26),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.65, COLOR_RED, 2, cv2.LINE_AA)
+
+
+def _draw_vio_trajectory_trail(
+    canvas: np.ndarray,
+    trail_pts: List[Tuple[float, float]],
+    w: int,
+    h: int,
+) -> None:
+    """Render VIO ego-motion relative displacement breadcrumb trail."""
+    if not trail_pts or len(trail_pts) < 2:
+        return
+
+    pts_px = []
+    base_x = w // 2
+    base_y = h - 25
+
+    for pt in trail_pts:
+        dx, dy = pt[0], pt[1]
+        px = int(base_x - dx * 35.0)
+        py = int(base_y - dy * 12.0)
+        if 0 <= px < w and 0 <= py < h:
+            pts_px.append((px, py))
+
+    if len(pts_px) >= 2:
+        pts_arr = np.array(pts_px, dtype=np.int32).reshape((-1, 1, 2))
+        cv2.polylines(canvas, [pts_arr], False, (220, 160, 40), 2, cv2.LINE_AA)
+        for p in pts_px[::3]:
+            cv2.circle(canvas, p, 3, (255, 200, 50), -1, cv2.LINE_AA)
+
+
+def _draw_lane_retention_badge(canvas: np.ndarray, w: int, h: int) -> None:
+    """Render glowing retention status badge when ESKF dead reckoning hold is active."""
+    bw, bh = 340, 32
+    bx = (w - bw) // 2
+    by = 52
+
+    _draw_semi_trans_box(canvas, bx, by, bw, bh, alpha=0.88, border_color=COLOR_AMBER)
+    cv2.circle(canvas, (bx + 18, by + bh // 2), 6, COLOR_AMBER, -1, cv2.LINE_AA)
+    cv2.putText(
+        canvas,
+        "LANE RETENTION ACTIVE (ESKF)",
+        (bx + 34, by + 21),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.50,
+        COLOR_TEXT_MAIN,
+        2,
+        cv2.LINE_AA,
+    )
+
+
+def _draw_kinematic_state_panel(
+    canvas: np.ndarray,
+    pose: Any,
+    x: int = 14,
+    y: int = 100,
+    bw: int = 190,
+) -> None:
+    """Render 100 Hz ESKF vehicle state telemetry panel."""
+    bh = 74
+    _draw_semi_trans_box(canvas, x, y, bw, bh, alpha=0.85, border_color=COLOR_BORDER)
+
+    vx = getattr(pose, "vx", 0.0)
+    wz = getattr(pose, "yaw_rate", 0.0)
+    slip = getattr(pose, "slip_angle_deg", 0.0)
+    stat = getattr(pose, "localization_status", 0)
+
+    stat_map = {
+        0: ("INIT", COLOR_TEXT_MUTED),
+        1: ("DEAD RECKONING", COLOR_AMBER),
+        2: ("VIO ACTIVE", COLOR_CYAN),
+        3: ("GNSS FIX", COLOR_CYAN),
+        4: ("RTK LOCKED", COLOR_GREEN),
+    }
+    s_label, s_color = stat_map.get(stat, ("ACTIVE", COLOR_CYAN))
+
+    cv2.putText(canvas, "ESKF KINEMATICS", (x + 8, y + 14),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.34, COLOR_TEXT_MUTED, 1, cv2.LINE_AA)
+    cv2.putText(canvas, s_label, (x + bw - 8 - len(s_label) * 6, y + 14),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.30, s_color, 1, cv2.LINE_AA)
+
+    t1 = f"Vx: {vx * 3.6:.1f} km/h"
+    t2 = f"Yaw: {math.degrees(wz):+.1f} deg/s"
+    t3 = f"Slip: {slip:+.1f} deg"
+
+    cv2.putText(canvas, t1, (x + 8, y + 33), cv2.FONT_HERSHEY_SIMPLEX, 0.38, COLOR_TEXT_MAIN, 1, cv2.LINE_AA)
+    cv2.putText(canvas, t2, (x + 8, y + 49), cv2.FONT_HERSHEY_SIMPLEX, 0.36, COLOR_TEXT_MAIN, 1, cv2.LINE_AA)
+    cv2.putText(canvas, t3, (x + 8, y + 65), cv2.FONT_HERSHEY_SIMPLEX, 0.36, COLOR_TEXT_MAIN, 1, cv2.LINE_AA)
+
+
+def _draw_planned_trajectory_spline(
+    canvas: np.ndarray,
+    trajectory: Any,
+    w: int,
+    h: int,
+) -> None:
+    """
+    Renders the 3.0-second planned path spline as a bright neon green trajectory line ahead.
+    """
+    waypoints = getattr(trajectory, "waypoints", None)
+    if waypoints is None and isinstance(trajectory, list):
+        waypoints = trajectory
+    if not waypoints:
+        return
+
+    pts_px: List[Tuple[int, int]] = []
+    for wp in waypoints:
+        x_m = float(getattr(wp, "x", 0.0))
+        y_m = float(getattr(wp, "y", 0.0))
+        if x_m < 0.2:
+            continue
+        # Inverse perspective camera projection
+        norm_dist = np.clip((x_m - 0.5) / 18.0, 0.0, 1.0)
+        py = int(h - 12 - (h * 0.46) * (norm_dist ** 0.82))
+        lateral_px = (y_m * 200.0) / max(0.8, x_m * 0.20)
+        px = int(w / 2.0 + lateral_px)
+        if 0 <= px < w and 0 <= py < h:
+            pts_px.append((px, py))
+
+    if len(pts_px) >= 2:
+        pts_arr = np.array(pts_px, dtype=np.int32).reshape((-1, 1, 2))
+        # Draw glowing path outline
+        cv2.polylines(canvas, [pts_arr], False, (20, 160, 40), 5, cv2.LINE_AA)
+        # Main neon green planned path
+        cv2.polylines(canvas, [pts_arr], False, (60, 255, 90), 2, cv2.LINE_AA)
+
+        # Draw lookahead target point circle
+        end_pt = pts_px[-1]
+        cv2.circle(canvas, end_pt, 4, (60, 255, 90), -1, cv2.LINE_AA)
+        cv2.circle(canvas, end_pt, 6, (20, 160, 40), 1, cv2.LINE_AA)
+
+
+def _draw_rss_safety_envelope(
+    canvas: np.ndarray,
+    rss_result: Any,
+    tracked_objects: Optional[List[Any]],
+    w: int,
+    h: int,
+) -> None:
+    """
+    Renders the Mobileye RSS safety envelope boundary box around lead vehicle threats.
+    """
+    override = bool(getattr(rss_result, "override_active", False))
+    status = str(getattr(rss_result, "safety_status", "SAFE"))
+    if not override and status not in ("CAUTION", "OVERRIDE_BRAKE"):
+        return
+
+    lead_id = getattr(rss_result, "lead_track_id", None)
+    target_obj = None
+
+    if tracked_objects and lead_id is not None:
+        for obj in tracked_objects:
+            if getattr(obj, "track_id", None) == lead_id:
+                target_obj = obj
+                break
+
+    if target_obj is None and tracked_objects:
+        # Find closest object ahead in corridor
+        ahead_objs = [o for o in tracked_objects if getattr(o, "z_m", 0.0) > 0.5]
+        if ahead_objs:
+            target_obj = min(ahead_objs, key=lambda o: getattr(o, "z_m", 999.0))
+
+    if target_obj is not None:
+        box_2d = getattr(target_obj, "bbox_2d", None)
+        if box_2d is None:
+            box_2d = getattr(target_obj, "box_2d", None)
+
+        if box_2d is not None and len(box_2d) >= 4:
+            x1, y1, x2, y2 = [int(v) for v in box_2d[:4]]
+            x1 = max(0, min(w - 1, x1))
+            y1 = max(0, min(h - 1, y1))
+            x2 = max(0, min(w - 1, x2))
+            y2 = max(0, min(h - 1, y2))
+
+            # Envelope color based on severity
+            env_color = COLOR_RED if override else COLOR_AMBER
+            # Draw outer safety boundary bounding box
+            pad = 6
+            bx1, by1 = max(0, x1 - pad), max(0, y1 - pad)
+            bx2, by2 = min(w - 1, x2 + pad), min(h - 1, y2 + pad)
+
+            cv2.rectangle(canvas, (bx1, by1), (bx2, by2), env_color, 2, cv2.LINE_AA)
+
+            # RSS Label
+            d_act = getattr(rss_result, "d_actual_long", 0.0)
+            d_min = getattr(rss_result, "d_min_long", 0.0)
+            lbl = f"RSS BRAKE: {d_act:.1f}m < {d_min:.1f}m" if override else f"RSS CAUTION: {d_act:.1f}m"
+
+            (tw, th), _ = cv2.getTextSize(lbl, cv2.FONT_HERSHEY_SIMPLEX, 0.38, 1)
+            cv2.rectangle(canvas, (bx1, max(0, by1 - 18)), (bx1 + tw + 6, by1), COLOR_BG_DARK, -1)
+            cv2.putText(canvas, lbl, (bx1 + 3, max(12, by1 - 4)),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.38, env_color, 1, cv2.LINE_AA)
+
+
+def _draw_fsm_behavior_badge(
+    canvas: np.ndarray,
+    behavior_ctx: Any,
+    rss_res: Any,
+    w: int,
+    h: int,
+) -> None:
+    """
+    Renders top-center Autonomous Behavior Mode and RSS Health Banner pill.
+    Format: MODE: ACC | SET: 15 km/h | RSS: CLEAR
+    """
+    state_str = "LANE_FOLLOWING"
+    v_set = 4.17
+    rss_override = False
+
+    if behavior_ctx is not None:
+        state_str = str(getattr(behavior_ctx, "state_name", "LANE_FOLLOWING")).replace("_", " ")
+        v_set = float(getattr(behavior_ctx, "target_speed_mps", 4.17))
+
+    if rss_res is not None:
+        rss_override = bool(getattr(rss_res, "override_active", False))
+
+    rss_str = "OVERRIDE" if rss_override else "CLEAR"
+    rss_color = COLOR_RED if rss_override else COLOR_GREEN
+
+    badge_text = f"MODE: {state_str}  |  SET: {v_set * 3.6:.0f} km/h  |  RSS: {rss_str}"
+
+    font_scale = 0.38
+    (tw, th), _ = cv2.getTextSize(badge_text, cv2.FONT_HERSHEY_SIMPLEX, font_scale, 1)
+    bx = (w - tw - 24) // 2
+    by = 12
+    bw = tw + 24
+    bh = th + 14
+
+    border_col = COLOR_RED if rss_override else COLOR_CYAN
+    _draw_semi_trans_box(canvas, bx, by, bw, bh, alpha=0.88, border_color=border_col)
+
+    # Render main text
+    cv2.putText(canvas, badge_text, (bx + 12, by + bh - 6),
+                cv2.FONT_HERSHEY_SIMPLEX, font_scale, COLOR_TEXT_MAIN, 1, cv2.LINE_AA)
+
+
+def _draw_fleet_ota_panel(
+    canvas: np.ndarray,
+    fleet_status: Any,
+    x: int = 14,
+    y: int = 275,
+    bw: int = 220,
+) -> None:
+    """
+    Renders the Fleet & Cryptographic OTA Telemetry Panel.
+    Shows Active Model Hash, Sync State, and Harvest Queue Count.
+    """
+    if isinstance(fleet_status, dict):
+        m_hash = fleet_status.get("model_version_hash", 0)
+        sync_val = fleet_status.get("ota_sync_state", fleet_status.get("sync_state_enum", 0))
+        disc_val = fleet_status.get("shadow_discrepancy_score", fleet_status.get("shadow_discrepancy", 0))
+        queue_cnt = fleet_status.get("harvest_queue_count", 0)
+        backend_val = fleet_status.get("active_backend", fleet_status.get("backend_enum", 0))
+        sync_str = fleet_status.get("sync_state_str", None)
+        backend_str = fleet_status.get("backend_str", None)
+    else:
+        m_hash = getattr(fleet_status, "model_version_hash", 0)
+        sync_val = getattr(fleet_status, "ota_sync_state", getattr(fleet_status, "sync_state_enum", 0))
+        disc_val = getattr(fleet_status, "shadow_discrepancy_score", getattr(fleet_status, "shadow_discrepancy", 0))
+        queue_cnt = getattr(fleet_status, "harvest_queue_count", 0)
+        backend_val = getattr(fleet_status, "active_backend", getattr(fleet_status, "backend_enum", 0))
+        sync_str = getattr(fleet_status, "sync_state_str", None)
+        backend_str = getattr(fleet_status, "backend_str", None)
+
+    sync_map = {0: "IDLE", 1: "CHECKING", 2: "DOWNLOADING", 3: "VERIFYING", 4: "HOTSWAPPING", 5: "SYNC_OK", 6: "ERROR"}
+    backend_map = {0: "CLASSICAL", 1: "PYTORCH", 2: "ONNX", 3: "TENSORRT"}
+
+    try:
+        sync_int = int(sync_val)
+    except Exception:
+        sync_int = 0
+
+    if not sync_str:
+        sync_str = sync_map.get(sync_int, "SYNC_OK")
+    if not backend_str:
+        try:
+            backend_str = backend_map.get(int(backend_val), "ONNX")
+        except Exception:
+            backend_str = "ONNX"
+
+    panel_h = 56
+    _draw_semi_trans_box(canvas, x, y, bw, panel_h, alpha=0.85, border_color=COLOR_BORDER)
+
+    # Header
+    cv2.putText(canvas, f"FLEET OTA  |  {backend_str}", (x + 8, y + 14),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.34, COLOR_CYAN, 1, cv2.LINE_AA)
+
+    # Line 1: Hash & Sync State
+    sync_col = COLOR_RED if sync_val == 6 else (COLOR_AMBER if sync_val in (2, 3, 4) else COLOR_GREEN)
+    l1 = f"HASH: 0x{m_hash:04X}  |  {sync_str}"
+    cv2.putText(canvas, l1, (x + 8, y + 30),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.33, sync_col, 1, cv2.LINE_AA)
+
+    # Line 2: Shadow Discrepancy & Harvest Queue
+    l2 = f"SHADOW: {disc_val}%  |  QUEUE: {queue_cnt} pkgs"
+    cv2.putText(canvas, l2, (x + 8, y + 46),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.32, COLOR_TEXT_MUTED, 1, cv2.LINE_AA)
+
+
+def _draw_ota_hotswap_banner(canvas: np.ndarray, w: int, h: int) -> None:
+    """Banner displayed when an atomic zero-downtime model hot-swap completes."""
+    bw, bh = 460, 32
+    bx = (w - bw) // 2
+    by = int(0.24 * h)
+
+    _draw_semi_trans_box(canvas, bx, by, bw, bh, alpha=0.92, border_color=COLOR_GREEN)
+    msg = "OTA HOTSWAP COMPLETE — ZERO-DOWNTIME MODEL ACTIVE"
+    cv2.putText(canvas, f"[OK] {msg}", (bx + 14, by + 21),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.40, COLOR_GREEN, 1, cv2.LINE_AA)
+
+
+
 

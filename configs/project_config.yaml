@@ -459,3 +459,91 @@ trajectory_prediction:
   horizon_seconds: 3.0
   tti_warning_threshold_s: 2.5
   tti_critical_threshold_s: 1.0
+
+# ============================================================
+# Phase 5: Section 4 — Sensor Fusion & State Estimation
+# ============================================================
+sensor_fusion:
+  enabled: true
+  eskf:
+    imu_accel_noise: 0.05
+    imu_gyro_noise: 0.005
+    accel_bias_noise: 0.001
+    gyro_bias_noise: 0.0001
+    gnss_pos_noise: 0.5
+    rtk_pos_noise: 0.02
+  vio:
+    enabled: true
+    max_features: 200
+    min_feature_inliers: 30
+  vehicle_kinematics:
+    wheelbase_m: 1.60
+    track_width_m: 1.25
+    understeer_gradient: 0.002
+  lane_retention:
+    max_hold_seconds: 5.0
+    confidence_decay_per_sec: 0.15
+
+# ============================================================
+# Phase 5: Section 5 — Decision Planning & Path Planner
+# ============================================================
+planning:
+  enabled: true
+  behavior:
+    default_speed_limit_mps: 4.17  # 15 km/h
+    standstill_distance_m: 2.0
+    time_gap_seconds: 1.5
+    max_accel_mpss: 1.5
+    max_decel_mpss: 3.0
+    emergency_decel_mpss: 4.5
+  path_planner:
+    horizon_seconds: 3.0
+    num_waypoints: 30
+    obstacle_clearance_m: 1.0
+  rss_shield:
+    response_time_sec: 0.5
+    min_brake_mpss: 3.0
+    max_brake_mpss: 5.0
+
+# ============================================================
+# Phase 5: Section 6 — OTA Updates & Fleet Infrastructure
+# ============================================================
+fleet_ota:
+  enabled: true
+  public_key_path: "keys/apex_ota_public.pem"
+  check_interval_sec: 300
+  remote_manifest_url: "https://fleet.apexlka.internal/v1/manifest.json"
+shadow_mode:
+  enabled: true
+  candidate_model_path: "models/candidate/shadow_model.onnx"
+  divergence_threshold_m: 0.40
+data_harvesting:
+  enabled: true
+  storage_quota_mb: 2048
+  trigger_confidence_low: 0.40
+  trigger_divergence_m: 0.40
+  pre_event_frames: 2
+  post_event_frames: 2
+
+# ============================================================
+# Phase 5: Section 7 — Simulation, Digital Twin & Validation
+# ============================================================
+simulation:
+  enabled: true
+  config_path: "configs/simulation.yaml"
+  default_map: "college_campus"
+  default_weather: "clear_noon"
+  ci_regression_pass_rate_pct: 95.0
+
+# ============================================================
+# Phase 5: Section 8 — Universal Deployment & Industrial Certification
+# ============================================================
+deployment:
+  profile: "baja_2027"
+  profile_dir: "vehicle_profiles/"
+  hal_backend: "auto"
+  network_protocol: "can"
+  ros2:
+    enabled: false
+    node_name: "apex_perception_node"
+    namespace: "apex"

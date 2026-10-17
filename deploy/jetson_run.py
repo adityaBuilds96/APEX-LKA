@@ -731,6 +731,55 @@ def run_jetson_lka(
     except Exception as e:
         log.warning("Tracking initialization failed (%s); proceeding without trajectory telemetry.", e)
 
+    # Phase 5 Section 4: 15-DOF ESKF, VIO, Kinematic Lane Retention & CAN 0x180
+    eskf = None
+    vio_engine = None
+    lane_retainer = None
+    try:
+        from src.fusion.eskf import ErrorStateKalmanFilter15DOF
+        from src.fusion.vio_engine import VisualInertialOdometryEngine
+        from src.fusion.lane_retention import KinematicLaneRetainer
+        eskf = ErrorStateKalmanFilter15DOF()
+        vio_engine = VisualInertialOdometryEngine()
+        lane_retainer = KinematicLaneRetainer(max_hold_seconds=5.0)
+        log.info("Phase 5 Section 4: Sensor Fusion (ESKF, VIO, Lane Retainer) initialized.")
+    except Exception as e:
+        log.warning("Sensor Fusion initialization failed (%s); proceeding without ESKF telemetry.", e)
+
+    # Phase 5 Section 5: Behavior FSM, Path Planner, ACC, Mobileye RSS Shield & CAN 0x190
+    behavior_fsm = None
+    path_planner = None
+    acc_controller = None
+    rss_shield = None
+    try:
+        from src.planning.behavior_fsm import BehaviorStateMachine
+        from src.planning.path_planner import LocalPathPlanner
+        from src.planning.acc_controller import AdaptiveCruiseController
+        from src.planning.rss_shield import MobileyeRSSShield
+
+        behavior_fsm = BehaviorStateMachine()
+        path_planner = LocalPathPlanner()
+        acc_controller = AdaptiveCruiseController()
+        rss_shield = MobileyeRSSShield()
+        log.info("Phase 5 Section 5: Motion Planning Engine (FSM, Path Planner, ACC, RSS) initialized.")
+    except Exception as e:
+        log.warning("Motion Planning initialization failed (%s); proceeding without trajectory planning.", e)
+
+    # Phase 5 Section 6: Cryptographic OTA Manager, Silent Shadow Mode, Data Harvester & CAN 0x1A0
+    ota_manager = None
+    shadow_engine = None
+    data_harvester = None
+    try:
+        from src.fleet.ota_updater import OTAModelManager
+        from src.fleet.shadow_mode import ShadowModeEngine
+        from src.fleet.data_collector import ClosedLoopDataHarvester
+
+        ota_manager = OTAModelManager()
+        shadow_engine = ShadowModeEngine()
+        data_harvester = ClosedLoopDataHarvester()
+        log.info("Phase 5 Section 6: Fleet Infrastructure (OTA Manager, Shadow Mode, Data Harvester) initialized.")
+    except Exception as e:
+        log.warning("Fleet infrastructure initialization failed (%s); proceeding with default fleet telemetry.", e)
 
     # Optional Video Recording
     video_writer: Optional[cv2.VideoWriter] = None
@@ -972,17 +1021,118 @@ def run_jetson_lka(
                 except Exception as e:
                     log.debug("Tracking & trajectory loop error: %s", e)
 
+            # 8.8 Motion Planning, ACC, RSS Safety Shield & CAN 0x190 (Phase 5 Section 5)
+            planned_traj = None
+            behavior_ctx = None
+            acc_out = None
+            rss_res = None
+            planning_estop = False
+
+            if behavior_fsm and path_planner and acc_controller and rss_shield:
+                try:
+                    # 1. Mobileye RSS Mathematical Shield Threat Evaluation
+                    rss_res = rss_shield.evaluate(
+                        ego_speed_mps=current_speed,
+                        tracked_objects=tracked_objects,
+                        objects_3d=objects_3d,
+                    )
+
+                    # 2. Adaptive Cruise Control Speed & Jerk Profiler
+                    acc_out = acc_controller.compute_target_speed(
+                        v_ego=current_speed,
+                        path_curvature=kappa,
+                        tracked_objects=tracked_objects,
+                        rss_override=rss_res.override_active,
+                        dt=loop_dt,
+                    )
+
+                    # 3. Behavior Finite State Machine Transition
+                    behavior_ctx = behavior_fsm.update(
+                        track_quality=track_quality,
+                        lane_retention_active=False,
+                        trajectory_report=trajectory_report,
+                        rss_result=rss_res,
+                        acc_target_speed=acc_out.target_speed_mps,
+                        ego_speed=current_speed,
+                        road_curvature=kappa,
+                        obstacle_detected=bool(objects_3d or (tracked_objects and len(tracked_objects) > 0)),
+                        dt=loop_dt,
+                    )
+
+                    # 4. TEB / Spline Metric Path Planner
+                    planned_traj = path_planner.plan(
+                        center_poly_bev=center_coeffs,
+                        occupancy_grid=occ_grid,
+                        target_speed_mps=behavior_ctx.target_speed_mps,
+                        lateral_bias_m=behavior_ctx.lateral_bias_m,
+                        dt=loop_dt,
+                    )
+
+                    # Check for RSS Safety Shield Override or FSM Emergency Brake
+                    if rss_res.override_active or behavior_ctx.state_name == "EMERGENCY_BRAKE":
+                        planning_estop = True
+
+                    # 5. Broadcast CAN Frame 0x190 Autonomous Plan & Control State
+                    if communicator:
+                        communicator.send_planning_state(
+                            target_speed_mps=0.0 if rss_res.override_active else acc_out.target_speed_mps,
+                            target_steer_deg=planned_traj.target_steering_deg,
+                            behavior_state=behavior_ctx.state.value,
+                            rss_override=rss_res.override_active,
+                            path_curvature=planned_traj.curvature,
+                        )
+                except Exception as e:
+                    log.debug("Motion planning / CAN 0x190 error: %s", e)
+
+            # 8.9 Silent Shadow Mode Candidate Inference & Closed-Loop Data Harvesting (Phase 5 Section 6)
+            shadow_report = None
+            if shadow_engine and shadow_engine.enabled:
+                try:
+                    shadow_report = shadow_engine.step(
+                        frame=frame,
+                        primary_prediction=None,
+                        primary_offset_m=offset_m,
+                        primary_confidence=track_quality,
+                        frame_idx=frame_count,
+                    )
+                except Exception as e:
+                    log.debug("Shadow mode execution error: %s", e)
+
+            if data_harvester and data_harvester.enabled:
+                try:
+                    can_data = {
+                        "speed_mps": current_speed,
+                        "steer_angle_deg": steer_deg,
+                    }
+                    div_m = float(shadow_report.offset_delta_m) if shadow_report else 0.0
+                    rss_over = bool(rss_res and rss_res.override_active)
+                    data_harvester.observe(
+                        frame_bgr=frame,
+                        confidence=track_quality,
+                        offset_m=offset_m,
+                        frame_idx=frame_count,
+                        depth_map=depth_res.metric_depth_map if ('depth_res' in locals() and depth_res is not None) else None,
+                        objects_3d=objects_3d,
+                        vehicle_pose=eskf.get_vehicle_pose() if eskf else None,
+                        can_state=can_data,
+                        rss_override_active=rss_over,
+                        driver_override_active=False,
+                        shadow_divergence_m=div_m,
+                    )
+                except Exception as e:
+                    log.debug("Data harvesting observation error: %s", e)
+
             # 9. Electromechanical Actuator Mapping
             counts = actuation_mapper.deg_to_counts(steer_deg)
 
             # 10. Safety Watchdog & Emergency Stop
             obstacle_estop = bool(risk_rep and getattr(risk_rep, "emergency_brake_flag", False))
-            if track_quality < estop_conf or status == "NONE" or obstacle_estop:
+            if track_quality < estop_conf or status == "NONE" or obstacle_estop or planning_estop:
                 consecutive_failures += 1
             else:
                 consecutive_failures = 0
 
-            estop = (consecutive_failures >= max_fails) or obstacle_estop
+            estop = (consecutive_failures >= max_fails) or obstacle_estop or planning_estop
             if estop:
                 steer_deg = 0.0
                 counts = 0
@@ -998,11 +1148,44 @@ def run_jetson_lka(
                 raw_counts=counts,
             )
             communicator.send_node2_control(
-                throttle_pct=0.0 if estop else 20.0,
-                brake_pct=80.0 if estop else 0.0,
+                throttle_pct=0.0 if estop else (acc_out.target_speed_mps / 4.17 * 20.0 if acc_out else 20.0),
+                brake_pct=100.0 if estop else 0.0,
                 mode=mode_str,
             )
             communicator.send_heartbeat(health_code=3 if estop else 0)
+
+            # 11.5 Broadcast CAN Frame 0x180 Kinematic Vehicle State (100 Hz)
+            if eskf and communicator:
+                try:
+                    pose = eskf.get_vehicle_pose()
+                    loc_stat = 4 if pose.gnss_fix_quality >= 4 else (3 if pose.gnss_fix_quality >= 1 else 1)
+                    communicator.send_kinematic_state(
+                        vx_mps=pose.vx,
+                        vy_mps=pose.vy,
+                        yaw_rate_radps=pose.yaw_rate,
+                        slip_angle_deg=pose.slip_angle_deg,
+                        localization_status=loc_stat,
+                    )
+                except Exception as e:
+                    log.debug("CAN 0x180 kinematic broadcast error: %s", e)
+
+            # 11.6 Broadcast CAN Frame 0x1A0 Fleet Remote & OTA Status (30 Hz)
+            if communicator:
+                try:
+                    s_score = shadow_report.discrepancy_score_u8 if shadow_report else 0
+                    h_count = data_harvester.harvest_queue_count if data_harvester else 0
+                    backend_enum = ota_manager.active_backend.value if ota_manager else 0
+                    sync_state_u8 = ota_manager.sync_state.value if ota_manager else 0
+                    v_hash = ota_manager.active_version_hash if ota_manager else 0
+                    communicator.send_fleet_status(
+                        model_version_hash=v_hash,
+                        sync_state_enum=sync_state_u8,
+                        shadow_discrepancy_score=s_score,
+                        harvest_queue_count=h_count,
+                        backend_enum=backend_enum,
+                    )
+                except Exception as e:
+                    log.debug("CAN 0x1A0 fleet status broadcast error: %s", e)
 
             # Timing & FPS
             fps = 1.0 / max(1e-4, loop_dt)

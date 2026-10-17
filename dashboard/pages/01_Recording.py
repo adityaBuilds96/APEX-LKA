@@ -6,7 +6,7 @@ APEX LKA — Training-Accelerator Session Recorder & Dataset Ingest Engine.
 Purpose
 -------
 Engineered for rapid, high-quality data collection for autonomous perception
-and SAE India BAJA 2027 development.
+and APEX-Vision autonomous development.
 
 Key Features
 ------------
@@ -215,7 +215,7 @@ if "rec_last_frame" not in st.session_state:
 # Top Header
 # ═══════════════════════════════════════════════════════════════════════════
 
-st.markdown('<div class="rec-title-chip">SAE BAJA &amp; AUTONOMOUS DATA ENGINE</div>', unsafe_allow_html=True)
+st.markdown('<div class="rec-title-chip">APEX-VISION | AUTONOMOUS DATA ENGINE</div>', unsafe_allow_html=True)
 st.markdown("## 📼 Training-Accelerator Session Recorder")
 st.caption("Multi-source capture, auto-frame extraction, real-time duplicate rejection, and instant dataset ingestion.")
 st.markdown("---")

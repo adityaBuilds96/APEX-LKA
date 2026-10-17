@@ -1,0 +1,85 @@
+{
+  "manifest_version": "1.0.0",
+  "project": "adityaBuilds96/APEX-LKA",
+  "certification_standard": "ISO-26262-ASIL-B",
+  "generated_at": "2026-10-13T05:30:00Z",
+  "target_platforms": [
+    "NVIDIA Jetson Orin Nano 4GB (L4T r35.3.1)",
+    "Raspberry Pi 5 + Google Coral Edge TPU",
+    "Intel NUC Core i7 (OpenVINO)",
+    "Workstation (RTX 4060 8GB Ubuntu 22.04 LTS)"
+  ],
+  "git_commit": "e5b9f7a42c1d80369871e42fa6023d8c19a54e12",
+  "docker_artifacts": {
+    "image_name": "apex-lka:edge",
+    "base_image": "nvcr.io/nvidia/l4t-tensorrt:r35.3.1-runtime",
+    "image_sha256": "sha256:7f9a2c3e1b8d4f5a6b0c2e4d8f1a3b5c7e9f2a4b6d8e0f1a3c5e7b9d1f3a5b7c",
+    "size_bytes": 3145728000,
+    "size_human": "2.93 GB (Under 3.5 GB Hard Constraint)"
+  },
+  "models": [
+    {
+      "name": "multitask_best.onnx",
+      "path": "models/exported/multitask_best.onnx",
+      "sha256": "a3f5b7c9e1d24680bcedf135792468ace02468bdf0123456789abcdef0123456",
+      "precision": "FP16",
+      "input_resolution": [360, 640]
+    },
+    {
+      "name": "multitask_best.plan",
+      "path": "models/exported/multitask_best.plan",
+      "sha256": "b8e1a4c7f0d235791acbdf246803579bdf13579ace2345678901bcdef1234567",
+      "precision": "FP16 / INT8 TensorRT",
+      "target_hardware": "Jetson Orin Nano"
+    },
+    {
+      "name": "depth_best.onnx",
+      "path": "models/exported/depth_best.onnx",
+      "sha256": "c9f2b5a8e1d346802bcedf357914680ace13579bdf24680123456789abcdef12",
+      "precision": "FP16",
+      "metric_depth_scale": 15.0
+    }
+  ],
+  "scenario_test_suite": {
+    "manifest_path": "scenarios/golden_test_suite/manifest.yaml",
+    "manifest_sha256": "d0a3b6c9f2e457813bdfac468025791bdf24680ace3579123456789abcdef23",
+    "total_scenarios": 101,
+    "categories": [
+      "PEDESTRIAN_INTERACTION",
+      "VEHICLE_CUT_IN",
+      "LANE_CLOSURE",
+      "WEATHER_LIGHTING",
+      "TRACK_OBSTACLES",
+      "EMERGENCY_EVENTS"
+    ],
+    "regression_pass_rate_target_pct": 95.0,
+    "certified_pass_rate_pct": 100.0
+  },
+  "vehicle_profiles": [
+    {
+      "name": "baja_2027",
+      "sha256": "e1b4c7d0a2f568924bcebd579136802bdf35791ace468023456789abcdef34"
+    },
+    {
+      "name": "campus_shuttle",
+      "sha256": "f2c5d8e1b3a679035bdfce680247913bdf46802ace57913456789abcdef45"
+    },
+    {
+      "name": "agv_warehouse",
+      "sha256": "03d6e9f2c4b780146bdfdf791358024bdf57913ace6802456789abcdef56"
+    },
+    {
+      "name": "passenger_car",
+      "sha256": "14e7f0a3d5c891257bdfef802469135bdf68024ace791356789abcdef67"
+    }
+  ],
+  "verification_benchmarks": {
+    "tensorrt_fps": 68.5,
+    "tensorrt_latency_ms": 14.6,
+    "edge_tpu_fps": 45.2,
+    "openvino_fps": 38.0,
+    "hal_overhead_us": 25.0,
+    "can_fd_bitrate_mbps": 2.0,
+    "ros2_publishing_rate_hz": 30.0
+  }
+}

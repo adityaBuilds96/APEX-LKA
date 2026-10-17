@@ -1,0 +1,15 @@
+scenario_id: WTH_03
+category: WEATHER_SCENARIOS
+description: Low 5-degree sun azimuth blinding optical camera sensor directly
+map: college_campus
+weather: dusk_golden
+seed: 403
+duration_sec: 12.0
+ego_vehicle:
+  spawn_x: 120.5
+  spawn_y: 48.2
+  initial_speed_kmh: 22.0
+actors: []
+success_criteria:
+  collision: false
+  max_path_deviation_m: 0.9

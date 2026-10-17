@@ -1,0 +1,51 @@
+name: "agv_warehouse"
+vehicle_type: "logistics_agv"
+description: "Precision Industrial Warehouse Automated Guided Vehicle"
+
+kinematics:
+  wheelbase_m: 1.10
+  track_width_m: 0.85
+  max_steer_angle_deg: 45.0
+  ackermann_ratio: 1.15
+  min_turning_radius_m: 1.80
+  understeer_gradient: 0.0005
+
+camera_extrinsics:
+  mount_height_m: 0.85
+  pitch_deg: -8.0
+  roll_deg: 0.0
+  yaw_deg: 0.0
+  x_offset_m: 0.0
+  z_offset_m: 0.20
+  fov_deg: 100.0
+
+actuation:
+  pwm_min: 1000
+  pwm_max: 2000
+  pwm_center: 1500
+  center_trim: 0
+  direction_sign: -1
+  rate_limit_deg_per_sec: 120.0
+  lut_steering:
+    - [-45.0, 1000.0]
+    - [-20.0, 1270.0]
+    - [0.0, 1500.0]
+    - [20.0, 1730.0]
+    - [45.0, 2000.0]
+  lut_throttle:
+    - [0.0, 1500.0]
+    - [0.5, 1750.0]
+    - [1.0, 2000.0]
+  lut_brake:
+    - [0.0, 1500.0]
+    - [0.5, 1250.0]
+    - [1.0, 1000.0]
+
+safety_limits:
+  max_speed_mps: 2.22
+  max_accel_mpss: 1.0
+  max_decel_mpss: 3.0
+  emergency_decel_mpss: 5.0
+  min_standstill_distance_m: 1.0
+  lateral_error_limit_m: 0.35
+  max_steering_angle_deg: 45.0

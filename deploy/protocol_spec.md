@@ -113,6 +113,10 @@ When CAN Bus is offline or during diagnostic bench testing, high-speed bidirecti
 | `0x100` | Jetson | Arduino Node 1 | Node 1 Control Command | 30 | 8 |
 | `0x150` | Jetson | All Nodes | Obstacle Threat Alert | 30 | 8 |
 | `0x160` | Jetson | All Nodes | 3D Obstacle Spatial Alert | 30 | 8 |
+| `0x170` | Jetson | All Nodes | Trajectory Collision Alert | 30 | 8 |
+| `0x180` | Jetson | All Nodes | Kinematic Vehicle State Broadcast | 100 | 8 |
+| `0x190` | Jetson | All Nodes | Autonomous Plan & Control State | 30 | 8 |
+| `0x1A0` | Jetson | All Nodes | Fleet Remote Status & OTA Broadcast | 30 | 8 |
 | `0x200` | Jetson | Arduino Node 2 | Node 2 Control Command | 30 | 8 |
 | `0x300` | Arduino Node 1 | Jetson | Node 1 Sensor Feedback | 30 | 8 |
 | `0x301` | Arduino Node 2 | Jetson | Node 2 Sensor Feedback | 30 | 8 |
@@ -187,6 +191,61 @@ Broadcast by Jetson at 30 Hz containing critical object trajectory, projected cr
 ```python
 # Packing format (8 bytes):
 data = struct.pack("<HHhBB", track_id, min_tti_ms, cross_x_mm, risk_level, action_flag)
+```
+
+---
+
+#### CAN ID `0x180` — Kinematic Vehicle State Broadcast
+Broadcast by Jetson at 100 Hz containing high-frequency estimated vehicle state from the 15-DOF Error-State Kalman Filter (ESKF).
+
+| Byte | Field | Type | Scaling | Range | Description |
+| :---: | :--- | :---: | :---: | :---: | :--- |
+| 0-1 | `vx_cm` | `int16` | 1 cm/s / LSB | -32768 to 32767 | Longitudinal velocity $v_x \times 100$ (cm/s) |
+| 2-3 | `vy_cm` | `int16` | 1 cm/s / LSB | -32768 to 32767 | Lateral velocity $v_y \times 100$ (cm/s) |
+| 4-5 | `yaw_rate_mrad` | `int16` | 1 mrad/s / LSB | -32768 to 32767 | Body yaw rate $\omega_z \times 1000$ (mrad/s) |
+| 6 | `slip_angle_decideg` | `int8` | 0.1° / LSB | -128 to 127 | Dynamic vehicle side-slip angle $\beta \times 10$ (deci-degrees) |
+| 7 | `localization_status`| `uint8` | 1 | 0 to 4 | 0=INIT, 1=DEAD_RECKONING, 2=VIO_ACTIVE, 3=GNSS_FIX, 4=RTK_LOCKED |
+
+```python
+# Packing format (8 bytes):
+data = struct.pack("<hhhbB", int(vx * 100), int(vy * 100), int(wz * 1000), int(beta * 10), loc_status)
+```
+
+---
+
+#### CAN ID `0x190` — Autonomous Plan & Control State Broadcast
+Broadcast by Jetson at 30 Hz containing target speed, planned road-wheel steering angle, behavior FSM state, Mobileye RSS safety shield override status, and path curvature.
+
+| Byte | Field | Type | Scaling | Range | Description |
+| :---: | :--- | :---: | :---: | :---: | :--- |
+| 0-1 | `v_target_cm` | `uint16` | 1 cm/s / LSB | 0 to 65535 | Target Vehicle Speed $v_{\text{target}} \times 100$ (cm/s) |
+| 2-3 | `delta_target_cdeg` | `int16` | $0.01^\circ$ / LSB | -32768 to 32767 | Target Steering Angle $\delta_{\text{target}} \times 100$ (centi-degrees) |
+| 4 | `behavior_state` | `uint8` | 1 | 0 to 5 | FSM Mode: 0=LANE_FOLLOWING, 1=ADAPTIVE_CRUISE, 2=YIELD, 3=OVERTAKE, 4=ESTOP, 5=STOP |
+| 5 | `rss_override` | `uint8` | 1 | 0 or 1 | Mobileye RSS Safety Shield: 0=Normal, 1=RSS_OVERRIDE_BRAKE |
+| 6-7 | `curvature_scaled` | `int16` | $10^{-4}\text{ m}^{-1}$ / LSB | -32768 to 32767 | Planned Path Curvature $\kappa \times 10000$ |
+
+```python
+# Packing format (8 bytes):
+data = struct.pack("<HhBBh", int(v_target * 100), int(delta_target * 100), fsm_state, 1 if rss_override else 0, int(kappa * 10000))
+```
+
+---
+
+#### CAN ID `0x1A0` — Fleet Remote Status & OTA Broadcast
+Broadcast by Jetson at 30 Hz containing active model version hash, OTA sync state, shadow mode discrepancy score, harvested edge package queue count, and active inference backend.
+
+| Byte | Field | Type | Scaling | Range | Description |
+| :---: | :--- | :---: | :---: | :---: | :--- |
+| 0-1 | `model_hash_u16` | `uint16` | 1 | 0 to 65535 | Active Model Version SHA-256 Lower 16 bits |
+| 2 | `ota_sync_state` | `uint8` | 1 | 0 to 6 | 0=IDLE, 1=CHECKING, 2=DOWNLOADING, 3=VERIFYING, 4=HOTSWAPPING, 5=SYNC_OK, 6=ERROR |
+| 3 | `shadow_discrepancy` | `uint8` | 1 | 0 to 100 | Silent Shadow Model Discrepancy Score ($0=$ Complete Match, $100=$ Total Divergence) |
+| 4 | `harvest_queue_count`| `uint8` | 1 | 0 to 255 | Number of packaged failure incident snapshots pending fleet ingestion |
+| 5 | `active_backend` | `uint8` | 1 | 0 to 3 | Active Inference Backend: 0=CLASSICAL, 1=PYTORCH, 2=ONNX, 3=TENSORRT |
+| 6-7 | `reserved` | `uint16` | 1 | 0 | Reserved for future expansion |
+
+```python
+# Packing format (8 bytes):
+data = struct.pack("<HBBBBH", model_hash_u16, ota_sync_state, shadow_disc_score, harvest_queue_count, active_backend, 0)
 ```
 
 ---

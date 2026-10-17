@@ -1,0 +1,23 @@
+scenario_id: OBS_05
+category: TRACK_OBSTACLES
+description: Heavy tree limb spanning across left lane boundary
+map: college_campus
+weather: rain_moderate
+seed: 505
+duration_sec: 12.0
+ego_vehicle:
+  spawn_x: 120.5
+  spawn_y: 48.2
+  initial_speed_kmh: 20.0
+actors:
+- type: static.prop.box
+  spawn_x: 135.0
+  spawn_y: 48.2
+  trigger_distance_m: 14.0
+  speed_mps: 0.0
+  behavior: static
+success_criteria:
+  collision: false
+  min_distance_m: 1.2
+  emergency_brake_activated: true
+  max_path_deviation_m: 1.0

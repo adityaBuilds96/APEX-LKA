@@ -290,7 +290,8 @@ def _fit_poly(pts: np.ndarray) -> Optional[np.ndarray]:
     Fit x = f(y) polynomial to (x, y) point array.
 
     Returns polynomial coefficients (highest power first) or None if
-    insufficient points.
+    insufficient points. Prevents unphysical horseshoe inversion when
+    quadratic vertex falls inside the active FOV.
     """
     if pts is None or len(pts) < _MIN_PTS:
         return None
@@ -298,6 +299,13 @@ def _fit_poly(pts: np.ndarray) -> Optional[np.ndarray]:
     xs = pts[:, 0].astype(np.float32)
     try:
         coeffs = np.polyfit(ys, xs, deg=_POLY_DEG)
+        # Sanity check: quadratic vertex should NOT fall within the active driving FOV
+        if len(coeffs) == 3 and abs(coeffs[0]) > 1e-4:
+            y_vert = -coeffs[1] / (2.0 * coeffs[0])
+            y_min, y_max = float(ys.min()), float(ys.max())
+            if y_min < y_vert < y_max:
+                c1 = np.polyfit(ys, xs, deg=1)
+                return np.array([0.0, c1[0], c1[1]], dtype=np.float32)
         return coeffs
     except (np.linalg.LinAlgError, ValueError):
         return None

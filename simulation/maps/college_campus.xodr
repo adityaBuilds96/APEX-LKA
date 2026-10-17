@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<OpenDRIVE>
+  <header revMajor="1" revMinor="6" name="CollegeCampus_DigitalTwin" version="1.00" date="2026-10-13T00:00:00"
+          north="12.9716" south="12.9690" east="77.5970" west="77.5920" vendor="APEX-LKA"/>
+  <!-- Road 1: Main Campus Entrance Boulevard -->
+  <road name="Boulevard_North" length="150.0" id="1" junction="-1">
+    <link>
+      <successor elementType="road" elementId="2" contactPoint="start"/>
+    </link>
+    <type s="0.0" type="town"/>
+    <planView>
+      <geometry s="0.0" x="100.0" y="50.0" hdg="0.0" length="150.0">
+        <line/>
+      </geometry>
+    </planView>
+    <elevationProfile>
+      <elevation s="0.0" a="0.0" b="0.0" c="0.0" d="0.0"/>
+    </elevationProfile>
+    <lanes>
+      <laneSection s="0.0">
+        <left>
+          <lane id="1" type="driving" level="false">
+            <link/>
+            <width sOffset="0.0" a="3.5" b="0.0" c="0.0" d="0.0"/>
+            <roadMark sOffset="0.0" type="solid" weight="standard" color="white" width="0.15"/>
+          </lane>
+        </left>
+        <center>
+          <lane id="0" type="none" level="false">
+            <roadMark sOffset="0.0" type="broken" weight="standard" color="yellow" width="0.15"/>
+          </lane>
+        </center>
+        <right>
+          <lane id="-1" type="driving" level="false">
+            <link/>
+            <width sOffset="0.0" a="3.5" b="0.0" c="0.0" d="0.0"/>
+            <roadMark sOffset="0.0" type="solid" weight="standard" color="white" width="0.15"/>
+          </lane>
+        </right>
+      </laneSection>
+    </lanes>
+    <objects>
+      <!-- Speed Bump at 75m -->
+      <object id="101" name="SpeedBump_01" s="75.0" t="0.0" zOffset="0.08" validLength="4.0" orientation="none" type="bump" height="0.08"/>
+      <!-- Crosswalk at 120m -->
+      <object id="102" name="PedestrianCrosswalk_01" s="120.0" t="0.0" zOffset="0.0" validLength="3.5" orientation="none" type="crosswalk" height="0.0"/>
+    </objects>
+  </road>
+
+  <!-- Road 2: East Loop Curve -->
+  <road name="EastLoop_Curve" length="110.0" id="2" junction="-1">
+    <link>
+      <predecessor elementType="road" elementId="1" contactPoint="end"/>
+      <successor elementType="road" elementId="3" contactPoint="start"/>
+    </link>
+    <planView>
+      <geometry s="0.0" x="250.0" y="50.0" hdg="0.0" length="110.0">
+        <spiral curvStart="0.0" curvEnd="0.025"/>
+      </geometry>
+    </planView>
+    <lanes>
+      <laneSection s="0.0">
+        <center>
+          <lane id="0" type="none" level="false">
+            <roadMark sOffset="0.0" type="broken" weight="standard" color="yellow" width="0.15"/>
+          </lane>
+        </center>
+        <right>
+          <lane id="-1" type="driving" level="false">
+            <width sOffset="0.0" a="3.5" b="0.0" c="0.0" d="0.0"/>
+            <roadMark sOffset="0.0" type="solid" weight="standard" color="white" width="0.15"/>
+          </lane>
+        </right>
+      </laneSection>
+    </lanes>
+  </road>
+
+  <!-- Road 3: South Science Block Straightaway -->
+  <road name="SouthStraight_Science" length="160.0" id="3" junction="-1">
+    <link>
+      <predecessor elementType="road" elementId="2" contactPoint="end"/>
+      <successor elementType="road" elementId="4" contactPoint="start"/>
+    </link>
+    <planView>
+      <geometry s="0.0" x="250.0" y="160.0" hdg="3.14159265" length="160.0">
+        <line/>
+      </geometry>
+    </planView>
+    <lanes>
+      <laneSection s="0.0">
+        <center>
+          <lane id="0" type="none" level="false">
+            <roadMark sOffset="0.0" type="broken" weight="standard" color="yellow" width="0.15"/>
+          </lane>
+        </center>
+        <right>
+          <lane id="-1" type="driving" level="false">
+            <width sOffset="0.0" a="3.5" b="0.0" c="0.0" d="0.0"/>
+            <roadMark sOffset="0.0" type="solid" weight="standard" color="white" width="0.15"/>
+          </lane>
+        </right>
+      </laneSection>
+    </lanes>
+    <objects>
+      <!-- Construction Area at 50m -->
+      <object id="103" name="ConstructionBarrels_01" s="50.0" t="1.2" zOffset="0.0" validLength="15.0" orientation="none" type="barrier" height="1.0"/>
+    </objects>
+  </road>
+
+  <!-- Road 4: West Return Curve Closing Campus Loop -->
+  <road name="WestLoop_Return" length="110.0" id="4" junction="-1">
+    <link>
+      <predecessor elementType="road" elementId="3" contactPoint="end"/>
+      <successor elementType="road" elementId="1" contactPoint="start"/>
+    </link>
+    <planView>
+      <geometry s="0.0" x="90.0" y="160.0" hdg="4.71238898" length="110.0">
+        <line/>
+      </geometry>
+    </planView>
+    <lanes>
+      <laneSection s="0.0">
+        <center>
+          <lane id="0" type="none" level="false">
+            <roadMark sOffset="0.0" type="broken" weight="standard" color="yellow" width="0.15"/>
+          </lane>
+        </center>
+        <right>
+          <lane id="-1" type="driving" level="false">
+            <width sOffset="0.0" a="3.5" b="0.0" c="0.0" d="0.0"/>
+            <roadMark sOffset="0.0" type="solid" weight="standard" color="white" width="0.15"/>
+          </lane>
+        </right>
+      </laneSection>
+    </lanes>
+  </road>
+</OpenDRIVE>

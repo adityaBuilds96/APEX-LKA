@@ -1,0 +1,9 @@
+{
+  "frame_id": 1,
+  "split": "val",
+  "weather": "rain_moderate",
+  "timestamp": 1791847797.6920025,
+  "width": 640,
+  "height": 360,
+  "objects": []
+}

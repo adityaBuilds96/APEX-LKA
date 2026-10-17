@@ -1,0 +1,22 @@
+scenario_id: LANE_06
+category: LANE_CLOSURE
+description: Deep road repair trench surrounded by flashing stanchions
+map: college_campus
+weather: rain_moderate
+seed: 306
+duration_sec: 12.0
+ego_vehicle:
+  spawn_x: 120.5
+  spawn_y: 48.2
+  initial_speed_kmh: 20.0
+actors:
+- type: static.prop.constructioncone
+  spawn_x: 138.0
+  spawn_y: 48.0
+  trigger_distance_m: 18.0
+  speed_mps: 0.0
+  behavior: static
+success_criteria:
+  collision: false
+  min_distance_m: 1.2
+  max_path_deviation_m: 1.2

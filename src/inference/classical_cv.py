@@ -283,6 +283,10 @@ class ClassicalCVPredictor(BaseLanePredictor):
                     prediction_candidate = pred_a
                 elif pred_a is not None and target_mode == "painted":
                     prediction_candidate = pred_a
+                elif pred_a is not None and pred_a.status in (DetectionStatus.LANE_DETECTED, DetectionStatus.PARTIAL_LANE_DETECTED) and pred_a.lane_accuracy_percent >= 30.0:
+                    # Painted markings take priority over noisy edge detection
+                    prediction_candidate = pred_a
+
 
             # Fallback to Mode B (Road Edge) if painted markings are weak or absent
             if prediction_candidate is None and target_mode in ("auto", "edge"):
@@ -402,6 +406,21 @@ class ClassicalCVPredictor(BaseLanePredictor):
                     left_intercept = float(np.polyval(left_coeffs, h - 1))
                     left_mask = rasterize_poly_mask(left_coeffs, h, w, horizon_y)
                     left_conf = right_conf * 0.85
+        elif left_intercept is not None and right_intercept is None and left_coeffs is not None:
+            # Reconstruct missing right line parallel at nominal track width
+            right_coeffs = left_coeffs.copy()
+            right_coeffs[2] += nom_w_px
+            right_intercept = float(np.polyval(right_coeffs, h - 1))
+            right_mask = rasterize_poly_mask(right_coeffs, h, w, horizon_y)
+            right_conf = left_conf * 0.80
+        elif right_intercept is not None and left_intercept is None and right_coeffs is not None:
+            # Reconstruct missing left line parallel at nominal track width
+            left_coeffs = right_coeffs.copy()
+            left_coeffs[2] -= nom_w_px
+            left_intercept = float(np.polyval(left_coeffs, h - 1))
+            left_mask = rasterize_poly_mask(left_coeffs, h, w, horizon_y)
+            left_conf = right_conf * 0.80
+
 
         geom_plausibility = _calculate_geometry_plausibility(left_intercept, right_intercept, w)
 
@@ -488,6 +507,43 @@ class ClassicalCVPredictor(BaseLanePredictor):
 
         l_mask, l_conf, l_int, l_coeffs = _fit_and_rasterise(left_pts, h, w, horizon_y, side="left")
         r_mask, r_conf, r_int, r_coeffs = _fit_and_rasterise(right_pts, h, w, horizon_y, side="right")
+
+        # Rigid crossing and plausibility enforcement for edge mode
+        nom_w_px = 200.0
+        if l_coeffs is not None and r_coeffs is not None and l_int is not None and r_int is not None:
+            lane_w_px = r_int - l_int
+            y_eval = np.linspace(horizon_y, h - 1, 8)
+            x_l_eval = np.polyval(l_coeffs, y_eval)
+            x_r_eval = np.polyval(r_coeffs, y_eval)
+            crossing = bool(np.any(x_l_eval >= x_r_eval) or (lane_w_px < 140.0) or (lane_w_px > 400.0) or (l_int >= r_int))
+
+            if crossing:
+                if l_conf >= r_conf and l_int < (w * 0.55):
+                    r_coeffs = l_coeffs.copy()
+                    r_coeffs[2] += nom_w_px
+                    r_int = float(np.polyval(r_coeffs, h - 1))
+                    r_mask = rasterize_poly_mask(r_coeffs, h, w, horizon_y)
+                    r_conf = l_conf * 0.70
+                elif r_int > (w * 0.45):
+                    l_coeffs = r_coeffs.copy()
+                    l_coeffs[2] -= nom_w_px
+                    l_int = float(np.polyval(l_coeffs, h - 1))
+                    l_mask = rasterize_poly_mask(l_coeffs, h, w, horizon_y)
+                    l_conf = r_conf * 0.70
+                else:
+                    return None
+        elif l_coeffs is not None and l_int is not None and r_int is None and l_int < (w * 0.55):
+            r_coeffs = l_coeffs.copy()
+            r_coeffs[2] += nom_w_px
+            r_int = float(np.polyval(r_coeffs, h - 1))
+            r_mask = rasterize_poly_mask(r_coeffs, h, w, horizon_y)
+            r_conf = l_conf * 0.70
+        elif r_coeffs is not None and r_int is not None and l_int is None and r_int > (w * 0.45):
+            l_coeffs = r_coeffs.copy()
+            l_coeffs[2] -= nom_w_px
+            l_int = float(np.polyval(l_coeffs, h - 1))
+            l_mask = rasterize_poly_mask(l_coeffs, h, w, horizon_y)
+            l_conf = r_conf * 0.70
 
         geom_plausibility = _calculate_geometry_plausibility(l_int, r_int, w)
         center_int = ((l_int + r_int) / 2.0) if (l_int is not None and r_int is not None) else None
@@ -918,7 +974,8 @@ def fit_parabola_ransac(
     threshold_px: float = 3.0,
 ) -> Tuple[Optional[np.ndarray], int]:
     """
-    RANSAC 2nd-degree polynomial curve fitting: x = a*y^2 + b*y + c.
+    Ultra-fast vectorized RANSAC 2nd-degree polynomial curve fitting: x = a*y^2 + b*y + c.
+    Uses analytic 3-point parabola formulation evaluated in parallel.
     Returns:
         (coeffs, inlier_count)
     """
@@ -926,34 +983,51 @@ def fit_parabola_ransac(
     if n < 4:
         return None, 0
 
-    best_inlier_count = 0
-    best_coeffs = None
-    best_inlier_mask = None
-
     rng = np.random.default_rng(42)
+    # Generate random triplets
+    idx = rng.integers(0, n, size=(n_iterations, 3))
+    valid = (idx[:, 0] != idx[:, 1]) & (idx[:, 0] != idx[:, 2]) & (idx[:, 1] != idx[:, 2])
+    idx = idx[valid]
 
-    for _ in range(n_iterations):
-        sample_indices = rng.choice(n, size=3, replace=False)
-        sample_ys = ys[sample_indices]
-        sample_xs = xs[sample_indices]
+    y1 = ys[idx[:, 0]].astype(np.float64)
+    y2 = ys[idx[:, 1]].astype(np.float64)
+    y3 = ys[idx[:, 2]].astype(np.float64)
+    x1 = xs[idx[:, 0]].astype(np.float64)
+    x2 = xs[idx[:, 1]].astype(np.float64)
+    x3 = xs[idx[:, 2]].astype(np.float64)
 
-        if len(np.unique(sample_ys)) < 3:
-            continue
+    d1 = (y1 - y2) * (y1 - y3)
+    d2 = (y2 - y1) * (y2 - y3)
+    d3 = (y3 - y1) * (y3 - y2)
 
+    valid_d = (d1 != 0.0) & (d2 != 0.0) & (d3 != 0.0)
+    if not np.any(valid_d):
         try:
-            coeffs = np.polyfit(sample_ys, sample_xs, deg=2)
+            ls_coeffs = np.polyfit(ys, xs, deg=2)
+            residuals = np.abs(xs - np.polyval(ls_coeffs, ys))
+            inliers = int(np.count_nonzero(residuals <= threshold_px))
+            return ls_coeffs, inliers
         except (np.linalg.LinAlgError, ValueError):
-            continue
+            return None, 0
 
-        pred_x = np.polyval(coeffs, ys)
-        residuals = np.abs(xs - pred_x)
-        inlier_mask = residuals <= threshold_px
-        inlier_count = int(np.count_nonzero(inlier_mask))
+    a = x1[valid_d] / d1[valid_d] + x2[valid_d] / d2[valid_d] + x3[valid_d] / d3[valid_d]
+    b = -(x1[valid_d] * (y2[valid_d] + y3[valid_d]) / d1[valid_d] +
+          x2[valid_d] * (y1[valid_d] + y3[valid_d]) / d2[valid_d] +
+          x3[valid_d] * (y1[valid_d] + y2[valid_d]) / d3[valid_d])
+    c = (x1[valid_d] * y2[valid_d] * y3[valid_d] / d1[valid_d] +
+         x2[valid_d] * y1[valid_d] * y3[valid_d] / d2[valid_d] +
+         x3[valid_d] * y1[valid_d] * y2[valid_d] / d3[valid_d])
 
-        if inlier_count > best_inlier_count:
-            best_inlier_count = inlier_count
-            best_coeffs = coeffs
-            best_inlier_mask = inlier_mask
+    ys_f = ys.astype(np.float64)
+    xs_f = xs.astype(np.float64)
+    pred_x = a[:, None] * (ys_f**2)[None, :] + b[:, None] * ys_f[None, :] + c[:, None]
+    residuals = np.abs(xs_f[None, :] - pred_x)
+    inliers = np.count_nonzero(residuals <= threshold_px, axis=1)
+
+    best_k = int(np.argmax(inliers))
+    best_inlier_count = int(inliers[best_k])
+    best_coeffs = np.array([a[best_k], b[best_k], c[best_k]], dtype=np.float64)
+    best_inlier_mask = residuals[best_k] <= threshold_px
 
     if best_inlier_count >= 4 and best_inlier_mask is not None:
         try:
@@ -966,10 +1040,11 @@ def fit_parabola_ransac(
     try:
         ls_coeffs = np.polyfit(ys, xs, deg=2)
         residuals = np.abs(xs - np.polyval(ls_coeffs, ys))
-        inliers = int(np.count_nonzero(residuals <= threshold_px))
-        return ls_coeffs, inliers
+        inliers_cnt = int(np.count_nonzero(residuals <= threshold_px))
+        return ls_coeffs, inliers_cnt
     except (np.linalg.LinAlgError, ValueError):
         return None, 0
+
 
 
 def _fit_and_rasterise(

@@ -1,0 +1,36 @@
+# APEX-Vision Core v3.0 Universal Vehicle Profile: BAJA 2027
+profile_name: "baja_2027"
+vehicle_type: "off_road_baja"
+description: "High wheel travel off-road prototype with direct steering and aggressive traction."
+
+kinematics:
+  wheelbase_m: 1.55
+  track_width_m: 1.40
+  wheel_radius_m: 0.28
+  steering_ratio: 1.0
+  max_steering_angle_deg: 28.0
+  max_steering_rate_deg_s: 120.0
+  steering_deadband_deg: 0.5
+  center_of_gravity_height_m: 0.45
+
+dynamics:
+  max_speed_kmh: 45.0
+  nominal_cruise_speed_kmh: 30.0
+  max_acceleration_mpss: 3.5
+  max_service_deceleration_mpss: 5.0
+  emergency_braking_deceleration_mpss: 7.5
+  max_lateral_acceleration_mpss: 4.0
+  chassis_mass_kg: 285.0
+
+actuation:
+  steering_actuator_type: "bldc_torque_can"
+  steering_can_id: 0x100
+  throttle_actuator_type: "pwm_dac_arduino"
+  braking_actuator_type: "hydraulic_servo"
+  control_loop_frequency_hz: 100
+
+safety:
+  watchdog_timeout_ms: 500
+  rss_standstill_distance_m: 1.5
+  rss_response_time_s: 0.35
+  kinematic_dead_reckoning_max_s: 5.0

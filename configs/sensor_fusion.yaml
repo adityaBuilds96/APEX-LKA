@@ -1,0 +1,57 @@
+# ==============================================================================
+# APEX-LKA: Phase 5 Section 4 — Sensor Fusion & Vehicle State Estimation Config
+# ==============================================================================
+
+sensor_fusion:
+  enabled: true
+  update_rate_hz: 100.0
+  gnss_rate_hz: 10.0
+  vio_rate_hz: 30.0
+  wheel_encoder_rate_hz: 50.0
+
+  eskf:
+    # Sensor noise standard deviations
+    imu_accel_noise: 0.05        # m/s^2 / sqrt(Hz)
+    imu_gyro_noise: 0.005        # rad/s / sqrt(Hz)
+    accel_bias_noise: 0.001      # m/s^3 / sqrt(Hz) random walk
+    gyro_bias_noise: 0.0001      # rad/s^2 / sqrt(Hz) random walk
+    
+    # Measurement noise
+    gnss_pos_noise: 0.50         # m (standard GNSS fix)
+    rtk_pos_noise: 0.02          # m (RTK fixed carrier-phase)
+    wheel_speed_noise: 0.08      # m/s
+    vio_pos_noise: 0.05          # m
+    vio_heading_noise: 0.005     # rad
+    
+    # Initial covariance diagonal
+    init_pos_var: 1.0            # m^2
+    init_vel_var: 0.25           # (m/s)^2
+    init_att_var: 0.01           # rad^2
+    init_accel_bias_var: 0.05    # (m/s^2)^2
+    init_gyro_bias_var: 0.005    # (rad/s)^2
+
+  vio:
+    enabled: true
+    max_features: 200
+    min_feature_inliers: 30
+    quality_level: 0.01
+    min_distance_px: 12.0
+    ransac_threshold_px: 1.5
+    focal_length_px: 500.0
+
+  vehicle_kinematics:
+    wheelbase_m: 1.60            # SAE BAJA vehicle wheelbase (L)
+    track_width_m: 1.25          # Track width (W)
+    dist_cg_to_front_m: 0.75     # lf
+    dist_cg_to_rear_m: 0.85      # lr
+    understeer_gradient: 0.002   # rad / (m/s^2)
+    tire_cornering_stiffness_front: 25000.0 # N/rad
+    tire_cornering_stiffness_rear: 30000.0  # N/rad
+    vehicle_mass_kg: 240.0       # Mass with driver
+
+  lane_retention:
+    enabled: true
+    max_hold_seconds: 5.0
+    confidence_threshold: 0.35
+    confidence_decay_per_sec: 0.15
+    max_drift_tolerance_m: 1.50

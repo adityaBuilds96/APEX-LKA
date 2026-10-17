@@ -1,0 +1,22 @@
+scenario_id: LANE_01
+category: LANE_CLOSURE
+description: Row of 10 orange cones blocking right half of lane
+map: college_campus
+weather: clear_noon
+seed: 301
+duration_sec: 12.0
+ego_vehicle:
+  spawn_x: 120.5
+  spawn_y: 48.2
+  initial_speed_kmh: 20.0
+actors:
+- type: static.prop.constructioncone
+  spawn_x: 138.0
+  spawn_y: 48.0
+  trigger_distance_m: 20.0
+  speed_mps: 0.0
+  behavior: static
+success_criteria:
+  collision: false
+  min_distance_m: 1.2
+  max_path_deviation_m: 1.2

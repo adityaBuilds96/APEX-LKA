@@ -1,0 +1,36 @@
+# configs/fleet_ota.yaml
+# ======================
+# APEX-LKA Phase 5 Section 6: Cryptographic OTA, Hot-Swapping, Shadow Mode & Data Harvesting
+
+fleet_ota:
+  enabled: true
+  public_key_path: "keys/apex_ota_public.pem"
+  check_interval_sec: 300
+  remote_manifest_url: "https://fleet.apexlka.internal/v1/manifest.json"
+  staging_dir: "models/staging"
+  backup_dir: "models/backup"
+  max_download_timeout_s: 60
+  allowed_model_types: ["onnx", "tensorrt", "pytorch"]
+  min_app_version: "5.6.0"
+
+shadow_mode:
+  enabled: true
+  candidate_model_path: "models/candidate/shadow_model.onnx"
+  divergence_threshold_m: 0.40
+  iou_discrepancy_threshold: 0.25
+  benchmark_log_path: "logs/shadow_mode_benchmarks.csv"
+  auto_promotion:
+    enabled: true
+    min_evaluation_frames: 1000
+    confidence_advantage_pct: 15.0
+
+data_harvesting:
+  enabled: true
+  output_dir: "data/harvested"
+  storage_quota_mb: 2048
+  trigger_confidence_low: 0.40
+  consecutive_low_conf_frames: 3
+  trigger_divergence_m: 0.40
+  pre_event_frames: 2
+  post_event_frames: 2
+  compression_quality: 90

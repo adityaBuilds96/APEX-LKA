@@ -1,0 +1,60 @@
+# ==============================================================================
+# APEX LKA • Production Edge Docker Compose Deployment
+# Orchestrates hardware pass-through, GPU acceleration, and systemd watchdog
+# ==============================================================================
+
+version: "3.8"
+
+services:
+  apex-lka-edge:
+    image: apex-lka:edge
+    container_name: apex-lka-core
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.edge
+    restart: always
+    network_mode: host
+    ipc: host
+    privileged: true
+
+    environment:
+      - APEX_PROFILE=baja_2027
+      - APEX_HAL_BACKEND=auto
+      - APEX_NET_PROTOCOL=can
+      - SIM_MODE=false
+      - PYTHONUNBUFFERED=1
+
+    # Mount physical hardware devices
+    devices:
+      - "/dev/video0:/dev/video0"
+      - "/dev/ttyACM0:/dev/ttyACM0"
+      - "/dev/ttyACM1:/dev/ttyACM1"
+
+    # Volume mounts for runtime logs and harvested edge data
+    volumes:
+      - ../logs:/app/logs
+      - ../data/harvested:/app/data/harvested
+      - ../configs:/app/configs:ro
+      - ../vehicle_profiles:/app/vehicle_profiles:ro
+
+    # Edge Compute Resource Limits (Jetson Orin Nano 4GB Cgroup Bounds)
+    deploy:
+      resources:
+        limits:
+          cpus: "4.0"
+          memory: 3500M
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+    # Healthcheck to verify sub-system liveness
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"from src.hardware.hal import get_hal; h = get_hal(); assert h.active_backend.is_available()\""]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+    command: ["python3", "deploy/jetson_run.py"]

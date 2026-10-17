@@ -1,0 +1,36 @@
+# APEX-Vision Core v3.0 Universal Vehicle Profile: Passenger Car Sedan
+profile_name: "passenger_car"
+vehicle_type: "passenger_sedan"
+description: "Standard automotive sedan dynamics with high-speed ACC and highway lane centering."
+
+kinematics:
+  wheelbase_m: 2.75
+  track_width_m: 1.62
+  wheel_radius_m: 0.34
+  steering_ratio: 15.2
+  max_steering_angle_deg: 35.0
+  max_steering_rate_deg_s: 80.0
+  steering_deadband_deg: 0.1
+  center_of_gravity_height_m: 0.50
+
+dynamics:
+  max_speed_kmh: 130.0
+  nominal_cruise_speed_kmh: 90.0
+  max_acceleration_mpss: 2.5
+  max_service_deceleration_mpss: 4.0
+  emergency_braking_deceleration_mpss: 8.5
+  max_lateral_acceleration_mpss: 3.2
+  chassis_mass_kg: 1620.0
+
+actuation:
+  steering_actuator_type: "eps_can_torque_angle"
+  steering_can_id: 0x100
+  throttle_actuator_type: "can_drive_by_wire"
+  braking_actuator_type: "esc_brake_modulator"
+  control_loop_frequency_hz: 100
+
+safety:
+  watchdog_timeout_ms: 500
+  rss_standstill_distance_m: 2.5
+  rss_response_time_s: 0.40
+  kinematic_dead_reckoning_max_s: 5.0

@@ -141,6 +141,12 @@ class OffsetResult:
             return None
         return round(self.lateral_error_px * 0.0185, 3)
 
+    @property
+    def offset_m(self) -> float:
+        """Alias for metric lateral offset in meters."""
+        lat = self.lateral_error_m
+        return float(lat) if lat is not None else 0.0
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Stateful calculator (maintains previous error for derivative term)

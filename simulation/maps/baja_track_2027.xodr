@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<OpenDRIVE>
+  <header revMajor="1" revMinor="6" name="BAJA_SAE_Endurance_2027" version="1.00" date="2026-10-13T00:00:00"
+          north="13.1000" south="13.0900" east="77.4500" west="77.4400" vendor="APEX-LKA"/>
+
+  <!-- Road 1: Starting Grid to Mud Bog Straight -->
+  <road name="Grid_To_MudBog" length="220.0" id="1" junction="-1">
+    <link>
+      <successor elementType="road" elementId="2" contactPoint="start"/>
+    </link>
+    <type s="0.0" type="rural"/>
+    <planView>
+      <geometry s="0.0" x="50.0" y="50.0" hdg="0.0" length="220.0">
+        <line/>
+      </geometry>
+    </planView>
+    <elevationProfile>
+      <elevation s="0.0" a="0.0" b="0.02" c="0.0" d="0.0"/>
+      <elevation s="100.0" a="2.0" b="-0.015" c="0.0" d="0.0"/>
+    </elevationProfile>
+    <lanes>
+      <laneSection s="0.0">
+        <center>
+          <lane id="0" type="none" level="false">
+            <roadMark sOffset="0.0" type="none" weight="standard" color="standard" width="0.0"/>
+          </lane>
+        </center>
+        <right>
+          <lane id="-1" type="driving" level="false">
+            <width sOffset="0.0" a="4.5" b="0.0" c="0.0" d="0.0"/>
+            <roadMark sOffset="0.0" type="broken" weight="bold" color="yellow" width="0.10"/>
+          </lane>
+        </right>
+      </laneSection>
+    </lanes>
+    <objects>
+      <!-- Log Obstacle at 140m -->
+      <object id="201" name="LogObstacle_01" s="140.0" t="0.0" zOffset="0.15" validLength="3.0" orientation="none" type="obstacle" height="0.15"/>
+      <!-- Rock Mound at 180m -->
+      <object id="202" name="RockMound_01" s="180.0" t="1.0" zOffset="0.25" validLength="5.0" orientation="none" type="obstacle" height="0.25"/>
+    </objects>
+  </road>
+
+  <!-- Road 2: Slalom Hairpin Turn -->
+  <road name="Slalom_Hairpin" length="180.0" id="2" junction="-1">
+    <link>
+      <predecessor elementType="road" elementId="1" contactPoint="end"/>
+      <successor elementType="road" elementId="3" contactPoint="start"/>
+    </link>
+    <planView>
+      <geometry s="0.0" x="270.0" y="50.0" hdg="0.0" length="180.0">
+        <spiral curvStart="0.0" curvEnd="0.035"/>
+      </geometry>
+    </planView>
+    <lanes>
+      <laneSection s="0.0">
+        <center>
+          <lane id="0" type="none" level="false"/>
+        </center>
+        <right>
+          <lane id="-1" type="driving" level="false">
+            <width sOffset="0.0" a="4.5" b="0.0" c="0.0" d="0.0"/>
+          </lane>
+        </right>
+      </laneSection>
+    </lanes>
+  </road>
+
+  <!-- Road 3: Hill Climb & Tabletop Jump -->
+  <road name="HillClimb_Jump" length="250.0" id="3" junction="-1">
+    <link>
+      <predecessor elementType="road" elementId="2" contactPoint="end"/>
+      <successor elementType="road" elementId="4" contactPoint="start"/>
+    </link>
+    <planView>
+      <geometry s="0.0" x="270.0" y="230.0" hdg="3.14159265" length="250.0">
+        <line/>
+      </geometry>
+    </planView>
+    <elevationProfile>
+      <elevation s="0.0" a="0.5" b="0.04" c="0.0" d="0.0"/>
+      <elevation s="125.0" a="5.5" b="-0.04" c="0.0" d="0.0"/>
+    </elevationProfile>
+    <lanes>
+      <laneSection s="0.0">
+        <center>
+          <lane id="0" type="none" level="false"/>
+        </center>
+        <right>
+          <lane id="-1" type="driving" level="false">
+            <width sOffset="0.0" a="4.5" b="0.0" c="0.0" d="0.0"/>
+          </lane>
+        </right>
+      </laneSection>
+    </lanes>
+    <objects>
+      <!-- Dirt Mound Jump -->
+      <object id="203" name="TabletopJump_01" s="125.0" t="0.0" zOffset="0.8" validLength="8.0" orientation="none" type="ramp" height="0.8"/>
+    </objects>
+  </road>
+
+  <!-- Road 4: Whoops Section Returning to Grid -->
+  <road name="Whoops_FinishStraight" length="200.0" id="4" junction="-1">
+    <link>
+      <predecessor elementType="road" elementId="3" contactPoint="end"/>
+      <successor elementType="road" elementId="1" contactPoint="start"/>
+    </link>
+    <planView>
+      <geometry s="0.0" x="20.0" y="230.0" hdg="4.71238898" length="200.0">
+        <line/>
+      </geometry>
+    </planView>
+    <lanes>
+      <laneSection s="0.0">
+        <center>
+          <lane id="0" type="none" level="false"/>
+        </center>
+        <right>
+          <lane id="-1" type="driving" level="false">
+            <width sOffset="0.0" a="4.5" b="0.0" c="0.0" d="0.0"/>
+          </lane>
+        </right>
+      </laneSection>
+    </lanes>
+  </road>
+</OpenDRIVE>

@@ -1,0 +1,37 @@
+# APEX-Vision Core v3.0 Universal Vehicle Profile: Campus Shuttle
+profile_name: "campus_shuttle"
+vehicle_type: "urban_shuttle"
+description: "Low-speed urban passenger transport with high comfort gain and soft jerk limits."
+
+kinematics:
+  wheelbase_m: 2.40
+  track_width_m: 1.55
+  wheel_radius_m: 0.32
+  steering_ratio: 14.5
+  max_steering_angle_deg: 32.0
+  max_steering_rate_deg_s: 60.0
+  steering_deadband_deg: 0.2
+  center_of_gravity_height_m: 0.55
+
+dynamics:
+  max_speed_kmh: 25.0
+  nominal_cruise_speed_kmh: 18.0
+  max_acceleration_mpss: 1.2
+  max_service_deceleration_mpss: 2.0
+  emergency_braking_deceleration_mpss: 4.5
+  max_lateral_acceleration_mpss: 1.8
+  max_jerk_m_s3: 1.5
+  chassis_mass_kg: 1850.0
+
+actuation:
+  steering_actuator_type: "steer_by_wire_can"
+  steering_can_id: 0x100
+  throttle_actuator_type: "can_drive_inverter"
+  braking_actuator_type: "ebs_can_brake"
+  control_loop_frequency_hz: 50
+
+safety:
+  watchdog_timeout_ms: 500
+  rss_standstill_distance_m: 2.0
+  rss_response_time_s: 0.50
+  kinematic_dead_reckoning_max_s: 5.0

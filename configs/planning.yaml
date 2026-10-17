@@ -1,0 +1,40 @@
+# =============================================================
+# APEX-LKA Hierarchical Motion Planning & Safety Shield Config
+# Phase 5 Section 5: FSM, Path Planner, ACC, Mobileye RSS Shield
+# =============================================================
+
+planning:
+  enabled: true
+
+  # ── Behavior Finite State Machine ──────────────────────────
+  behavior:
+    default_speed_limit_mps: 4.17  # 15 km/h chassis speed limit
+    standstill_distance_m: 2.0     # Minimum distance at standstill
+    time_gap_seconds: 1.5          # Time headway to lead vehicle (s)
+    max_accel_mpss: 1.5            # Maximum longitudinal acceleration
+    max_decel_mpss: 3.0            # Comfort deceleration limit
+    emergency_decel_mpss: 4.5      # Maximum emergency brake decel
+    overtake_lateral_offset_m: 1.2 # Corridor lateral deviation for overtake
+    tti_danger_threshold_s: 1.8    # Time-To-Impact threshold for emergency
+
+  # ── TEB / Metric BEV Path Planner ──────────────────────────
+  path_planner:
+    horizon_seconds: 3.0           # Lookahead horizon
+    dt_step_s: 0.10                # 100 ms step -> 30 waypoints
+    num_waypoints: 30
+    obstacle_clearance_m: 1.0      # Min safety margin from 3D obstacles
+    max_steering_rate_degps: 100.0 # ddelta/dt slew limit
+    max_lateral_accel_mpss: 2.5    # Comfort lateral acceleration limit
+    max_jerk_mps3: 2.0             # da/dt longitudinal jerk limit
+    lane_centering_weight: 1.5
+    obstacle_repulsion_weight: 3.0
+    smoothness_weight: 1.0
+
+  # ── Mobileye Responsibility-Sensitive Safety (RSS) Shield ─
+  rss_shield:
+    response_time_sec: 0.5         # Driver / actuator latency rho (s)
+    accel_max_following_mpss: 1.5  # a_max,acc (m/s^2)
+    min_brake_mpss: 3.0            # a_min,brake (m/s^2)
+    max_brake_mpss: 5.0            # a_max,brake of leading vehicle (m/s^2)
+    min_lateral_distance_m: 0.75   # Minimum lateral clearance margin
+    enforce_override: true         # Hard trajectory override when violated

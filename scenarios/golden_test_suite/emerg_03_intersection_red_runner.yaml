@@ -1,0 +1,23 @@
+scenario_id: EMERG_03
+category: EMERGENCY_EVENT
+description: Cross-traffic truck running red light at campus intersection
+map: college_campus
+weather: dusk_golden
+seed: 603
+duration_sec: 12.0
+ego_vehicle:
+  spawn_x: 120.5
+  spawn_y: 48.2
+  initial_speed_kmh: 22.0
+actors:
+- type: vehicle.audi.etron
+  spawn_x: 136.0
+  spawn_y: 48.2
+  trigger_distance_m: 20.0
+  speed_mps: 0.0
+  behavior: brake
+success_criteria:
+  collision: false
+  min_distance_m: 1.5
+  emergency_brake_activated: true
+  max_path_deviation_m: 1.0

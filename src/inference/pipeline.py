@@ -30,14 +30,14 @@ Usage
         # result.timings         — dict of ms values
 """
 
+import os
+import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
-
-import sys
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -87,6 +87,14 @@ class ScenePerceptionResult:
     occupancy_grid: Optional[Any] = None
     tracked_objects: Optional[List[Any]] = None
     trajectory_report: Optional[Any] = None
+    vehicle_pose: Optional[Any] = None
+    vio_trail: Optional[List[Tuple[float, float]]] = None
+    is_lane_retained: bool = False
+    retained_lane_result: Optional[Any] = None
+    planned_trajectory: Optional[Any] = None
+    behavior_context: Optional[Any] = None
+    acc_output: Optional[Any] = None
+    rss_result: Optional[Any] = None
     total_perception_ms: float = 0.0
 
 
@@ -113,12 +121,16 @@ class InferenceResult:
     occupancy_grid : Any | None
     tracked_objects : List[Any] | None
     trajectory_report : Any | None
+    vehicle_pose : Any | None
+    vio_trail : List[Tuple[float, float]] | None
+    is_lane_retained : bool
+    retained_lane_result : Any | None
     timings : dict
         Keys: preprocess_ms, env_adapt_ms, free_space_ms, inference_ms,
               postprocess_ms, geometry_ms, offset_ms, temporal_ms,
               distance_ms, scene_perception_ms, object_det_ms, risk_assess_ms,
               depth_ms, projection_3d_ms, occupancy_ms, tracking_ms, trajectory_ms,
-              viz_ms, total_ms, fps_equiv
+              sensor_fusion_ms, viz_ms, total_ms, fps_equiv
     error : str | None
     """
     success:          bool                         = False
@@ -136,6 +148,17 @@ class InferenceResult:
     occupancy_grid:   Optional[Any]                = None
     tracked_objects:  Optional[List[Any]]          = None
     trajectory_report: Optional[Any]               = None
+    vehicle_pose:     Optional[Any]                = None
+    vio_trail:        Optional[List[Tuple[float, float]]] = None
+    is_lane_retained: bool                         = False
+    retained_lane_result: Optional[Any]            = None
+    planned_trajectory: Optional[Any]              = None
+    behavior_context: Optional[Any]                = None
+    acc_output:       Optional[Any]                = None
+    rss_result:       Optional[Any]                = None
+    shadow_report:    Optional[Any]                = None
+    harvest_event:    Optional[Any]                = None
+    fleet_status:     Optional[Any]                = None
     timings:          dict                         = field(default_factory=dict)
     error:            Optional[str]                = None
 
@@ -213,6 +236,103 @@ def get_trajectory_predictor():
     return _trajectory_predictor
 
 
+_eskf = None
+_vio_engine = None
+_lane_retainer = None
+
+
+def get_eskf():
+    global _eskf
+    if _eskf is None:
+        from src.fusion.eskf import ErrorStateKalmanFilter15DOF
+        _eskf = ErrorStateKalmanFilter15DOF()
+    return _eskf
+
+
+def get_vio_engine():
+    global _vio_engine
+    if _vio_engine is None:
+        from src.fusion.vio_engine import VisualInertialOdometryEngine
+        _vio_engine = VisualInertialOdometryEngine()
+    return _vio_engine
+
+
+def get_lane_retainer():
+    global _lane_retainer
+    if _lane_retainer is None:
+        from src.fusion.lane_retention import KinematicLaneRetainer
+        _lane_retainer = KinematicLaneRetainer()
+    return _lane_retainer
+
+
+_behavior_fsm = None
+_path_planner = None
+_acc_controller = None
+_rss_shield = None
+
+
+def get_behavior_fsm():
+    global _behavior_fsm
+    if _behavior_fsm is None:
+        from src.planning.behavior_fsm import BehaviorStateMachine
+        _behavior_fsm = BehaviorStateMachine()
+    return _behavior_fsm
+
+
+def get_path_planner():
+    global _path_planner
+    if _path_planner is None:
+        from src.planning.path_planner import LocalPathPlanner
+        _path_planner = LocalPathPlanner()
+    return _path_planner
+
+
+def get_acc_controller():
+    global _acc_controller
+    if _acc_controller is None:
+        from src.planning.acc_controller import AdaptiveCruiseController
+        _acc_controller = AdaptiveCruiseController()
+    return _acc_controller
+
+
+def get_rss_shield():
+    global _rss_shield
+    if _rss_shield is None:
+        from src.planning.rss_shield import MobileyeRSSShield
+        _rss_shield = MobileyeRSSShield()
+    return _rss_shield
+
+
+_shadow_mode_engine = None
+_data_harvester = None
+_ota_manager = None
+
+
+def get_shadow_mode_engine():
+    global _shadow_mode_engine
+    if _shadow_mode_engine is None:
+        from src.fleet.shadow_mode import ShadowModeEngine
+        from src.fleet.ota_updater import MockPredictor
+        _shadow_mode_engine = ShadowModeEngine(shadow_predictor=MockPredictor(name="candidate_shadow", version="2.0.0"))
+    return _shadow_mode_engine
+
+
+def get_data_harvester():
+    global _data_harvester
+    if _data_harvester is None:
+        from src.fleet.data_collector import ClosedLoopDataHarvester
+        _data_harvester = ClosedLoopDataHarvester()
+    return _data_harvester
+
+
+def get_ota_manager():
+    global _ota_manager
+    if _ota_manager is None:
+        from src.fleet.ota_updater import OTAModelManager
+        _ota_manager = OTAModelManager()
+    return _ota_manager
+
+
 def run_pipeline(
     image_source: Union[str, Path, np.ndarray, bytes],
     backend: str = "classical_cv",
@@ -223,42 +343,39 @@ def run_pipeline(
     show_depth_heatmap: bool = False,
     enable_tracking: bool = False,
     enable_trajectory: bool = False,
+    enable_sensor_fusion: bool = False,
+    enable_planner: bool = False,
+    enable_shadow_mode: bool = False,
+    enable_data_harvesting: bool = False,
+    sim_mode: bool = False,
 ) -> InferenceResult:
     """
     Run the full autonomous scene perception and lane detection pipeline on one frame.
-
-    Parameters
-    ----------
-    image_source : path | np.ndarray | bytes
-    backend : "classical_cv" | "ml_segmentation"
-    reset_pd_state : bool
-        Set True for the first frame of a new video stream to reset
-        the PD derivative state and temporal anti-flicker filters.
-    enable_object_detection : bool
-        Run YOLO multi-object detection and dynamic risk assessment.
-    enable_depth : bool
-        Run monocular metric depth estimation and 3D bounding box projection.
-    enable_occupancy : bool
-        Rasterize 3D top-down occupancy grid.
-    show_depth_heatmap : bool
-        Overlay false-color depth heatmap onto viewport.
-    enable_tracking : bool
-        Assign persistent Track IDs using ByteTrack/OC-SORT and estimate 3D velocity.
-    enable_trajectory : bool
-        Forecast 1.0-3.0s future waypoints and compute Time-To-Impact (TTI).
-
-    Returns
-    -------
-    InferenceResult — always populated, never raises.
+    Supports SIM_MODE virtual sensor routing.
     """
     t_total_start = time.perf_counter()
     timings: dict = {}
+
+    # ── Simulation Mode Sensor Routing ─────────────────────────────────────
+    if (sim_mode or os.environ.get("SIM_MODE", "").lower() in ("1", "true", "yes")) and image_source is None:
+        try:
+            from src.simulation.carla_bridge import CARLABridge
+            bridge = CARLABridge(mock_mode=True, synchronous=True)
+            if not bridge.is_connected():
+                bridge.connect()
+            image_source = bridge.get_camera_frame()
+        except Exception:
+            pass
 
     if reset_pd_state:
         _calculator.reset()
         _path_smoother.reset()
         if _tracker is not None:
             _tracker.reset()
+        if _lane_retainer is not None:
+            _lane_retainer.reset()
+        if _vio_engine is not None:
+            _vio_engine.reset()
 
     # ── Step 1: Preprocessing ──────────────────────────────────────────────
     preprocessed = preprocess(image_source)
@@ -449,6 +566,162 @@ def run_pipeline(
                 )
                 timings["trajectory_ms"] = round((time.perf_counter() - t_traj) * 1000, 2)
 
+    # ── Step 9.5: Sensor Fusion, VIO, State Estimation & Lane Retention ───
+    vehicle_pose = None
+    vio_trail = None
+    is_lane_retained = False
+    retained_lane_res = None
+
+    if enable_sensor_fusion:
+        t_fusion = time.perf_counter()
+        vio = get_vio_engine()
+        eskf = get_eskf()
+        retainer = get_lane_retainer()
+
+        ego_motion = vio.process_frame(preprocessed.resized_bgr)
+        eskf.update_visual_odometry(ego_motion.dx_m, ego_motion.dy_m, ego_motion.dyaw_rad)
+        vehicle_pose = eskf.get_vehicle_pose()
+        vio_trail = vio.get_trajectory_trail()
+
+        # Kinematic Lane Retention if visual perception is missing or low-confidence
+        conf = offset.confidence if offset else 0.0
+        if not geometry.geometry_valid or conf < retainer.confidence_threshold:
+            retained_lane_res = retainer.update(
+                current_prediction=prediction,
+                current_geometry=geometry,
+                current_pose=vehicle_pose,
+            )
+            if retained_lane_res.is_retained and retained_lane_res.geometry is not None:
+                geometry = retained_lane_res.geometry
+                if retained_lane_res.offset is not None:
+                    offset = retained_lane_res.offset
+                is_lane_retained = True
+        else:
+            retainer.update(
+                current_prediction=prediction,
+                current_geometry=geometry,
+                current_pose=vehicle_pose,
+            )
+
+        timings["sensor_fusion_ms"] = round((time.perf_counter() - t_fusion) * 1000, 2)
+
+    # ── Step 9.6: Hierarchical Motion Planning, ACC & RSS Shield ───────────
+    planned_traj = None
+    behavior_ctx = None
+    acc_out = None
+    rss_res = None
+
+    if enable_planner:
+        t_plan = time.perf_counter()
+        rss = get_rss_shield()
+        fsm = get_behavior_fsm()
+        acc = get_acc_controller()
+        planner = get_path_planner()
+
+        ego_spd = float(getattr(vehicle_pose, "vx", 3.5)) if vehicle_pose is not None else 3.5
+
+        # 1. RSS Safety Evaluation
+        rss_res = rss.evaluate_objects(ego_speed_mps=ego_spd, tracked_objects=tracked_objects)
+
+        # 2. Behavior State Machine
+        lane_valid = bool((geometry is not None and getattr(geometry, "geometry_valid", False)) or is_lane_retained)
+        behavior_ctx = fsm.update(
+            ego_speed_mps=ego_spd,
+            tracked_objects=tracked_objects,
+            rss_override=rss_res.override_active,
+            lane_detected=lane_valid,
+            lane_retained=is_lane_retained,
+            dt=0.033,
+        )
+
+        # 3. Adaptive Cruise Control
+        lead_d = getattr(behavior_ctx, "lead_distance_m", None)
+        lead_rel = getattr(behavior_ctx, "lead_relative_speed_mps", None)
+        lead_spd = max(0.0, ego_spd + lead_rel) if lead_rel is not None else None
+        curv = float(getattr(geometry, "curvature", 0.0)) if geometry else 0.0
+
+        acc_out = acc.update(
+            ego_speed_mps=ego_spd,
+            v_set_mps=behavior_ctx.target_speed_mps,
+            lead_distance_m=lead_d,
+            lead_speed_mps=lead_spd,
+            path_curvature=curv,
+            dt=0.033,
+        )
+
+        # 4. TEB Metric Local Path Planner
+        center_poly = None
+        if geometry is not None:
+            if hasattr(geometry, "center_poly") and geometry.center_poly is not None:
+                center_poly = geometry.center_poly
+            elif getattr(geometry, "left_poly", None) is not None and getattr(geometry, "right_poly", None) is not None:
+                center_poly = (np.asarray(geometry.left_poly) + np.asarray(geometry.right_poly)) * 0.5
+            elif getattr(geometry, "left_poly", None) is not None:
+                center_poly = geometry.left_poly
+
+        planned_traj = planner.plan(
+            ego_speed_mps=ego_spd,
+            target_speed_mps=acc_out.target_speed_mps,
+            lane_center_poly=center_poly,
+            tracked_objects=tracked_objects,
+            occupancy_grid=occ_grid,
+            behavior_ctx=behavior_ctx,
+            dt=0.033,
+        )
+
+        timings["planning_ms"] = round((time.perf_counter() - t_plan) * 1000, 2)
+
+    # ── Step 9.7: Fleet OTA, Silent Shadow-Mode & Closed-Loop Data Harvesting ───
+    shadow_rep = None
+    harvest_evt = None
+    fleet_stat = None
+
+    off_val = float(getattr(offset, "offset_m", 0.0) or getattr(offset, "lateral_error_m", 0.0) or 0.0) if offset else 0.0
+
+    if enable_shadow_mode:
+        t_shadow = time.perf_counter()
+        shadow_eng = get_shadow_mode_engine()
+        shadow_rep = shadow_eng.step(
+            frame=preprocessed.original_bgr,
+            primary_prediction=prediction,
+            primary_offset_m=off_val,
+            primary_confidence=combined_conf,
+        )
+        timings["shadow_mode_ms"] = round((time.perf_counter() - t_shadow) * 1000, 2)
+
+    if enable_data_harvesting:
+        t_harvest = time.perf_counter()
+        harvester = get_data_harvester()
+        can_dict = {
+            "speed_mps": float(getattr(vehicle_pose, "vx", 3.5)) if vehicle_pose is not None else 3.5,
+            "steer_angle_deg": float(getattr(offset, "steering_angle_deg", 0.0)) if offset else 0.0,
+        }
+        harvest_evt = harvester.observe(
+            frame_bgr=preprocessed.original_bgr,
+            confidence=combined_conf,
+            offset_m=off_val,
+            depth_map=depth_res.metric_depth_map if depth_res is not None else None,
+            objects_3d=objects_3d,
+            vehicle_pose=vehicle_pose,
+            can_state=can_dict,
+            rss_override_active=bool(rss_res.override_active) if rss_res is not None else False,
+            driver_override_active=False,
+            shadow_divergence_m=float(shadow_rep.offset_delta_m) if shadow_rep is not None else 0.0,
+        )
+        timings["data_harvest_ms"] = round((time.perf_counter() - t_harvest) * 1000, 2)
+
+    if enable_shadow_mode or enable_data_harvesting:
+        ota_mgr = get_ota_manager()
+        h_queue = harvester.harvest_queue_count if (enable_data_harvesting and 'harvester' in locals()) else 0
+        s_score = shadow_rep.discrepancy_score_u8 if shadow_rep is not None else 0
+        fleet_stat = {
+            "model_version_hash": ota_mgr.active_version_hash,
+            "sync_state_str": ota_mgr.sync_state.name,
+            "shadow_discrepancy": s_score,
+            "harvest_queue_count": h_queue,
+            "backend_str": ota_mgr.active_backend.name,
+        }
+
     # ── Step 10: Assemble Multi-Task Scene Perception Telemetry ────────────
     total_perc_ms = (time.perf_counter() - t_perc_start) * 1000.0
     scene_perception = ScenePerceptionResult(
@@ -463,6 +736,14 @@ def run_pipeline(
         occupancy_grid=occ_grid,
         tracked_objects=tracked_objects,
         trajectory_report=trajectory_report,
+        vehicle_pose=vehicle_pose,
+        vio_trail=vio_trail,
+        is_lane_retained=is_lane_retained,
+        retained_lane_result=retained_lane_res,
+        planned_trajectory=planned_traj,
+        behavior_context=behavior_ctx,
+        acc_output=acc_out,
+        rss_result=rss_res,
         total_perception_ms=round(total_perc_ms, 2),
     )
     timings["scene_perception_ms"] = round(total_perc_ms, 2)
@@ -485,14 +766,21 @@ def run_pipeline(
             prediction,
         )
 
-    # 3D Depth, Object Detection, Tracking & Occupancy HUD overlays
-    if (enable_object_detection or enable_depth or enable_occupancy or enable_tracking or enable_trajectory) and annotated is not None:
+    # 3D Depth, Object Detection, Tracking, Occupancy, Sensor Fusion, Planning & Fleet HUD overlays
+    if (enable_object_detection or enable_depth or enable_occupancy or enable_tracking or enable_trajectory or enable_sensor_fusion or enable_planner or enable_shadow_mode or enable_data_harvesting) and annotated is not None:
         try:
             from dashboard.components.lka_hud import (
                 _draw_object_detections,
                 _draw_occupancy_grid_widget,
                 _draw_obstacle_brake_banner,
                 _draw_trajectory_alert_banner,
+                _draw_vio_trajectory_trail,
+                _draw_lane_retention_badge,
+                _draw_kinematic_state_panel,
+                _draw_planned_trajectory_spline,
+                _draw_rss_safety_envelope,
+                _draw_fsm_behavior_badge,
+                _draw_fleet_ota_panel,
             )
             if show_depth_heatmap and depth_res is not None:
                 d_norm = np.clip(depth_res.depth_map * 255.0, 0, 255).astype(np.uint8)
@@ -518,6 +806,25 @@ def run_pipeline(
                 _draw_trajectory_alert_banner(annotated, trajectory_report, annotated.shape[1], annotated.shape[0])
             elif risk_rep and getattr(risk_rep, "emergency_brake_flag", False):
                 _draw_obstacle_brake_banner(annotated, annotated.shape[1], annotated.shape[0])
+
+            if enable_sensor_fusion:
+                if vio_trail:
+                    _draw_vio_trajectory_trail(annotated, vio_trail, annotated.shape[1], annotated.shape[0])
+                if is_lane_retained:
+                    _draw_lane_retention_badge(annotated, annotated.shape[1], annotated.shape[0])
+                if vehicle_pose is not None:
+                    _draw_kinematic_state_panel(annotated, vehicle_pose, x=14, y=100)
+
+            if enable_planner:
+                if planned_traj is not None:
+                    _draw_planned_trajectory_spline(annotated, planned_traj, annotated.shape[1], annotated.shape[0])
+                if rss_res is not None:
+                    _draw_rss_safety_envelope(annotated, rss_res, tracked_objects, annotated.shape[1], annotated.shape[0])
+                if behavior_ctx is not None or rss_res is not None:
+                    _draw_fsm_behavior_badge(annotated, behavior_ctx, rss_res, annotated.shape[1], annotated.shape[0])
+
+            if fleet_stat is not None:
+                _draw_fleet_ota_panel(annotated, fleet_stat, x=14, y=annotated.shape[0] - 85)
         except Exception:
             pass
 
@@ -527,9 +834,12 @@ def run_pipeline(
     timings["total_ms"] = round((time.perf_counter() - t_total_start) * 1000, 2)
     timings["fps_equiv"] = round(1000.0 / max(timings["total_ms"], 0.1), 1)
 
-    success = prediction.status in (
-        DetectionStatus.LANE_DETECTED,
-        DetectionStatus.PARTIAL_LANE_DETECTED,
+    success = (
+        prediction.status in (
+            DetectionStatus.LANE_DETECTED,
+            DetectionStatus.PARTIAL_LANE_DETECTED,
+        )
+        or is_lane_retained
     )
 
     return InferenceResult(
@@ -548,6 +858,17 @@ def run_pipeline(
         occupancy_grid   = occ_grid,
         tracked_objects  = tracked_objects,
         trajectory_report= trajectory_report,
+        vehicle_pose     = vehicle_pose,
+        vio_trail        = vio_trail,
+        is_lane_retained = is_lane_retained,
+        retained_lane_result = retained_lane_res,
+        planned_trajectory = planned_traj,
+        behavior_context = behavior_ctx,
+        acc_output       = acc_out,
+        rss_result       = rss_res,
+        shadow_report    = shadow_rep,
+        harvest_event    = harvest_evt,
+        fleet_status     = fleet_stat,
         timings          = timings,
     )
 

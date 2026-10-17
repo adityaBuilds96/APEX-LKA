@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  apex_edge_runtime:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: apex-vision-core:v3.0
+    container_name: apex_vision_runtime
+    restart: always
+    network_mode: host
+    privileged: true
+    devices:
+      - /dev/video0:/dev/video0
+      - /dev/ttyUSB0:/dev/ttyUSB0
+      - /dev/ttyACM0:/dev/ttyACM0
+    volumes:
+      - ./data:/workspace/apex/data
+      - ./logs:/workspace/apex/logs
+      - ./models:/workspace/apex/models
+      - ./configs:/workspace/apex/configs
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
+      - APEX_ENV=production
+      - APEX_CAN_CHANNEL=can0
+      - APEX_PROFILE=configs/profiles/passenger_car.yaml
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"

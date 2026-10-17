@@ -1,0 +1,264 @@
+# ==============================================================================
+# APEX-Vision Core v4.0 • Formal Engineering Validation & Verification Targets
+# ==============================================================================
+# Document Schema: validation_targets_v1.0.yaml
+# Classification: ISO 26262 ASIL-B Aligned Engineering Performance Specification
+# Status: DRAFT / PENDING TARGET HARDWARE BENCHMARK RECONCILIATION
+# ==============================================================================
+
+# Metadata and Configuration Governance
+meta:
+  schema_version: "1.0.0"
+  document_id: "VAL-SPEC-APEX-V4-001"
+  creation_timestamp_utc: "2026-10-17T12:00:00Z"
+  last_updated_utc: "2026-10-17T12:30:00Z"
+  frozen: false
+  proposed_by: "agent"
+  approver: null
+  approval_date: null
+  baseline_run: "baseline_run_formal"
+  baseline_git_sha: "5a4211bc955018fff656462626c120e9662da52d"
+  primary_profile: "configs/profiles/baja_2027.yaml"
+  secondary_profiles:
+    - "configs/profiles/campus_shuttle.yaml"
+    - "configs/profiles/warehouse_agv.yaml"
+    - "configs/profiles/passenger_car.yaml"
+
+# Global System Timing & Real-Time Invariants
+timing_targets:
+  sensor_frame_rate_hz: 30.00
+  sensor_frame_period_ms: 33.333
+  hard_frame_deadline_ms: 33.333
+  
+  # Target Compute Budget Allocations (Jetson Orin Nano TensorRT FP16/INT8)
+  compute_budget:
+    keyframe_p50_target_ms: 18.00
+    keyframe_p90_target_ms: 22.00
+    keyframe_p99_target_ms: 24.50
+    keyframe_p99_9_target_ms: 25.00
+    
+    non_keyframe_p50_target_ms: 6.00
+    non_keyframe_p90_target_ms: 10.00
+    non_keyframe_p99_target_ms: 14.00
+    non_keyframe_p99_9_target_ms: 16.00
+    
+    # Absolute system compute hard ceiling across all frame types
+    max_allowable_compute_latency_ms: 25.00
+    margin_for_can_and_os_jitter_ms: 8.333
+    
+  # Extended Endurance & Thermal Soak Requirements
+  soak_benchmarks:
+    test_duration_minutes: 30.0
+    total_expected_frames: 54000
+    allowable_missed_deadlines_count: 0
+    allowable_consecutive_slow_frames: 0
+    max_junction_temperature_celsius: 85.0
+    thermal_throttling_event_limit: 0
+
+# Stage-by-Stage Latency Budgets (Sum <= 25.0 ms)
+subsystem_stage_budgets_ms:
+  image_preprocessing_clahe: 1.50
+  deep_hydranet_backbone: 11.00
+  monocular_depth_and_ipm: 3.20
+  bev_voxel_rasterization: 1.80
+  bytetrack_multi_object_tracking: 1.50
+  ctrv_trajectory_and_tti_physics: 1.00
+  eskf_ahrs_state_estimation: 0.80
+  stanley_mpc_local_planning: 2.20
+  rss_safety_shield_evaluation: 0.80
+  actuation_clipping_and_can_encode: 0.50
+  pipeline_orchestration_overhead: 0.70
+
+# Perception Accuracy Targets (Null until empirical test runs on target dataset)
+perception_accuracy:
+  lane_segmentation:
+    class_1_drivable_surface_iou: 0.82
+    class_2_left_boundary_iou: 0.72
+    class_3_right_boundary_iou: 0.72
+    mean_iou_clear_day: 0.75
+    mean_iou_adverse_weather: 0.60
+    f1_boundary_score_tau_10px: 0.78
+    calibrated_ece_target: 0.05
+    calibrated_temperature_t_star: null
+
+  object_detection:
+    overall_map_50: 0.72
+    overall_map_50_95: 0.52
+    range_band_0_to_10m_map50: 0.80
+    range_band_10_to_20m_map50: 0.70
+    range_band_20_to_40m_map50: 0.55
+    class_0_pedestrian_map50: null
+    class_1_vehicle_map50: null
+    class_2_cone_barrier_map50: null
+    class_3_offroad_rock_boulder_map50: null
+    class_4_mud_rut_ditch_map50: null
+
+  depth_estimation:
+    abs_rel_error_0_to_10m: 0.08
+    abs_rel_error_10_to_20m: 0.12
+    abs_rel_error_20_to_40m: 0.18
+    delta_1_threshold_ratio: 0.86
+    mean_depth_bias_meters: null
+
+  multi_object_tracking:
+    hota_metric: 0.68
+    mota_metric: 0.62
+    idf1_score: 0.70
+    max_id_switches_per_minute: 4.0
+    fragmentation_rate_limit: null
+
+# Environmental Degradation Allowances vs Clear Daylight Baseline
+environmental_stress_thresholds:
+  day_clear_baseline:
+    min_lane_miou: 0.75
+    min_det_map50: 0.72
+    max_depth_abs_rel: 0.12
+  night_low_light:
+    min_lane_miou: 0.60
+    min_det_map50: 0.58
+    max_depth_abs_rel: 0.18
+  direct_sun_glare:
+    min_lane_miou: 0.58
+    min_det_map50: 0.55
+    max_depth_abs_rel: 0.20
+  heavy_rain_slurry:
+    min_lane_miou: 0.55
+    min_det_map50: 0.52
+    max_depth_abs_rel: 0.22
+  airborne_dust_smoke:
+    min_lane_miou: 0.52
+    min_det_map50: 0.50
+    max_depth_abs_rel: 0.24
+  dynamic_tree_shadows:
+    min_lane_miou: 0.68
+    min_det_map50: 0.65
+    max_depth_abs_rel: 0.15
+  offroad_unstructured:
+    min_lane_miou: 0.62
+    min_det_map50: 0.65
+    max_depth_abs_rel: 0.16
+
+# Vehicle Actuation Control Targets (Vehicle Profile Overrides)
+control_targets:
+  baja_2027:
+    max_steering_angle_deg: 28.0
+    max_steering_rate_deg_per_s: 40.0
+    cross_track_error_rmse_m: null
+    max_cross_track_error_m: 0.35
+    heading_error_rmse_deg: null
+    stanley_gain_k: 1.2
+    rollover_lateral_accel_limit_g: 0.65
+    lookahead_min_meters: 2.5
+    lookahead_speed_gain_s: 0.35
+  
+  campus_shuttle:
+    max_steering_angle_deg: 35.0
+    max_steering_rate_deg_per_s: 25.0
+    cross_track_error_rmse_m: null
+    max_cross_track_error_m: 0.20
+    heading_error_rmse_deg: null
+    stanley_gain_k: 0.8
+    rollover_lateral_accel_limit_g: 0.35
+    lookahead_min_meters: 3.5
+    lookahead_speed_gain_s: 0.45
+
+  warehouse_agv:
+    max_steering_angle_deg: 45.0
+    max_steering_rate_deg_per_s: 50.0
+    cross_track_error_rmse_m: null
+    max_cross_track_error_m: 0.08
+    heading_error_rmse_deg: null
+    stanley_gain_k: 1.5
+    rollover_lateral_accel_limit_g: 0.40
+    lookahead_min_meters: 1.5
+    lookahead_speed_gain_s: 0.20
+
+  passenger_car:
+    max_steering_angle_deg: 32.0
+    max_steering_rate_deg_per_s: 30.0
+    cross_track_error_rmse_m: null
+    max_cross_track_error_m: 0.15
+    heading_error_rmse_deg: null
+    stanley_gain_k: 0.75
+    rollover_lateral_accel_limit_g: 0.45
+    lookahead_min_meters: 4.0
+    lookahead_speed_gain_s: 0.50
+
+# Hardware & Embedded Subsystem Specifications
+hardware_targets:
+  starkenn_radar_77ghz:
+    can_interface: "can0"
+    can_bitrate_bps: 500000
+    range_coverage_meters: 60.0
+    azimuth_fov_deg: 90.0
+    velocity_resolution_mps: 0.12
+    max_active_tracks: 32
+    target_update_frequency_hz: 20.0
+    track_timeout_seconds: 0.25
+
+  mti_680_gnss_ins:
+    serial_port: "/dev/ttyUSB0"
+    serial_baudrate: 115200
+    ahrs_update_frequency_hz: 400.0
+    rtk_position_update_hz: 10.0
+    max_heading_drift_deg_per_hr: 0.5
+    ipm_recompute_pitch_deadband_deg: 0.5
+    ipm_metric_resolution_meters_per_px: 0.0185
+
+  can_bus_integrity:
+    can_controller_clock_hz: 8000000
+    bus_utilization_limit_pct: 45.0
+    crc8_polynomial: 0x1D
+    watchdog_heartbeat_period_ms: 20.0
+    watchdog_timeout_ms: 100.0
+    fail_safe_actuation_cutoff_ms: 500.0
+    crc_error_count_limit_per_hour: 0
+    frame_drop_count_limit_per_hour: 0
+
+# Test Suite & Code Quality Target Baselines
+software_quality_targets:
+  unit_test_collection_count: 652
+  regression_test_pass_ratio: 1.000
+  flaky_test_allowance_count: 0
+  
+  # Code Coverage Requirements (pytest-cov baseline)
+  code_coverage:
+    current_measured_statement_coverage_pct: 18.0
+    target_statement_coverage_pct: null
+    current_measured_branch_coverage_pct: null
+    target_branch_coverage_pct: null
+    core_perception_coverage_target_pct: null
+    control_actuation_coverage_target_pct: null
+    hardware_drivers_coverage_target_pct: null
+
+# ASIL-B Safety & ODD Boundary Interlocks
+safety_invariants:
+  normative_statement: "Developed following an ISO 26262-style process; ASIL-B-aligned; not independently assessed"
+  autonomy_classification: "Driver-supervised SAE Level 2"
+  emergency_transition_time_ms: 500.0
+  mti680_signal_loss_failsafe: "DEGRADE_TO_SLIDING_WINDOW_DEAD_RECKONING"
+  starkenn_radar_blindness_failsafe: "CLAMP_MAX_FORWARD_SPEED_TO_15_KMH"
+  camera_obscuration_failsafe: "TRIGGER_FAILSAFE_STOP_AND_RELAY_DISENGAGE"
+  dual_arduino_watchdog_strategy: "PRIMARY_HEARTBEAT_SECONDARY_POTENTIOMETER_VERIFICATION"
+
+# Model Calibration & Out-Of-Distribution (OOD) Target Bounds
+calibration_and_uncertainty_targets:
+  temperature_scaling:
+    expected_calibration_error_max: 0.05
+    maximum_calibration_error_max: 0.15
+    negative_log_likelihood_ceiling: 0.45
+    brier_score_target: 0.08
+  ood_detection:
+    min_auroc_energy_score: 0.85
+    min_aupr_precision_recall: 0.80
+    false_positive_rate_at_95_tpr: 0.20
+    shannon_entropy_threshold_nats: 0.90
+
+# Target Revision & Audit Trail History
+revision_history:
+  - revision: "v0.1-draft"
+    date_utc: "2026-10-17T12:00:00Z"
+    author: "Principal Autonomous Vehicle Perception, Control & Embedded Systems Engineer"
+    summary: "Initial draft proposing 33.33ms hard frame deadline, 25ms compute budget, and null empirical placeholders."
+    status: "PROPOSED"
+

@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>APEX-LKA • Golden Scenario Simulation Regression Report</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #0f172a; color: #f8fafc; margin: 0; padding: 24px; }
+        .container { max-width: 1200px; margin: 0 auto; background: #1e293b; border-radius: 12px; padding: 28px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        h1 { margin-top: 0; font-size: 26px; color: #38bdf8; display: flex; align-items: center; justify-content: space-between; }
+        .badge { padding: 6px 14px; border-radius: 20px; font-size: 14px; font-weight: 700; background: #10b981; color: #ffffff; }
+        .metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin: 24px 0; }
+        .metric-card { background: #0f172a; padding: 18px; border-radius: 8px; border: 1px solid #334155; }
+        .metric-label { font-size: 12px; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.5px; }
+        .metric-val { font-size: 28px; font-weight: 800; color: #f8fafc; margin-top: 6px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; color: #1e293b; }
+        th { background: #334155; color: #f8fafc; text-align: left; padding: 12px; font-size: 13px; text-transform: uppercase; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>
+        <span>APEX-LKA • Phase 5 Simulation Regression Audit</span>
+        <span class="badge">PASSED & MERGE APPROVED</span>
+    </h1>
+    <p style="color:#94a3b8; margin-top:-6px;">Autonomous vehicle validation across 100+ Golden Scenarios on Digital Twin.</p>
+
+    <div class="metrics-grid">
+        <div class="metric-card">
+            <div class="metric-label">Pass Rate</div>
+            <div class="metric-val" style="color:#10b981;">100.0%</div>
+            <div style="font-size:12px; color:#94a3b8; margin-top:4px;">Threshold: &ge; 95.0%</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Total Scenarios</div>
+            <div class="metric-val">101</div>
+            <div style="font-size:12px; color:#94a3b8; margin-top:4px;">100+ Pre-Scripted</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Passed / Failed</div>
+            <div class="metric-val" style="color:#10b981;">101 <span style="font-size:18px; color:#ef4444;">/ 0</span></div>
+            <div style="font-size:12px; color:#94a3b8; margin-top:4px;">0 Collisions</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Execution Time</div>
+            <div class="metric-val">6.5 s</div>
+            <div style="font-size:12px; color:#94a3b8; margin-top:4px;">Target &le; 45 mins</div>
+        </div>
+    </div>
+
+    <h2 style="font-size:18px; color:#e2e8f0; margin-top:32px;">Scenario Test Results Breakdown</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Scenario ID</th>
+                <th style="text-align:center;">Result</th>
+                <th style="text-align:right;">Min Distance</th>
+                <th style="text-align:right;">Min TTC</th>
+                <th style="text-align:right;">Max Path Dev</th>
+                <th style="text-align:right;">Duration</th>
+                <th>Failure Diagnostics</th>
+            </tr>
+        </thead>
+        <tbody>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">CUTIN_01</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">11.99 m</td>
+                <td style="padding:10px; text-align:right;">2.14 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.07 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">CUTIN_02</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">12.69 m</td>
+                <td style="padding:10px; text-align:right;">2.14 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.07 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">CUTIN_03</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">10.30 m</td>
+                <td style="padding:10px; text-align:right;">2.14 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.07 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">CUTIN_04</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">10.30 m</td>
+                <td style="padding:10px; text-align:right;">2.14 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.07 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">CUTIN_05</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">10.99 m</td>
+                <td style="padding:10px; text-align:right;">2.14 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.07 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">CUTIN_06</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">10.30 m</td>
+                <td style="padding:10px; text-align:right;">2.14 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.07 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">CUTIN_07</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">14.85 m</td>
+                <td style="padding:10px; text-align:right;">2.14 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.08 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">CUTIN_08</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">10.30 m</td>
+                <td style="padding:10px; text-align:right;">2.14 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.07 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">CUTIN_09</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">10.30 m</td>
+                <td style="padding:10px; text-align:right;">2.14 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.06 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">CUTIN_10</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">11.86 m</td>
+                <td style="padding:10px; text-align:right;">2.14 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.05 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">CUTIN_11</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">10.30 m</td>
+                <td style="padding:10px; text-align:right;">2.14 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.06 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">CUTIN_12</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">13.79 m</td>
+                <td style="padding:10px; text-align:right;">2.14 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.06 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">CUTIN_13</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">10.99 m</td>
+                <td style="padding:10px; text-align:right;">2.14 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.07 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">CUTIN_14</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">14.85 m</td>
+                <td style="padding:10px; text-align:right;">2.14 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.09 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">CUTIN_15</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">10.90 m</td>
+                <td style="padding:10px; text-align:right;">2.14 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.07 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">CUTIN_16</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">10.30 m</td>
+                <td style="padding:10px; text-align:right;">2.14 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.07 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">CUTIN_17</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">10.30 m</td>
+                <td style="padding:10px; text-align:right;">2.14 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.05 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">CUTIN_18</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">10.30 m</td>
+                <td style="padding:10px; text-align:right;">2.14 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.06 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">CUTIN_19</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">12.89 m</td>
+                <td style="padding:10px; text-align:right;">2.14 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.07 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">CUTIN_20</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">10.30 m</td>
+                <td style="padding:10px; text-align:right;">2.14 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.06 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">EMERG_01</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">11.87 m</td>
+                <td style="padding:10px; text-align:right;">2.54 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.05 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">EMERG_02</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">11.87 m</td>
+                <td style="padding:10px; text-align:right;">2.54 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.06 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">EMERG_03</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">11.87 m</td>
+                <td style="padding:10px; text-align:right;">2.54 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.05 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">EMERG_04</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">11.87 m</td>
+                <td style="padding:10px; text-align:right;">2.54 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.05 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">EMERG_05</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">11.87 m</td>
+                <td style="padding:10px; text-align:right;">2.54 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.05 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">EMERG_06</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">11.87 m</td>
+                <td style="padding:10px; text-align:right;">2.54 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.05 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">EMERG_07</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">11.87 m</td>
+                <td style="padding:10px; text-align:right;">2.54 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.05 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">EMERG_08</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">11.87 m</td>
+                <td style="padding:10px; text-align:right;">2.54 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.05 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">EMERG_09</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">11.87 m</td>
+                <td style="padding:10px; text-align:right;">2.54 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.05 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">EMERG_10</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">11.87 m</td>
+                <td style="padding:10px; text-align:right;">2.54 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.05 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">EMERG_11</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">11.87 m</td>
+                <td style="padding:10px; text-align:right;">2.54 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.05 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">EMERG_12</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">11.87 m</td>
+                <td style="padding:10px; text-align:right;">2.54 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.05 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">EMERG_13</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">11.87 m</td>
+                <td style="padding:10px; text-align:right;">2.54 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.05 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">EMERG_14</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">11.87 m</td>
+                <td style="padding:10px; text-align:right;">2.54 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.05 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">EMERG_15</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">11.87 m</td>
+                <td style="padding:10px; text-align:right;">2.54 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.05 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">EMERG_16</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">11.87 m</td>
+                <td style="padding:10px; text-align:right;">2.54 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.05 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">LANE_01</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">14.51 m</td>
+                <td style="padding:10px; text-align:right;">3.15 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.05 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">LANE_02</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">14.51 m</td>
+                <td style="padding:10px; text-align:right;">3.15 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.05 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">LANE_03</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">14.51 m</td>
+                <td style="padding:10px; text-align:right;">3.15 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.05 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">LANE_04</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">14.51 m</td>
+                <td style="padding:10px; text-align:right;">3.15 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.04 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">LANE_05</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">14.51 m</td>
+                <td style="padding:10px; text-align:right;">3.15 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.04 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">LANE_06</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">14.51 m</td>
+                <td style="padding:10px; text-align:right;">3.15 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.05 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">LANE_07</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">14.51 m</td>
+                <td style="padding:10px; text-align:right;">3.15 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.05 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">LANE_08</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">14.51 m</td>
+                <td style="padding:10px; text-align:right;">3.15 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.05 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">LANE_09</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">14.51 m</td>
+                <td style="padding:10px; text-align:right;">3.15 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.05 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">LANE_10</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">14.51 m</td>
+                <td style="padding:10px; text-align:right;">3.15 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.05 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">LANE_11</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">14.51 m</td>
+                <td style="padding:10px; text-align:right;">3.15 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.04 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">LANE_12</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">14.51 m</td>
+                <td style="padding:10px; text-align:right;">3.15 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.05 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">LANE_13</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">14.51 m</td>
+                <td style="padding:10px; text-align:right;">3.15 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.05 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">LANE_14</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">14.51 m</td>
+                <td style="padding:10px; text-align:right;">3.15 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.05 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">LANE_15</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">14.51 m</td>
+                <td style="padding:10px; text-align:right;">3.15 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.05 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">OBS_01</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">11.51 m</td>
+                <td style="padding:10px; text-align:right;">2.61 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.05 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">OBS_02</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">11.51 m</td>
+                <td style="padding:10px; text-align:right;">2.61 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.04 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">OBS_03</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">11.51 m</td>
+                <td style="padding:10px; text-align:right;">2.61 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.04 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">OBS_04</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">11.51 m</td>
+                <td style="padding:10px; text-align:right;">2.61 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.04 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">OBS_05</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">11.51 m</td>
+                <td style="padding:10px; text-align:right;">2.61 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.04 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">OBS_06</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">11.51 m</td>
+                <td style="padding:10px; text-align:right;">2.61 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.04 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">OBS_07</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">11.51 m</td>
+                <td style="padding:10px; text-align:right;">2.61 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.04 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">OBS_08</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">11.51 m</td>
+                <td style="padding:10px; text-align:right;">2.61 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.05 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">OBS_09</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">11.51 m</td>
+                <td style="padding:10px; text-align:right;">2.61 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.04 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">OBS_10</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">11.51 m</td>
+                <td style="padding:10px; text-align:right;">2.61 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.04 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">OBS_11</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">11.51 m</td>
+                <td style="padding:10px; text-align:right;">2.61 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.04 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">OBS_12</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">11.51 m</td>
+                <td style="padding:10px; text-align:right;">2.61 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.05 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">OBS_13</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">11.51 m</td>
+                <td style="padding:10px; text-align:right;">2.61 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.04 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">OBS_14</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">11.51 m</td>
+                <td style="padding:10px; text-align:right;">2.61 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.05 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">OBS_15</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">11.51 m</td>
+                <td style="padding:10px; text-align:right;">2.61 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.05 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">PED_01</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">7.25 m</td>
+                <td style="padding:10px; text-align:right;">1.89 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.04 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">PED_02</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">8.16 m</td>
+                <td style="padding:10px; text-align:right;">1.98 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.04 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">PED_03</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">8.01 m</td>
+                <td style="padding:10px; text-align:right;">2.06 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.05 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">PED_04</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">8.71 m</td>
+                <td style="padding:10px; text-align:right;">2.15 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.04 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">PED_05</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">9.25 m</td>
+                <td style="padding:10px; text-align:right;">2.23 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.04 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">PED_06</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">9.67 m</td>
+                <td style="padding:10px; text-align:right;">2.32 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.04 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">PED_07</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">10.51 m</td>
+                <td style="padding:10px; text-align:right;">2.41 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.04 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">PED_08</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">10.98 m</td>
+                <td style="padding:10px; text-align:right;">2.50 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.04 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">PED_09</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">11.33 m</td>
+                <td style="padding:10px; text-align:right;">2.58 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.04 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">PED_10</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">11.94 m</td>
+                <td style="padding:10px; text-align:right;">2.67 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.05 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">PED_11</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">12.43 m</td>
+                <td style="padding:10px; text-align:right;">2.76 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.05 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">PED_12</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">12.91 m</td>
+                <td style="padding:10px; text-align:right;">2.85 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.05 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">PED_13</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">13.01 m</td>
+                <td style="padding:10px; text-align:right;">2.94 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.04 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">PED_14</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">13.88 m</td>
+                <td style="padding:10px; text-align:right;">3.02 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.04 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">PED_15</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">14.37 m</td>
+                <td style="padding:10px; text-align:right;">3.11 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.05 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">PED_16</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">14.85 m</td>
+                <td style="padding:10px; text-align:right;">3.20 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.04 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">PED_17</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">15.11 m</td>
+                <td style="padding:10px; text-align:right;">3.29 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.04 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">PED_18</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">15.40 m</td>
+                <td style="padding:10px; text-align:right;">3.38 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.05 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">PED_19</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">15.64 m</td>
+                <td style="padding:10px; text-align:right;">3.47 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.05 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">PED_20</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">15.90 m</td>
+                <td style="padding:10px; text-align:right;">3.56 s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.05 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">WTH_01</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">inf m</td>
+                <td style="padding:10px; text-align:right;">inf s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.12 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">WTH_02</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">inf m</td>
+                <td style="padding:10px; text-align:right;">inf s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.12 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">WTH_03</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">inf m</td>
+                <td style="padding:10px; text-align:right;">inf s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.12 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">WTH_04</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">inf m</td>
+                <td style="padding:10px; text-align:right;">inf s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.12 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">WTH_05</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">inf m</td>
+                <td style="padding:10px; text-align:right;">inf s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.12 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">WTH_06</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">inf m</td>
+                <td style="padding:10px; text-align:right;">inf s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.12 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">WTH_07</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">inf m</td>
+                <td style="padding:10px; text-align:right;">inf s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.12 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">WTH_08</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">inf m</td>
+                <td style="padding:10px; text-align:right;">inf s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.12 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">WTH_09</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">inf m</td>
+                <td style="padding:10px; text-align:right;">inf s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.12 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">WTH_10</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">inf m</td>
+                <td style="padding:10px; text-align:right;">inf s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.12 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">WTH_11</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">inf m</td>
+                <td style="padding:10px; text-align:right;">inf s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.14 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">WTH_12</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">inf m</td>
+                <td style="padding:10px; text-align:right;">inf s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.12 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">WTH_13</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">inf m</td>
+                <td style="padding:10px; text-align:right;">inf s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.12 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">WTH_14</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">inf m</td>
+                <td style="padding:10px; text-align:right;">inf s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.14 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+            <tr style="background-color:#dcfce7; border-bottom:1px solid #e5e7eb;">
+                <td style="padding:10px; font-family:monospace; font-weight:600;">WTH_15</td>
+                <td style="padding:10px; text-align:center;"><span style='color:#059669; font-weight:bold;'>PASS</span></td>
+                <td style="padding:10px; text-align:right;">inf m</td>
+                <td style="padding:10px; text-align:right;">inf s</td>
+                <td style="padding:10px; text-align:right;">0.00 m</td>
+                <td style="padding:10px; text-align:right;">0.13 s</td>
+                <td style="padding:10px; color:#b91c1c; font-size:13px;">—</td>
+            </tr>
+            
+        </tbody>
+    </table>
+</div>
+</body>
+</html>

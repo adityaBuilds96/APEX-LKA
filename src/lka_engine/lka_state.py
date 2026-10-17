@@ -308,6 +308,10 @@ class LKAStateTracker:
             consecutive_lost_frames=self.consecutive_lost,
             inference_ms=inf_ms,
             total_ms=tot_ms,
+            scene_perception=getattr(result, "scene_perception", None),
+            risk_report=getattr(result, "risk_report", None),
+            tracked_objects=getattr(result, "tracked_objects", None),
+            trajectory_report=getattr(result, "trajectory_report", None),
         )
 
     def _compute_heading_deg(self, geo: Optional[LaneGeometry]) -> Optional[float]:

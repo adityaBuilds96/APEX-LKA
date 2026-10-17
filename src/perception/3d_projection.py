@@ -68,6 +68,13 @@ class Object3D:
         """Absolute lateral offset from vehicle centerline."""
         return abs(self.x)
 
+    def __getitem__(self, idx: int) -> float:
+        arr = [self.x, self.y, self.z, self.width, self.height, self.length]
+        return arr[idx]
+
+    def __len__(self) -> int:
+        return 6
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "x": round(self.x, 3),

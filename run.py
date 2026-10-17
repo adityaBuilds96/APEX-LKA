@@ -244,7 +244,58 @@ def cmd_export(args):
 
 
 def cmd_benchmark(args):
-    """Run hardware speed test across all available ExecutionProviders."""
+    """Run hardware speed test across all available ExecutionProviders or all HAL backends."""
+    if getattr(args, "all_backends", False):
+        import time
+        import numpy as np
+        from src.hardware.hal import get_hal
+
+        console.print(Panel("[bold cyan]APEX LKA Multi-Hardware HAL Benchmark (--all-backends)", border_style="cyan"))
+        hal = get_hal()
+        dummy_tensor = np.zeros((1, 3, 360, 640), dtype=np.float32)
+
+        table = Table(title="Heterogeneous Hardware Inference Latency & FPS", show_lines=True)
+        table.add_column("Compute Backend", style="cyan")
+        table.add_column("Hardware Target")
+        table.add_column("Avg Latency (ms)", justify="right")
+        table.add_column("Throughput (FPS)", justify="right")
+        table.add_column("Status")
+
+        backends_to_test = [
+            ("jetson", "NVIDIA Jetson / TensorRT FP16"),
+            ("tpu", "Google Coral Edge TPU INT8"),
+            ("openvino", "Intel NUC OpenVINO IR"),
+            ("cpu", "Generic x86 CPU ONNX/NumPy"),
+        ]
+
+        for b_id, target_desc in backends_to_test:
+            try:
+                hal.set_backend(b_id)
+                # Warmup
+                for _ in range(5):
+                    _ = hal.predict(dummy_tensor)
+
+                t0 = time.perf_counter()
+                n_eval = 25
+                for _ in range(n_eval):
+                    _ = hal.predict(dummy_tensor)
+                total_t = time.perf_counter() - t0
+                avg_ms = (total_t / n_eval) * 1000.0
+                fps = 1000.0 / avg_ms if avg_ms > 0 else 0.0
+
+                table.add_row(
+                    hal.active_backend.name,
+                    target_desc,
+                    f"{avg_ms:.2f} ms",
+                    f"[green]{fps:.1f} FPS[/green]",
+                    "[green]OK[/green]",
+                )
+            except Exception as e:
+                table.add_row(b_id, target_desc, "N/A", "N/A", f"[yellow]{e}[/yellow]")
+
+        console.print(table)
+        return
+
     from src.training.export import cross_device_benchmark
 
     onnx_model = getattr(args, "model", None)
@@ -263,6 +314,10 @@ def cmd_infer(args):
     cmd = [sys.executable, str(script), "--source", args.source]
     if args.file:
         cmd += ["--file", args.file]
+    if getattr(args, "profile", None):
+        cmd += ["--profile", args.profile]
+    if getattr(args, "max_frames", None):
+        cmd += ["--max-frames", str(args.max_frames)]
     enable_all = getattr(args, "enable_all", False)
     if enable_all or getattr(args, "enable_object_detection", False):
         cmd += ["--enable-object-detection"]
@@ -276,8 +331,52 @@ def cmd_infer(args):
         cmd += ["--enable-tracking"]
     if enable_all or getattr(args, "enable_trajectory", False):
         cmd += ["--enable-trajectory"]
+    if enable_all or getattr(args, "enable_sensor_fusion", False):
+        cmd += ["--enable-sensor-fusion"]
+    if enable_all or getattr(args, "enable_planner", False):
+        cmd += ["--enable-planner"]
+    if enable_all or getattr(args, "enable_shadow_mode", False):
+        cmd += ["--enable-shadow-mode"]
+    if enable_all or getattr(args, "enable_data_harvesting", False):
+        cmd += ["--enable-data-harvesting"]
     if enable_all:
         cmd += ["--enable-all"]
+    subprocess.run(cmd, check=True)
+
+
+def cmd_sim(args):
+    """Run CARLA simulation, digital twin scenarios, synthetic data generation, or CI regression."""
+    script = PROJECT_ROOT / "deploy" / "sim_run.py"
+    if not script.exists():
+        console.print("[yellow]Simulation runner not found.[/yellow]")
+        return
+    cmd = [sys.executable, str(script)]
+    if getattr(args, "map", None):
+        cmd += ["--map", args.map]
+    if getattr(args, "scenario", None):
+        cmd += ["--scenario", args.scenario]
+    if getattr(args, "weather", None):
+        cmd += ["--weather", args.weather]
+    if getattr(args, "regression", False):
+        cmd += ["--regression"]
+    if getattr(args, "min_pass_rate", None) is not None:
+        cmd += ["--min-pass-rate", str(args.min_pass_rate)]
+    if getattr(args, "report_html", None):
+        cmd += ["--report-html", str(args.report_html)]
+    if getattr(args, "report_json", None):
+        cmd += ["--report-json", str(args.report_json)]
+    if getattr(args, "fuzz", False):
+        cmd += ["--fuzz"]
+    if getattr(args, "fuzz_iterations", None):
+        cmd += ["--fuzz-iterations", str(args.fuzz_iterations)]
+    if getattr(args, "generate_synthetic", False):
+        cmd += ["--generate-synthetic"]
+    if getattr(args, "num_frames", None):
+        cmd += ["--num-frames", str(args.num_frames)]
+    if getattr(args, "output_dir", None):
+        cmd += ["--output-dir", str(args.output_dir)]
+    if getattr(args, "mock", False):
+        cmd += ["--mock"]
     subprocess.run(cmd, check=True)
 
 
@@ -619,17 +718,24 @@ def main():
     p_bench.add_argument("--model", type=str, default=None, help="Path to ONNX model")
     p_bench.add_argument("--iterations", type=int, default=50, help="Number of benchmark iterations")
     p_bench.add_argument("--warmup", type=int, default=10, help="Number of warmup iterations")
+    p_bench.add_argument("--all-backends", action="store_true", help="Benchmark across all hardware HAL backends (TensorRT, Edge TPU, OpenVINO, CPU)")
 
     p_infer = sub.add_parser("infer", help="Run live inference")
     p_infer.add_argument("--source", type=str, default="webcam", help="Source ('webcam', 'video', 'image') or file path")
     p_infer.add_argument("--file", type=str, help="Path for video/image source")
+    p_infer.add_argument("--profile", type=str, default="baja_2027", help="Vehicle profile to apply (baja_2027, campus_shuttle, agv_warehouse, passenger_car)")
+    p_infer.add_argument("--max-frames", type=int, default=10, help="Maximum frames to process in batch/demo mode")
     p_infer.add_argument("--enable-object-detection", action="store_true", help="Enable multi-object detection and threat risk assessment")
     p_infer.add_argument("--enable-depth", action="store_true", help="Enable monocular metric depth estimation")
     p_infer.add_argument("--enable-occupancy", action="store_true", help="Enable 3D top-down occupancy grid rasterization")
     p_infer.add_argument("--show-depth-heatmap", action="store_true", help="Overlay false-color depth heatmap on viewport")
     p_infer.add_argument("--enable-tracking", action="store_true", help="Enable ByteTrack multi-object tracking")
     p_infer.add_argument("--enable-trajectory", action="store_true", help="Enable trajectory prediction and TTI calculation")
-    p_infer.add_argument("--enable-all", action="store_true", help="Enable all Phase 5 modules (detection, depth, occupancy, tracking, trajectory)")
+    p_infer.add_argument("--enable-sensor-fusion", action="store_true", help="Enable 15-DOF ESKF, VIO, and Kinematic Lane Retention")
+    p_infer.add_argument("--enable-planner", action="store_true", help="Enable hierarchical behavior FSM, local path planner, ACC, and RSS safety shield")
+    p_infer.add_argument("--enable-shadow-mode", action="store_true", help="Enable silent candidate shadow model execution")
+    p_infer.add_argument("--enable-data-harvesting", action="store_true", help="Enable edge anomaly closed-loop data harvesting")
+    p_infer.add_argument("--enable-all", action="store_true", help="Enable all Phase 5 modules (detection, depth, occupancy, tracking, trajectory, fusion, planner, shadow, harvesting)")
 
     # dashboard
     sub.add_parser("dashboard", help="Launch Streamlit dashboard")
@@ -660,6 +766,22 @@ def main():
     p_pipe.add_argument("--dir", type=str, help="Path to dataset directory")
     p_pipe.add_argument("--auto-split", action="store_true", help="Automatically split after annotation")
 
+    # sim (Phase 5 Section 7)
+    p_sim = sub.add_parser("sim", help="Run CARLA simulation, digital twin scenarios, synthetic data generation, or CI regression")
+    p_sim.add_argument("--map", type=str, default="college_campus", help="Digital twin map (college_campus, baja_track_2027)")
+    p_sim.add_argument("--scenario", type=str, default=None, help="Path or name of scenario YAML file")
+    p_sim.add_argument("--weather", type=str, default="clear_noon", help="Weather variant preset")
+    p_sim.add_argument("--regression", action="store_true", help="Execute 100+ Golden Scenario CI regression suite")
+    p_sim.add_argument("--min-pass-rate", type=float, default=95.0, help="Pass-rate threshold percentage (default 95.0)")
+    p_sim.add_argument("--report-html", type=str, default="results/regression_report.html", help="HTML report output path")
+    p_sim.add_argument("--report-json", type=str, default="results/regression_summary.json", help="JSON summary output path")
+    p_sim.add_argument("--fuzz", action="store_true", help="Run Monte Carlo fuzz testing on target scenario")
+    p_sim.add_argument("--fuzz-iterations", type=int, default=50, help="Number of Monte Carlo fuzz iterations")
+    p_sim.add_argument("--generate-synthetic", action="store_true", help="Generate synthetic multimodal dataset")
+    p_sim.add_argument("--num-frames", type=int, default=100, help="Number of synthetic frames to generate")
+    p_sim.add_argument("--output-dir", type=str, default="data/synthetic_dataset", help="Output directory for synthetic dataset")
+    p_sim.add_argument("--mock", action="store_true", default=False, help="Force mock simulation without live CARLA server")
+
     args = parser.parse_args()
 
     if args.command is None:
@@ -679,7 +801,8 @@ def main():
                 "  9. [cyan]python run.py evaluate[/cyan]         — Evaluate\n"
                 " 10. [cyan]python run.py export[/cyan]           — Export to ONNX/TensorRT\n"
                 " 11. [cyan]python run.py benchmark[/cyan]        — Speed test hardware\n"
-                " 12. [cyan]python run.py infer --source webcam[/cyan] — Live demo",
+                " 12. [cyan]python run.py infer --source webcam[/cyan] — Live demo\n"
+                " 13. [cyan]python run.py sim --regression[/cyan]  — 100+ Golden Scenario Regression",
                 title="[bold green]Welcome",
                 border_style="green",
             )
@@ -702,6 +825,7 @@ def main():
         "auto-annotate": cmd_auto_annotate,
         "quality-check": cmd_quality_check,
         "pipeline":      cmd_pipeline,
+        "sim":           cmd_sim,
     }
     dispatch[args.command](args)
 

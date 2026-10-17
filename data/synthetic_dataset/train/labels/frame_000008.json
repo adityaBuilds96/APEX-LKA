@@ -1,0 +1,36 @@
+{
+  "frame_id": 8,
+  "split": "train",
+  "weather": "rain_moderate",
+  "timestamp": 1791847797.8585827,
+  "width": 640,
+  "height": 360,
+  "objects": [
+    {
+      "class": "vehicle",
+      "center_xyz": [
+        0.0,
+        15.586780454497614,
+        0.8
+      ],
+      "extent_xyz": [
+        1.8,
+        4.5,
+        1.5
+      ],
+      "rotation_pyr": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "box_2d": [
+        297,
+        278,
+        350,
+        320
+      ],
+      "occlusion": 0.0,
+      "truncation": 0.0
+    }
+  ]
+}

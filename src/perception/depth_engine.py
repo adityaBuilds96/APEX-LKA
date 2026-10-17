@@ -35,6 +35,7 @@ class DepthResult:
     """Complete per-frame output from MonocularDepthEngine."""
     depth_map: np.ndarray = field(default_factory=lambda: np.empty((360, 640), dtype=np.float32))
     metric_depth_map: np.ndarray = field(default_factory=lambda: np.empty((360, 640), dtype=np.float32))
+    point_cloud: Optional[np.ndarray] = None  # (H, W, 3) in meters [X, Y, Z]
     inference_ms: float = 0.0
     is_synthetic: bool = False
 
@@ -193,9 +194,11 @@ class MonocularDepthEngine:
             try:
                 norm_d, metric_d = self._infer_onnx(frame_bgr, h_orig, w_orig)
                 infer_ms = (time.perf_counter() - t0) * 1000.0
+                pc = self.generate_point_cloud(metric_d)
                 return DepthResult(
                     depth_map=norm_d,
                     metric_depth_map=metric_d,
+                    point_cloud=pc,
                     inference_ms=round(infer_ms, 2),
                     is_synthetic=False,
                 )
@@ -205,9 +208,11 @@ class MonocularDepthEngine:
         # Fallback to calibrated geometric synthetic depth
         norm_d, metric_d = self._synthesize_geometric_depth(frame_bgr, h_orig, w_orig)
         infer_ms = (time.perf_counter() - t0) * 1000.0
+        pc = self.generate_point_cloud(metric_d)
         return DepthResult(
             depth_map=norm_d,
             metric_depth_map=metric_d,
+            point_cloud=pc,
             inference_ms=round(infer_ms, 2),
             is_synthetic=True,
         )
@@ -317,6 +322,46 @@ class MonocularDepthEngine:
         return norm_depth.astype(np.float32), metric_depth.astype(np.float32)
 
     @staticmethod
+    def compute_pinhole_ground_depth(
+        y_img: float,
+        fy: float = 500.0,
+        h_sensor: float = 1.25,
+        cy: float = 180.0,
+    ) -> float:
+        """
+        Calculates metric longitudinal depth Z_m along the ground plane
+        using the pinhole camera geometry formula:
+            Z_m = (f_y * h_sensor) / max(y_img - c_y, 1.0)
+        """
+        dy = max(float(y_img) - float(cy), 1.0)
+        return float((fy * h_sensor) / dy)
+
+    @staticmethod
+    def generate_point_cloud(
+        metric_depth: np.ndarray,
+        cx: float = 320.0,
+        cy: float = 180.0,
+        fx: float = 500.0,
+        fy: float = 500.0,
+    ) -> np.ndarray:
+        """
+        Generate per-pixel point cloud (X_m, Y_m, Z_m) in camera frame coordinate space:
+          +X: right
+          +Y: down
+          +Z: forward
+        Returns ndarray of shape (H, W, 3).
+        """
+        h, w = metric_depth.shape[:2]
+        u_grid, v_grid = np.meshgrid(np.arange(w, dtype=np.float32), np.arange(h, dtype=np.float32))
+
+        z_m = metric_depth.astype(np.float32)
+        x_m = (u_grid - cx) * z_m / fx
+        y_m = (v_grid - cy) * z_m / fy
+
+        point_cloud = np.stack([x_m, y_m, z_m], axis=-1)
+        return point_cloud
+
+    @staticmethod
     def colorize_depth(
         depth_map: np.ndarray,
         colormap: int = cv2.COLORMAP_MAGMA,
@@ -331,3 +376,23 @@ class MonocularDepthEngine:
         norm = np.clip(depth_map * 255.0, 0, 255).astype(np.uint8)
         colored = cv2.applyColorMap(norm, colormap)
         return colored
+
+
+# Module-level convenience functions
+def compute_pinhole_ground_depth(
+    y_img: Union[float, int, np.ndarray],
+    fy: float = 500.0,
+    h_sensor: float = 1.25,
+    cy: float = 180.0,
+) -> Union[float, np.ndarray]:
+    return MonocularDepthEngine.compute_pinhole_ground_depth(y_img, fy=fy, h_sensor=h_sensor, cy=cy)
+
+
+def generate_point_cloud(
+    metric_depth: np.ndarray,
+    cx: float = 320.0,
+    cy: float = 180.0,
+    fx: float = 500.0,
+    fy: float = 500.0,
+) -> np.ndarray:
+    return MonocularDepthEngine.generate_point_cloud(metric_depth, cx=cx, cy=cy, fx=fx, fy=fy)

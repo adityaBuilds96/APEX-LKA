@@ -1,0 +1,25 @@
+scenario_id: CUTIN_17
+category: VEHICLE_CUTIN
+description: Vehicle sliding across lane markings on slick wet asphalt
+map: college_campus
+weather: rain_moderate
+seed: 217
+duration_sec: 12.0
+ego_vehicle:
+  spawn_x: 120.5
+  spawn_y: 48.2
+  initial_speed_kmh: 25.0
+actors:
+- type: vehicle.audi.a2
+  spawn_x: 135.0
+  spawn_y: 45.0
+  trigger_distance_m: 10.0
+  target_x: 145.0
+  target_y: 48.2
+  speed_mps: 5.5
+  behavior: cutin
+success_criteria:
+  collision: false
+  min_distance_m: 2.0
+  emergency_brake_activated: true
+  max_path_deviation_m: 1.0

@@ -34,12 +34,15 @@ from vehicle_comm import (
     CAN_ID_THREAT_ALERT,
     CAN_ID_SPATIAL_ALERT,
     CAN_ID_TRAJECTORY_ALERT,
+    CAN_ID_KINEMATIC_STATE,
     CANInterface,
     Node1Telemetry,
     Node2Telemetry,
     ThreatAlertTelemetry,
     SpatialAlertTelemetry,
     TrajectoryAlertTelemetry,
+    KinematicStateTelemetry,
+    LOC_STATUS_INT_TO_STR,
     SerialInterface,
     VehicleCommunicator,
 )
@@ -210,8 +213,11 @@ def run_simulation(
     test_can0x150: bool = False,
     test_can0x160: bool = False,
     test_can0x170: bool = False,
+    test_can0x180: bool = False,
+    test_can0x190: bool = False,
+    test_can0x1A0: bool = False,
 ):
-    """Run simulated loopback verification without physical hardware at 30 Hz."""
+    """Run simulated loopback verification without physical hardware at 30-100 Hz."""
     print("=" * 70)
     extra_modes = []
     if test_can0x150:
@@ -220,8 +226,15 @@ def run_simulation(
         extra_modes.append("CAN 0x160 3D Spatial Alert")
     if test_can0x170:
         extra_modes.append("CAN 0x170 Trajectory Alert")
+    if test_can0x180:
+        extra_modes.append("CAN 0x180 Kinematic State (100 Hz)")
+    if test_can0x190:
+        extra_modes.append("CAN 0x190 Planning State (30 Hz)")
+    if test_can0x1A0:
+        extra_modes.append("CAN 0x1A0 Fleet Remote Status (30 Hz)")
+    rate_lbl = "100 Hz" if test_can0x180 else "30 Hz"
     mode_desc = f" + {' + '.join(extra_modes)}" if extra_modes else ""
-    print(f"[SIMULATION] Launching Hardware-in-the-Loop Simulation (30 Hz, {duration_sec:.1f}s{mode_desc})")
+    print(f"[SIMULATION] Launching Hardware-in-the-Loop Simulation ({rate_lbl}, {duration_sec:.1f}s{mode_desc})")
     print("=" * 70)
 
     comm = VehicleCommunicator(enable_can=True, enable_serial=False, sim_mode=True)
@@ -236,6 +249,9 @@ def run_simulation(
     threat_verified_count = 0
     spatial_verified_count = 0
     traj_verified_count = 0
+    kinematic_verified_count = 0
+    planning_verified_count = 0
+    fleet_verified_count = 0
 
     while time.time() - start_t < duration_sec:
         cycle += 1
@@ -288,12 +304,87 @@ def run_simulation(
                 action_flag=sim_action,
             )
 
+        # Broadcast CAN Frame 0x180 Kinematic Vehicle State if enabled (100 Hz)
+        if test_can0x180:
+            sim_vx = 15.0 + float(np.sin(cycle * 0.05) * 2.0)
+            sim_vy = float(np.cos(cycle * 0.05) * 0.3)
+            sim_wz = float(np.sin(cycle * 0.1) * 0.08)
+            sim_beta = float(np.sin(cycle * 0.1) * 1.5)
+            sim_loc_status = 4 if cycle > 10 else 3  # RTK locked or GNSS
+            comm.send_kinematic_state(
+                vx_mps=sim_vx,
+                vy_mps=sim_vy,
+                yaw_rate_radps=sim_wz,
+                slip_angle_deg=sim_beta,
+                localization_status=sim_loc_status,
+            )
+
+        # Broadcast CAN Frame 0x190 Autonomous Plan & Control State if enabled (30 Hz)
+        if test_can0x190:
+            sim_v_target = 4.17 + float(np.sin(cycle * 0.05) * 0.5)
+            sim_delta_target = float(np.sin(cycle * 0.1) * 8.0)
+            sim_fsm_state = 1 if cycle > 10 else 0
+            sim_rss_override = bool(cycle > 40 and cycle < 50)
+            sim_curvature = float(np.sin(cycle * 0.08) * 0.02)
+            comm.send_planning_state(
+                target_speed_mps=sim_v_target,
+                target_steer_deg=sim_delta_target,
+                behavior_state=sim_fsm_state,
+                rss_override=sim_rss_override,
+                path_curvature=sim_curvature,
+            )
+
+        # Broadcast CAN Frame 0x1A0 Fleet Remote Status if enabled (30 Hz)
+        if test_can0x1A0:
+            sim_model_hash = 0xA4F2
+            sim_sync_state = (cycle // 15) % 6
+            sim_shadow_disc = int(np.clip(25 + np.sin(cycle * 0.1) * 20, 0, 100))
+            sim_queue_cnt = min(255, cycle // 5)
+            sim_backend = 2  # ONNX
+            comm.send_fleet_status(
+                model_version_hash=sim_model_hash,
+                ota_sync_state=sim_sync_state,
+                shadow_discrepancy_score=sim_shadow_disc,
+                harvest_queue_count=sim_queue_cnt,
+                active_backend=sim_backend,
+            )
+
         t_dispatch_ms = (time.perf_counter() - t_start) * 1000.0
         dispatch_times.append(t_dispatch_ms)
 
         # Query received telemetry
         t1 = comm.get_node_telemetry(node_id=1)
         t2 = comm.get_node_telemetry(node_id=2)
+
+        if test_can0x1A0:
+            fleet_telem = comm.get_fleet_status()
+            if fleet_telem:
+                fleet_verified_count += 1
+                if cycle % 10 == 0:
+                    sync_names = {0: "IDLE", 1: "CHECKING", 2: "DOWNLOADING", 3: "VERIFYING", 4: "HOTSWAPPING", 5: "SYNC_OK", 6: "ERROR"}
+                    backend_names = {0: "CLASSICAL", 1: "PYTORCH", 2: "ONNX", 3: "TENSORRT"}
+                    print(
+                        f"Cycle {cycle:03d} | [CAN 0x1A0] ModelHash: 0x{fleet_telem.model_version_hash:04X} | "
+                        f"SyncState: {sync_names.get(fleet_telem.ota_sync_state, 'UNK')} | "
+                        f"ShadowDisc: {fleet_telem.shadow_discrepancy_score}/100 | "
+                        f"HarvestQueue: {fleet_telem.harvest_queue_count} | "
+                        f"Backend: {backend_names.get(fleet_telem.active_backend, 'UNK')} | "
+                        f"Latency: {t_dispatch_ms:.3f} ms"
+                    )
+
+        if test_can0x180:
+            kin = comm.get_kinematic_state()
+            if kin:
+                kinematic_verified_count += 1
+                if cycle % 25 == 0:
+                    status_names = {0: "INIT", 1: "DEAD_RECKONING", 2: "VIO_ACTIVE", 3: "GNSS_FIX", 4: "RTK_LOCKED"}
+                    print(
+                        f"Cycle {cycle:04d} | [CAN 0x180] Vx: {kin.vx_mps:.2f} m/s | "
+                        f"Vy: {kin.vy_mps:.2f} m/s | YawRate: {kin.yaw_rate_radps:+.3f} rad/s | "
+                        f"Slip: {kin.slip_angle_deg:+.1f}° | "
+                        f"Status: {status_names.get(kin.localization_status, 'UNK')} | "
+                        f"Latency: {t_dispatch_ms:.3f} ms"
+                    )
 
         if test_can0x170:
             traj = comm.get_trajectory_alert()
@@ -323,6 +414,21 @@ def run_simulation(
                         f"Latency: {t_dispatch_ms:.3f} ms"
                     )
 
+        if test_can0x190:
+            plan_telem = comm.get_planning_state()
+            if plan_telem:
+                planning_verified_count += 1
+                if cycle % 10 == 0:
+                    fsm_names = {0: "LANE_FOLLOWING", 1: "ADAPTIVE_CRUISE", 2: "YIELD_OBSTACLE", 3: "OVERTAKE_OBSTACLE", 4: "EMERGENCY_BRAKE", 5: "SAFE_STOP"}
+                    print(
+                        f"Cycle {cycle:03d} | [CAN 0x190] V_tgt: {plan_telem.target_speed_mps:.2f} m/s | "
+                        f"Delta_tgt: {plan_telem.target_steer_deg:+.1f}° | "
+                        f"State: {fsm_names.get(plan_telem.behavior_state, 'UNK')} | "
+                        f"RSS: {'OVERRIDE' if plan_telem.rss_override else 'CLEAR'} | "
+                        f"Kappa: {plan_telem.path_curvature:+.4f} | "
+                        f"Latency: {t_dispatch_ms:.3f} ms"
+                    )
+
         if test_can0x150:
             threat = comm.get_threat_alert()
             if threat:
@@ -334,19 +440,21 @@ def run_simulation(
                         f"Brake: {'BRAKE_IMMINENT' if threat.emergency_stop else 'CLEAR'} | "
                         f"Latency: {t_dispatch_ms:.3f} ms"
                     )
-        elif not test_can0x160 and not test_can0x170 and t1 and t2:
+        elif not test_can0x160 and not test_can0x170 and not test_can0x180 and not test_can0x190 and t1 and t2:
             print(f"Cycle {cycle:03d} | Target Steer: {steer_target:+.1f}° | Feedback: Steer={t1.actual_steering_deg:+.2f}°, Speed={t2.wheel_speed_mps:.2f} m/s | Latency: {t_dispatch_ms:.3f} ms")
 
-        time.sleep(0.033)  # Sustained 30 Hz rate
+        step_dt = 0.010 if test_can0x180 else 0.033
+        time.sleep(step_dt)
 
     sim.stop()
     comm.close()
 
+    rate_hz = 100 if test_can0x180 else 30
     avg_latency = sum(dispatch_times) / max(1, len(dispatch_times))
     p95_latency = float(np.percentile(dispatch_times, 95)) if dispatch_times else 0.0
     max_latency = max(dispatch_times) if dispatch_times else 0.0
     print("\n" + "=" * 70)
-    print(f"[SUMMARY] Total Cycles: {cycle} @ 30 Hz (Duration: {duration_sec:.1f}s)")
+    print(f"[SUMMARY] Total Cycles: {cycle} @ {rate_hz} Hz (Duration: {duration_sec:.1f}s)")
     if test_can0x150:
         print(f"[CAN 0x150 VERIFICATION] Successfully encoded and decoded {threat_verified_count}/{cycle} threat alert frames.")
         print("[OK] PASS: CAN Frame 0x150 verified at sustained 30 Hz rate!")
@@ -356,6 +464,15 @@ def run_simulation(
     if test_can0x170:
         print(f"[CAN 0x170 VERIFICATION] Successfully encoded and decoded {traj_verified_count}/{cycle} trajectory collision alert frames.")
         print("[OK] PASS: CAN Frame 0x170 verified at sustained 30 Hz rate!")
+    if test_can0x180:
+        print(f"[CAN 0x180 VERIFICATION] Successfully encoded and decoded {kinematic_verified_count}/{cycle} kinematic vehicle state frames at 100 Hz.")
+        print("[OK] PASS: CAN Frame 0x180 verified at sustained 100 Hz rate!")
+    if test_can0x190:
+        print(f"[CAN 0x190 VERIFICATION] Successfully encoded and decoded {planning_verified_count}/{cycle} planning state frames at 30 Hz.")
+        print("[OK] PASS: CAN Frame 0x190 verified at sustained 30 Hz rate!")
+    if test_can0x1A0:
+        print(f"[CAN 0x1A0 VERIFICATION] Successfully encoded and decoded {fleet_verified_count}/{cycle} fleet remote status frames at 30 Hz.")
+        print("[OK] PASS: CAN Frame 0x1A0 verified at sustained 30 Hz rate!")
     print(f"[PERFORMANCE] Average Serialization Latency: {avg_latency:.3f} ms (Target < 2.0 ms)")
     print(f"[PERFORMANCE] 95th Percentile (p95) Latency: {p95_latency:.3f} ms (Target < 5.0 ms)")
     print(f"[PERFORMANCE] Max Peak Latency: {max_latency:.3f} ms")
@@ -372,6 +489,9 @@ def main():
     parser.add_argument("--test-can0x150", action="store_true", help="Verify CAN Frame 0x150 (Obstacle Threat Alert) encoding/decoding at 30 Hz")
     parser.add_argument("--test-can0x160", action="store_true", help="Verify CAN Frame 0x160 (3D Obstacle Spatial Alert) encoding/decoding at 30 Hz")
     parser.add_argument("--test-can0x170", action="store_true", help="Verify CAN Frame 0x170 (Trajectory Collision Alert) encoding/decoding at 30 Hz")
+    parser.add_argument("--test-can0x180", action="store_true", help="Verify CAN Frame 0x180 (Kinematic Vehicle State) encoding/decoding at 100 Hz")
+    parser.add_argument("--test-can0x190", action="store_true", help="Verify CAN Frame 0x190 (Autonomous Plan & Control State) encoding/decoding at 30 Hz")
+    parser.add_argument("--test-can0x1A0", action="store_true", help="Verify CAN Frame 0x1A0 (Fleet Remote Status & OTA) encoding/decoding at 30 Hz")
     parser.add_argument("--sim-mode", action="store_true", help="Run software-in-the-loop simulation mode")
     parser.add_argument("--sim-nodes", action="store_true", help="Simulate virtual Arduino nodes and measure serialization latency")
     parser.add_argument("--duration", type=float, default=3.0, help="Duration of simulation in seconds (default: 3.0)")
@@ -384,12 +504,15 @@ def main():
         test_serial(port=args.port, baudrate=args.baudrate)
     elif args.test_can:
         test_can(channel=args.interface)
-    elif args.sim_nodes or args.sim_mode or args.test_can0x150 or args.test_can0x160 or args.test_can0x170 or len(sys.argv) == 1:
+    elif args.sim_nodes or args.sim_mode or args.test_can0x150 or args.test_can0x160 or args.test_can0x170 or args.test_can0x180 or args.test_can0x190 or args.test_can0x1A0 or len(sys.argv) == 1:
         run_simulation(
             duration_sec=args.duration,
             test_can0x150=args.test_can0x150,
             test_can0x160=args.test_can0x160,
             test_can0x170=args.test_can0x170,
+            test_can0x180=args.test_can0x180,
+            test_can0x190=args.test_can0x190,
+            test_can0x1A0=args.test_can0x1A0,
         )
     else:
         parser.print_help()

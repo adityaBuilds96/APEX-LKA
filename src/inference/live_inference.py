@@ -52,7 +52,12 @@ def run_live_inference(
     show_depth_heatmap: bool = False,
     enable_tracking: bool = False,
     enable_trajectory: bool = False,
+    enable_sensor_fusion: bool = False,
+    enable_planner: bool = False,
+    enable_shadow_mode: bool = False,
+    enable_data_harvesting: bool = False,
     enable_all: bool = False,
+    profile: str = "baja_2027",
 ) -> None:
     """Run stream inference loop and print benchmark FPS metrics."""
     if enable_all:
@@ -61,8 +66,16 @@ def run_live_inference(
         enable_occupancy = True
         enable_tracking = True
         enable_trajectory = True
+        enable_sensor_fusion = True
+        enable_planner = True
+        enable_shadow_mode = True
+        enable_data_harvesting = True
 
-    print(f"[APEX-LKA] Initializing Scene Perception Runner (source={source}, object_detection={enable_object_detection}, depth={enable_depth}, occupancy={enable_occupancy}, tracking={enable_tracking}, trajectory={enable_trajectory})...")
+    from src.config.vehicle_profile import VehicleProfileRegistry
+    profile_reg = VehicleProfileRegistry()
+    active_prof = profile_reg.switch_profile(profile)
+    print(f"[APEX-LKA] Loaded Vehicle Profile: {active_prof.name} ({active_prof.vehicle_type}, wheelbase={active_prof.kinematics.wheelbase_m}m)")
+    print(f"[APEX-LKA] Initializing Scene Perception Runner (source={source}, object_detection={enable_object_detection}, depth={enable_depth}, occupancy={enable_occupancy}, tracking={enable_tracking}, trajectory={enable_trajectory}, sensor_fusion={enable_sensor_fusion}, planner={enable_planner}, shadow_mode={enable_shadow_mode}, harvesting={enable_data_harvesting})...")
 
     cap = None
     use_synthetic = False
@@ -112,7 +125,7 @@ def run_live_inference(
                 break
             frame_bgr = frame
 
-        # Run pipeline with active environmental adaptation, temporal smoothing, object detection, depth, tracking, trajectory
+        # Run pipeline with active environmental adaptation, temporal smoothing, object detection, depth, tracking, trajectory, sensor fusion, planner, shadow mode, harvesting
         res = run_pipeline(
             frame_bgr,
             backend=backend,
@@ -123,6 +136,10 @@ def run_live_inference(
             show_depth_heatmap=show_depth_heatmap,
             enable_tracking=enable_tracking,
             enable_trajectory=enable_trajectory,
+            enable_sensor_fusion=enable_sensor_fusion,
+            enable_planner=enable_planner,
+            enable_shadow_mode=enable_shadow_mode,
+            enable_data_harvesting=enable_data_harvesting,
         )
 
         # Render HUD
@@ -137,6 +154,13 @@ def run_live_inference(
             show_depth_heatmap=show_depth_heatmap,
             tracked_objects=res.tracked_objects,
             trajectory_report=res.trajectory_report,
+            vio_trail=res.vio_trail,
+            vehicle_pose=res.vehicle_pose,
+            is_lane_retained=res.is_lane_retained,
+            planned_trajectory=res.planned_trajectory,
+            behavior_context=res.behavior_context,
+            rss_result=res.rss_result,
+            fleet_status=res.fleet_status,
         )
 
         frame_lat_ms = (time.perf_counter() - t_frame_start) * 1000.0
@@ -181,7 +205,12 @@ def main():
     parser.add_argument("--show-depth-heatmap", action="store_true", help="Overlay false-color depth heatmap on viewport")
     parser.add_argument("--enable-tracking", action="store_true", help="Enable ByteTrack multi-object tracking")
     parser.add_argument("--enable-trajectory", action="store_true", help="Enable trajectory prediction and TTI calculation")
-    parser.add_argument("--enable-all", action="store_true", help="Enable all Phase 5 modules (detection, depth, occupancy, tracking, trajectory)")
+    parser.add_argument("--enable-sensor-fusion", action="store_true", help="Enable 15-DOF ESKF, VIO, and Kinematic Lane Retention")
+    parser.add_argument("--enable-planner", action="store_true", help="Enable hierarchical behavior FSM, local path planner, ACC, and RSS safety shield")
+    parser.add_argument("--enable-shadow-mode", action="store_true", help="Enable silent candidate shadow model execution")
+    parser.add_argument("--enable-data-harvesting", action="store_true", help="Enable edge anomaly closed-loop data harvesting")
+    parser.add_argument("--enable-all", action="store_true", help="Enable all Phase 5 modules (detection, depth, occupancy, tracking, trajectory, fusion, planner, shadow, harvester)")
+    parser.add_argument("--profile", type=str, default="baja_2027", help="Vehicle profile to apply (baja_2027, campus_shuttle, agv_warehouse, passenger_car)")
     args = parser.parse_args()
 
     run_live_inference(
@@ -196,7 +225,12 @@ def main():
         show_depth_heatmap=args.show_depth_heatmap,
         enable_tracking=args.enable_tracking,
         enable_trajectory=args.enable_trajectory,
+        enable_sensor_fusion=args.enable_sensor_fusion,
+        enable_planner=args.enable_planner,
+        enable_shadow_mode=args.enable_shadow_mode,
+        enable_data_harvesting=args.enable_data_harvesting,
         enable_all=args.enable_all,
+        profile=args.profile,
     )
 
 

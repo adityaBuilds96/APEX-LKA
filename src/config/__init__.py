@@ -7,14 +7,15 @@ Import this in any script:
     from src.config import cfg, PATHS
 """
 
+import math
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import yaml
 
-# ── Project root is two levels above this file (src/config.py) ─────────────
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+# ── Project root is three levels above this file (src/config/__init__.py) ───
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
 # ==============================================================================
@@ -72,9 +73,6 @@ class PipelineConfig:
 # ==============================================================================
 # Phase 4 Section 5: Optical Extrinsics Dataclass
 # ==============================================================================
-
-import math
-
 
 @dataclass
 class CameraExtrinsics:
@@ -189,6 +187,38 @@ def ensure_dirs():
     (PATHS.logs / "inference").mkdir(parents=True, exist_ok=True)
     (PATHS.results / "plots").mkdir(parents=True, exist_ok=True)
     (PATHS.results / "metrics").mkdir(parents=True, exist_ok=True)
+
+
+# ==============================================================================
+# Phase 5 Section 8: Universal Vehicle Profile System Exports
+# ==============================================================================
+from src.config.vehicle_profile import (
+    ActuationProfile,
+    CameraExtrinsicsConfig,
+    KinematicsConfig,
+    SafetyLimitsConfig,
+    VehicleProfile,
+    VehicleProfileRegistry,
+)
+
+__all__ = [
+    "cfg",
+    "PATHS",
+    "PROJECT_ROOT",
+    "resolve",
+    "ensure_dirs",
+    "UploadConfig",
+    "AutoAnnotationConfig",
+    "QualityScoringConfig",
+    "PipelineConfig",
+    "CameraExtrinsics",
+    "VehicleProfile",
+    "VehicleProfileRegistry",
+    "KinematicsConfig",
+    "CameraExtrinsicsConfig",
+    "ActuationProfile",
+    "SafetyLimitsConfig",
+]
 
 
 if __name__ == "__main__":

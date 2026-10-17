@@ -1,0 +1,718 @@
+version: 1.0.0
+total_scenarios: 101
+generated_date: '2026-10-13'
+categories:
+  PEDESTRIAN_INTERACTIONS: 20
+  VEHICLE_CUTINS: 20
+  LANE_CLOSURES: 15
+  WEATHER_SCENARIOS: 15
+  TRACK_OBSTACLES: 15
+  EMERGENCY_EVENTS: 16
+scenarios:
+- scenario_id: PED_01
+  file: ped_01_jaywalk_clear.yaml
+  category: PEDESTRIAN_INTERACTION
+  map: college_campus
+  weather: clear_noon
+  description: Pedestrian jaywalking in full daylight
+  difficulty: CRITICAL
+- scenario_id: PED_02
+  file: ped_02_jump_out_parked.yaml
+  category: PEDESTRIAN_INTERACTION
+  map: college_campus
+  weather: clear_noon
+  description: Pedestrian jumps out from between parked vehicles
+  difficulty: CRITICAL
+- scenario_id: PED_03
+  file: ped_03_child_crosswalk.yaml
+  category: PEDESTRIAN_INTERACTION
+  map: college_campus
+  weather: cloudy_afternoon
+  description: Child running across school crosswalk
+  difficulty: CRITICAL
+- scenario_id: PED_04
+  file: ped_04_night_dark_clothes.yaml
+  category: PEDESTRIAN_INTERACTION
+  map: college_campus
+  weather: night_pitch_black
+  description: Pedestrian crossing at night in dark clothing without streetlights
+  difficulty: CRITICAL
+- scenario_id: PED_05
+  file: ped_05_wheelchair_crossing.yaml
+  category: PEDESTRIAN_INTERACTION
+  map: college_campus
+  weather: dusk_golden
+  description: Motorized wheelchair user crossing campus boulevard
+  difficulty: CRITICAL
+- scenario_id: PED_06
+  file: ped_06_group_crosswalk.yaml
+  category: PEDESTRIAN_INTERACTION
+  map: college_campus
+  weather: clear_noon
+  description: Group of 3 students crossing in pedestrian zone
+  difficulty: CRITICAL
+- scenario_id: PED_07
+  file: ped_07_rain_umbrella_jogger.yaml
+  category: PEDESTRIAN_INTERACTION
+  map: college_campus
+  weather: rain_moderate
+  description: Jogger with umbrella running into road in rain
+  difficulty: CRITICAL
+- scenario_id: PED_08
+  file: ped_08_blind_corner_walker.yaml
+  category: PEDESTRIAN_INTERACTION
+  map: college_campus
+  weather: cloudy_afternoon
+  description: Pedestrian emerging from blind corner behind building
+  difficulty: CRITICAL
+- scenario_id: PED_09
+  file: ped_09_stroller_crossing.yaml
+  category: PEDESTRIAN_INTERACTION
+  map: college_campus
+  weather: clear_noon
+  description: Parent pushing stroller entering crosswalk
+  difficulty: CRITICAL
+- scenario_id: PED_10
+  file: ped_10_dog_walker_leash.yaml
+  category: PEDESTRIAN_INTERACTION
+  map: college_campus
+  weather: dusk_golden
+  description: Dog walker whose pet darts across road
+  difficulty: CRITICAL
+- scenario_id: PED_11
+  file: ped_11_fog_pedestrian.yaml
+  category: PEDESTRIAN_INTERACTION
+  map: college_campus
+  weather: fog_dense
+  description: Pedestrian crossing in dense 50m fog
+  difficulty: CRITICAL
+- scenario_id: PED_12
+  file: ped_12_night_streetlights_ped.yaml
+  category: PEDESTRIAN_INTERACTION
+  map: college_campus
+  weather: night_streetlights
+  description: Pedestrian crossing under sodium streetlights
+  difficulty: CRITICAL
+- scenario_id: PED_13
+  file: ped_13_skateboarder_crossing.yaml
+  category: PEDESTRIAN_INTERACTION
+  map: college_campus
+  weather: clear_noon
+  description: Skateboarder rapidly traversing campus lane
+  difficulty: CRITICAL
+- scenario_id: PED_14
+  file: ped_14_dust_storm_baja_marshal.yaml
+  category: PEDESTRIAN_INTERACTION
+  map: baja_track_2027
+  weather: dust_cloud_heavy
+  description: Track marshal crossing during BAJA dust storm
+  difficulty: CRITICAL
+- scenario_id: PED_15
+  file: ped_15_distracted_phone_walker.yaml
+  category: PEDESTRIAN_INTERACTION
+  map: college_campus
+  weather: cloudy_afternoon
+  description: Distracted pedestrian walking into lane looking at phone
+  difficulty: CRITICAL
+- scenario_id: PED_16
+  file: ped_16_cyclist_crossing.yaml
+  category: PEDESTRIAN_INTERACTION
+  map: college_campus
+  weather: clear_noon
+  description: Cyclist crossing perpendicular across crosswalk
+  difficulty: CRITICAL
+- scenario_id: PED_17
+  file: ped_17_construction_worker_flag.yaml
+  category: PEDESTRIAN_INTERACTION
+  map: college_campus
+  weather: clear_noon
+  description: Construction flagger waving in lane ahead
+  difficulty: CRITICAL
+- scenario_id: PED_18
+  file: ped_18_rain_curb_slip_ped.yaml
+  category: PEDESTRIAN_INTERACTION
+  map: college_campus
+  weather: rain_moderate
+  description: Pedestrian slipping off curb into roadway in heavy rain
+  difficulty: CRITICAL
+- scenario_id: PED_19
+  file: ped_19_dusk_shadow_runner.yaml
+  category: PEDESTRIAN_INTERACTION
+  map: college_campus
+  weather: dusk_golden
+  description: Runner in deep tree shadows at sunset
+  difficulty: CRITICAL
+- scenario_id: PED_20
+  file: ped_20_wrong_side_jaywalker.yaml
+  category: PEDESTRIAN_INTERACTION
+  map: college_campus
+  weather: night_streetlights
+  description: Pedestrian walking toward vehicle on wrong side of road
+  difficulty: CRITICAL
+- scenario_id: CUTIN_01
+  file: cutin_01_aggressive_left.yaml
+  category: VEHICLE_CUTIN
+  map: college_campus
+  weather: clear_noon
+  description: Aggressive adjacent sedan cut-in from left lane
+  difficulty: CRITICAL
+- scenario_id: CUTIN_02
+  file: cutin_02_slow_merging_truck.yaml
+  category: VEHICLE_CUTIN
+  map: college_campus
+  weather: cloudy_afternoon
+  description: Slow delivery truck merging from right parking lane
+  difficulty: CRITICAL
+- scenario_id: CUTIN_03
+  file: cutin_03_cut_and_brake.yaml
+  category: VEHICLE_CUTIN
+  map: college_campus
+  weather: clear_noon
+  description: Vehicle cuts in at 10m then slams brakes to full stop
+  difficulty: CRITICAL
+- scenario_id: CUTIN_04
+  file: cutin_04_motorcycle_filter.yaml
+  category: VEHICLE_CUTIN
+  map: college_campus
+  weather: dusk_golden
+  description: Motorcycle filtering between lanes cutting into corridor
+  difficulty: CRITICAL
+- scenario_id: CUTIN_05
+  file: cutin_05_rain_cutin_spray.yaml
+  category: VEHICLE_CUTIN
+  map: college_campus
+  weather: rain_moderate
+  description: SUV cutting in during heavy rain creating blinding spray
+  difficulty: CRITICAL
+- scenario_id: CUTIN_06
+  file: cutin_06_blind_spot_merge.yaml
+  category: VEHICLE_CUTIN
+  map: college_campus
+  weather: clear_noon
+  description: Vehicle emerging from blind parking spot without signaling
+  difficulty: CRITICAL
+- scenario_id: CUTIN_07
+  file: cutin_07_highway_ramp_merge.yaml
+  category: VEHICLE_CUTIN
+  map: college_campus
+  weather: clear_noon
+  description: On-ramp high-speed merge forcing lane yield
+  difficulty: CRITICAL
+- scenario_id: CUTIN_08
+  file: cutin_08_night_unlit_cutin.yaml
+  category: VEHICLE_CUTIN
+  map: college_campus
+  weather: night_pitch_black
+  description: Unlit vehicle cutting across lane at night
+  difficulty: CRITICAL
+- scenario_id: CUTIN_09
+  file: cutin_09_fog_sudden_merge.yaml
+  category: VEHICLE_CUTIN
+  map: college_campus
+  weather: fog_dense
+  description: Vehicle suddenly emerging from fog cutting in front
+  difficulty: CRITICAL
+- scenario_id: CUTIN_10
+  file: cutin_10_bus_pull_out.yaml
+  category: VEHICLE_CUTIN
+  map: college_campus
+  weather: cloudy_afternoon
+  description: Campus shuttle bus pulling out from transit stop into lane
+  difficulty: CRITICAL
+- scenario_id: CUTIN_11
+  file: cutin_11_taxi_sharp_pickup.yaml
+  category: VEHICLE_CUTIN
+  map: college_campus
+  weather: night_streetlights
+  description: Taxi making sharp swerve across lane to pick up fare
+  difficulty: CRITICAL
+- scenario_id: CUTIN_12
+  file: cutin_12_double_lane_swerve.yaml
+  category: VEHICLE_CUTIN
+  map: college_campus
+  weather: dusk_golden
+  description: Erratic vehicle swerving across two lanes simultaneously
+  difficulty: CRITICAL
+- scenario_id: CUTIN_13
+  file: cutin_13_baja_buggy_overtake.yaml
+  category: VEHICLE_CUTIN
+  map: baja_track_2027
+  weather: dust_cloud_heavy
+  description: Competitor BAJA buggy overtaking and cutting across track
+  difficulty: CRITICAL
+- scenario_id: CUTIN_14
+  file: cutin_14_ambulance_overtake.yaml
+  category: VEHICLE_CUTIN
+  map: college_campus
+  weather: clear_noon
+  description: Emergency vehicle overtaking with sirens forcing yield
+  difficulty: CRITICAL
+- scenario_id: CUTIN_15
+  file: cutin_15_garbage_truck_block.yaml
+  category: VEHICLE_CUTIN
+  map: college_campus
+  weather: cloudy_afternoon
+  description: Sanitation truck abruptly swerving into center lane
+  difficulty: CRITICAL
+- scenario_id: CUTIN_16
+  file: cutin_16_tailgater_whip_around.yaml
+  category: VEHICLE_CUTIN
+  map: college_campus
+  weather: clear_noon
+  description: Tailgater whipping around and cutting in immediately ahead
+  difficulty: CRITICAL
+- scenario_id: CUTIN_17
+  file: cutin_17_slick_wet_drift_cutin.yaml
+  category: VEHICLE_CUTIN
+  map: college_campus
+  weather: rain_moderate
+  description: Vehicle sliding across lane markings on slick wet asphalt
+  difficulty: CRITICAL
+- scenario_id: CUTIN_18
+  file: cutin_18_delivery_van_reverse.yaml
+  category: VEHICLE_CUTIN
+  map: college_campus
+  weather: dusk_golden
+  description: Delivery van reversing out into active driving corridor
+  difficulty: CRITICAL
+- scenario_id: CUTIN_19
+  file: cutin_19_traffic_light_cutin.yaml
+  category: VEHICLE_CUTIN
+  map: college_campus
+  weather: night_streetlights
+  description: Vehicle cutting across intersection to beat yellow light
+  difficulty: CRITICAL
+- scenario_id: CUTIN_20
+  file: cutin_20_tight_roundabout_cutin.yaml
+  category: VEHICLE_CUTIN
+  map: college_campus
+  weather: clear_noon
+  description: Vehicle cutting into roundabout without right-of-way
+  difficulty: CRITICAL
+- scenario_id: LANE_01
+  file: lane_01_construction_cones.yaml
+  category: LANE_CLOSURE
+  map: college_campus
+  weather: clear_noon
+  description: Row of 10 orange cones blocking right half of lane
+  difficulty: HIGH
+- scenario_id: LANE_02
+  file: lane_02_work_truck_parked.yaml
+  category: LANE_CLOSURE
+  map: college_campus
+  weather: cloudy_afternoon
+  description: Utility service truck parked blocking entire driving lane
+  difficulty: HIGH
+- scenario_id: LANE_03
+  file: lane_03_detour_arrow_barriers.yaml
+  category: LANE_CLOSURE
+  map: college_campus
+  weather: dusk_golden
+  description: Sequential reflective detour chevron barriers redirecting traffic
+  difficulty: HIGH
+- scenario_id: LANE_04
+  file: lane_04_missing_markings_paving.yaml
+  category: LANE_CLOSURE
+  map: college_campus
+  weather: clear_noon
+  description: Freshly repaved asphalt with zero lane paint markings
+  difficulty: HIGH
+- scenario_id: LANE_05
+  file: lane_05_faded_worn_stripes.yaml
+  category: LANE_CLOSURE
+  map: college_campus
+  weather: clear_noon
+  description: Heavily sun-bleached and worn lane lines with high ambiguity
+  difficulty: HIGH
+- scenario_id: LANE_06
+  file: lane_06_pothole_excavation.yaml
+  category: LANE_CLOSURE
+  map: college_campus
+  weather: rain_moderate
+  description: Deep road repair trench surrounded by flashing stanchions
+  difficulty: HIGH
+- scenario_id: LANE_07
+  file: lane_07_bottleneck_merge.yaml
+  category: LANE_CLOSURE
+  map: college_campus
+  weather: cloudy_afternoon
+  description: Two-lane campus road narrowing abruptly to single shared lane
+  difficulty: HIGH
+- scenario_id: LANE_08
+  file: lane_08_night_cone_taper.yaml
+  category: LANE_CLOSURE
+  map: college_campus
+  weather: night_pitch_black
+  description: Construction cone taper zone under dark night conditions
+  difficulty: HIGH
+- scenario_id: LANE_09
+  file: lane_09_foggy_barrier_diversion.yaml
+  category: LANE_CLOSURE
+  map: college_campus
+  weather: fog_dense
+  description: Concrete K-rail barrier diverting traffic in 50m fog
+  difficulty: HIGH
+- scenario_id: LANE_10
+  file: lane_10_overgrown_tree_closure.yaml
+  category: LANE_CLOSURE
+  map: college_campus
+  weather: rain_moderate
+  description: Downed tree branch encroaching into outer 1.5m of lane
+  difficulty: HIGH
+- scenario_id: LANE_11
+  file: lane_11_flooded_curb_lane.yaml
+  category: LANE_CLOSURE
+  map: college_campus
+  weather: rain_moderate
+  description: Standing water covering right half of roadway
+  difficulty: HIGH
+- scenario_id: LANE_12
+  file: lane_12_baja_boulder_barrier.yaml
+  category: LANE_CLOSURE
+  map: baja_track_2027
+  weather: dust_cloud_heavy
+  description: Large rock fall blocking left rut on BAJA hill climb
+  difficulty: HIGH
+- scenario_id: LANE_13
+  file: lane_13_student_fair_tents.yaml
+  category: LANE_CLOSURE
+  map: college_campus
+  weather: clear_noon
+  description: Temporary market tents encroaching onto campus roadway
+  difficulty: HIGH
+- scenario_id: LANE_14
+  file: lane_14_asphalt_milling_grooves.yaml
+  category: LANE_CLOSURE
+  map: college_campus
+  weather: cloudy_afternoon
+  description: Milled pavement longitudinal grooving causing false line edges
+  difficulty: HIGH
+- scenario_id: LANE_15
+  file: lane_15_spilled_paint_splatter.yaml
+  category: LANE_CLOSURE
+  map: college_campus
+  weather: clear_noon
+  description: Spilled yellow traffic paint creating confusing deceptive markings
+  difficulty: HIGH
+- scenario_id: WTH_01
+  file: weather_01_monsoon_downpour.yaml
+  category: WEATHER_SCENARIOS
+  map: college_campus
+  weather: rain_moderate
+  description: Torrential monsoon rainfall with maximum camera lens water film
+  difficulty: HIGH
+- scenario_id: WTH_02
+  file: weather_02_pea_soup_fog.yaml
+  category: WEATHER_SCENARIOS
+  map: college_campus
+  weather: fog_dense
+  description: Dense maritime fog with visibility under 35 meters
+  difficulty: HIGH
+- scenario_id: WTH_03
+  file: weather_03_sunset_direct_glare.yaml
+  category: WEATHER_SCENARIOS
+  map: college_campus
+  weather: dusk_golden
+  description: Low 5-degree sun azimuth blinding optical camera sensor directly
+  difficulty: HIGH
+- scenario_id: WTH_04
+  file: weather_04_baja_haboob_dust.yaml
+  category: WEATHER_SCENARIOS
+  map: baja_track_2027
+  weather: dust_cloud_heavy
+  description: Dense dust wall with blowing sand on BAJA track
+  difficulty: HIGH
+- scenario_id: WTH_05
+  file: weather_05_pitch_black_rural.yaml
+  category: WEATHER_SCENARIOS
+  map: college_campus
+  weather: night_pitch_black
+  description: Headlights-only driving with zero ambient lighting
+  difficulty: HIGH
+- scenario_id: WTH_06
+  file: weather_06_wet_asphalt_mirror.yaml
+  category: WEATHER_SCENARIOS
+  map: college_campus
+  weather: night_streetlights
+  description: Wet asphalt reflecting street lamps creating phantom lane lines
+  difficulty: HIGH
+- scenario_id: WTH_07
+  file: weather_07_cloud_shadow_strobe.yaml
+  category: WEATHER_SCENARIOS
+  map: college_campus
+  weather: clear_noon
+  description: Rapid intermittent tree canopy shadows at noon
+  difficulty: HIGH
+- scenario_id: WTH_08
+  file: weather_08_heavy_overcast_dim.yaml
+  category: WEATHER_SCENARIOS
+  map: college_campus
+  weather: cloudy_afternoon
+  description: Dark thunderstorm clouds dropping light to twilight levels
+  difficulty: HIGH
+- scenario_id: WTH_09
+  file: weather_09_sunrise_dew_fog.yaml
+  category: WEATHER_SCENARIOS
+  map: college_campus
+  weather: dusk_golden
+  description: Early dawn ground fog burning off with low horizon glare
+  difficulty: HIGH
+- scenario_id: WTH_10
+  file: weather_10_rain_puddle_splash.yaml
+  category: WEATHER_SCENARIOS
+  map: college_campus
+  weather: rain_moderate
+  description: Vehicle hitting deep standing puddle creating temporary blinding wall
+  difficulty: HIGH
+- scenario_id: WTH_11
+  file: weather_11_tunnel_exit_bloom.yaml
+  category: WEATHER_SCENARIOS
+  map: college_campus
+  weather: clear_noon
+  description: Rapid optical exposure bloom transitioning from tunnel to bright sun
+  difficulty: HIGH
+- scenario_id: WTH_12
+  file: weather_12_dust_cloud_chase.yaml
+  category: WEATHER_SCENARIOS
+  map: baja_track_2027
+  weather: dust_cloud_heavy
+  description: Following directly behind buggy producing thick rooster-tail dust
+  difficulty: HIGH
+- scenario_id: WTH_13
+  file: weather_13_glare_mirage_heat.yaml
+  category: WEATHER_SCENARIOS
+  map: college_campus
+  weather: clear_noon
+  description: Extreme heat shimmer creating mirage distortion on asphalt
+  difficulty: HIGH
+- scenario_id: WTH_14
+  file: weather_14_night_rain_reflection.yaml
+  category: WEATHER_SCENARIOS
+  map: college_campus
+  weather: rain_moderate
+  description: Combining rain drops, wiper chatter, and wet specular reflections
+  difficulty: HIGH
+- scenario_id: WTH_15
+  file: weather_15_dense_fog_tail_lights.yaml
+  category: WEATHER_SCENARIOS
+  map: college_campus
+  weather: fog_dense
+  description: Detecting faint lead vehicle brake lights through heavy fog
+  difficulty: HIGH
+- scenario_id: OBS_01
+  file: obs_01_tire_in_lane.yaml
+  category: TRACK_OBSTACLES
+  map: college_campus
+  weather: clear_noon
+  description: Discarded truck tire carcass lying flat in vehicle wheel path
+  difficulty: HIGH
+- scenario_id: OBS_02
+  file: obs_02_cardboard_box.yaml
+  category: TRACK_OBSTACLES
+  map: college_campus
+  weather: cloudy_afternoon
+  description: Large empty shipping box blowing across roadway
+  difficulty: HIGH
+- scenario_id: OBS_03
+  file: obs_03_traffic_barrel.yaml
+  category: TRACK_OBSTACLES
+  map: college_campus
+  weather: dusk_golden
+  description: Impact barrel rolling into active lane
+  difficulty: HIGH
+- scenario_id: OBS_04
+  file: obs_04_loose_gravel_patch.yaml
+  category: TRACK_OBSTACLES
+  map: college_campus
+  weather: clear_noon
+  description: Dense patch of loose blue metal gravel causing traction loss
+  difficulty: HIGH
+- scenario_id: OBS_05
+  file: obs_05_fallen_branch.yaml
+  category: TRACK_OBSTACLES
+  map: college_campus
+  weather: rain_moderate
+  description: Heavy tree limb spanning across left lane boundary
+  difficulty: HIGH
+- scenario_id: OBS_06
+  file: obs_06_speed_bump_high_speed.yaml
+  category: TRACK_OBSTACLES
+  map: college_campus
+  weather: clear_noon
+  description: Approaching 8cm college speed bump at excessive speed
+  difficulty: HIGH
+- scenario_id: OBS_07
+  file: obs_07_dog_crossing_baja.yaml
+  category: TRACK_OBSTACLES
+  map: baja_track_2027
+  weather: dust_cloud_heavy
+  description: Stray animal running across dirt track
+  difficulty: HIGH
+- scenario_id: OBS_08
+  file: obs_08_dropped_cargo_pallet.yaml
+  category: TRACK_OBSTACLES
+  map: college_campus
+  weather: night_streetlights
+  description: Wooden pallet dropped by preceding utility vehicle
+  difficulty: HIGH
+- scenario_id: OBS_09
+  file: obs_09_baja_log_barrier.yaml
+  category: TRACK_OBSTACLES
+  map: baja_track_2027
+  weather: dust_cloud_heavy
+  description: Heavy horizontal log obstacle on BAJA obstacle course
+  difficulty: HIGH
+- scenario_id: OBS_10
+  file: obs_10_manhole_cover_missing.yaml
+  category: TRACK_OBSTACLES
+  map: college_campus
+  weather: night_pitch_black
+  description: Open storm drain / utility access cover in roadway
+  difficulty: HIGH
+- scenario_id: OBS_11
+  file: obs_11_plastic_tarp_blowing.yaml
+  category: TRACK_OBSTACLES
+  map: college_campus
+  weather: cloudy_afternoon
+  description: Large blue plastic tarp fluttering across windshield path
+  difficulty: HIGH
+- scenario_id: OBS_12
+  file: obs_12_oil_slick_patch.yaml
+  category: TRACK_OBSTACLES
+  map: college_campus
+  weather: clear_noon
+  description: Engine oil spill creating deceptive dark reflection patch
+  difficulty: HIGH
+- scenario_id: OBS_13
+  file: obs_13_baja_rock_mound.yaml
+  category: TRACK_OBSTACLES
+  map: baja_track_2027
+  weather: dust_cloud_heavy
+  description: Jagged rock garden formation requiring immediate steering nudge
+  difficulty: HIGH
+- scenario_id: OBS_14
+  file: obs_14_lost_hubcap_debris.yaml
+  category: TRACK_OBSTACLES
+  map: college_campus
+  weather: dusk_golden
+  description: Metal hubcap skittering across lane
+  difficulty: HIGH
+- scenario_id: OBS_15
+  file: obs_15_spilled_aggregate_dirt.yaml
+  category: TRACK_OBSTACLES
+  map: college_campus
+  weather: rain_moderate
+  description: Load of red clay spilled across asphalt creating low-mu zone
+  difficulty: HIGH
+- scenario_id: EMERG_01
+  file: emerg_01_lead_vehicle_hard_stop.yaml
+  category: EMERGENCY_EVENT
+  map: college_campus
+  weather: clear_noon
+  description: Lead car slams full emergency ABS stop (-8 m/s^2)
+  difficulty: CRITICAL
+- scenario_id: EMERG_02
+  file: emerg_02_wrong_way_headon.yaml
+  category: EMERGENCY_EVENT
+  map: college_campus
+  weather: cloudy_afternoon
+  description: Oncoming vehicle driving directly head-on in ego lane
+  difficulty: CRITICAL
+- scenario_id: EMERG_03
+  file: emerg_03_intersection_red_runner.yaml
+  category: EMERGENCY_EVENT
+  map: college_campus
+  weather: dusk_golden
+  description: Cross-traffic truck running red light at campus intersection
+  difficulty: CRITICAL
+- scenario_id: EMERG_04
+  file: emerg_04_phantom_braking_false_threat.yaml
+  category: EMERGENCY_EVENT
+  map: college_campus
+  weather: clear_noon
+  description: Elevated road sign causing radar/vision ambiguity
+  difficulty: CRITICAL
+- scenario_id: EMERG_05
+  file: emerg_05_steering_actuator_glitch.yaml
+  category: EMERGENCY_EVENT
+  map: college_campus
+  weather: clear_noon
+  description: Simulated steering torque dropout requiring immediate fail-safe
+  difficulty: CRITICAL
+- scenario_id: EMERG_06
+  file: emerg_06_lead_vehicle_swerve_obstacle.yaml
+  category: EMERGENCY_EVENT
+  map: college_campus
+  weather: cloudy_afternoon
+  description: Lead vehicle swerves violently to reveal stationary roadblock
+  difficulty: CRITICAL
+- scenario_id: EMERG_07
+  file: emerg_07_night_headon_highbeams.yaml
+  category: EMERGENCY_EVENT
+  map: college_campus
+  weather: night_pitch_black
+  description: Oncoming vehicle blinding ego vehicle with illegal high beams
+  difficulty: CRITICAL
+- scenario_id: EMERG_08
+  file: emerg_08_runaway_cart.yaml
+  category: EMERGENCY_EVENT
+  map: college_campus
+  weather: clear_noon
+  description: Heavy maintenance utility cart rolling down incline across lane
+  difficulty: CRITICAL
+- scenario_id: EMERG_09
+  file: emerg_09_brake_boost_loss.yaml
+  category: EMERGENCY_EVENT
+  map: college_campus
+  weather: clear_noon
+  description: Simulated vehicle deceleration degradation requiring longer headway
+  difficulty: CRITICAL
+- scenario_id: EMERG_10
+  file: emerg_10_camera_lens_mud_splatter.yaml
+  category: EMERGENCY_EVENT
+  map: college_campus
+  weather: dust_cloud_heavy
+  description: Sudden heavy mud splatter obscuring 60% of camera sensor
+  difficulty: CRITICAL
+- scenario_id: EMERG_11
+  file: emerg_11_crosswalk_child_chase_ball.yaml
+  category: EMERGENCY_EVENT
+  map: college_campus
+  weather: clear_noon
+  description: Small child chasing ball across multi-lane roadway
+  difficulty: CRITICAL
+- scenario_id: EMERG_12
+  file: emerg_12_rear_end_threat_yield.yaml
+  category: EMERGENCY_EVENT
+  map: college_campus
+  weather: cloudy_afternoon
+  description: Tailgater approaching rapidly from behind while ego must brake
+  difficulty: CRITICAL
+- scenario_id: EMERG_13
+  file: emerg_13_multi_car_pileup_fog.yaml
+  category: EMERGENCY_EVENT
+  map: college_campus
+  weather: fog_dense
+  description: Multiple stopped vehicles piled up in dense fog bank
+  difficulty: CRITICAL
+- scenario_id: EMERG_14
+  file: emerg_14_baja_rollover_ahead.yaml
+  category: EMERGENCY_EVENT
+  map: baja_track_2027
+  weather: dust_cloud_heavy
+  description: Preceding buggy rolls over blocking narrow track sector
+  difficulty: CRITICAL
+- scenario_id: EMERG_15
+  file: emerg_15_sudden_sinkhole_drop.yaml
+  category: EMERGENCY_EVENT
+  map: college_campus
+  weather: rain_moderate
+  description: Asphalt collapse ahead requiring immediate emergency brake
+  difficulty: CRITICAL
+- scenario_id: EMERG_16
+  file: emerg_16_sensor_frame_drop_burst.yaml
+  category: EMERGENCY_EVENT
+  map: college_campus
+  weather: clear_noon
+  description: Temporary 3-frame CSI camera blackout during critical maneuver
+  difficulty: CRITICAL

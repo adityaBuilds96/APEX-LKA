@@ -1,0 +1,9 @@
+[UnrealEngine_CARLA_Map_Descriptor]
+MapName=baja_track_2027
+LevelPackage=/Game/Carla/Maps/BajaTrack2027
+OpenDRIVEFile=baja_track_2027.xodr
+TerrainMesh=StaticMesh'/Game/Carla/Static/Terrain/Baja_Mud_Terrain.Baja_Mud_Terrain'
+RoadMaterial=Material'/Game/Carla/Static/Materials/Dirt_Gravel_Ruts.Dirt_Gravel_Ruts'
+FoliageProfile=DryGrass_Bushes_Stones
+BakeDate=2026-10-13T00:00:00Z
+Status=Cooked_For_CARLA_0.9.15

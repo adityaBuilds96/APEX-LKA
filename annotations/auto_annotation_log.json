@@ -3,13 +3,13 @@
     "stem": "img1",
     "image_name": "img1.jpg",
     "mask_name": "img1.png",
-    "confidence": 0.827,
+    "confidence": 0.978,
     "confidence_tier": "HIGH",
     "road_coverage": 0.417,
     "left_detected": true,
     "right_detected": true,
-    "lane_width_px": 416.9,
-    "width_plausible": false,
+    "lane_width_px": 308.9,
+    "width_plausible": true,
     "r2_score": 0.85,
     "classes_present": [
       0,
@@ -19,20 +19,20 @@
     ],
     "status": "AUTO-GENERATED / NEEDS REVIEW",
     "verified_by_human": true,
-    "generated_at": "2026-10-06T07:07:16.649854",
+    "generated_at": "2026-10-17T11:16:02.147399",
     "notice": "DO NOT USE FOR SUPERVISED TRAINING WITHOUT HUMAN APPROVAL"
   },
   "img2": {
     "stem": "img2",
     "image_name": "img2.jpg",
     "mask_name": "img2.png",
-    "confidence": 0.827,
+    "confidence": 0.978,
     "confidence_tier": "HIGH",
     "road_coverage": 0.417,
     "left_detected": true,
     "right_detected": true,
-    "lane_width_px": 416.9,
-    "width_plausible": false,
+    "lane_width_px": 308.9,
+    "width_plausible": true,
     "r2_score": 0.85,
     "classes_present": [
       0,
@@ -42,7 +42,7 @@
     ],
     "status": "AUTO-GENERATED / NEEDS REVIEW",
     "verified_by_human": true,
-    "generated_at": "2026-10-06T07:07:16.700499",
+    "generated_at": "2026-10-17T11:16:02.196584",
     "notice": "DO NOT USE FOR SUPERVISED TRAINING WITHOUT HUMAN APPROVAL"
   }
 }

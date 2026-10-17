@@ -1,0 +1,1021 @@
+{
+  "total_scenarios": 101,
+  "passed": 101,
+  "failed": 0,
+  "pass_rate_pct": 100.0,
+  "threshold_pct": 95.0,
+  "threshold_met": true,
+  "execution_duration_sec": 6.5,
+  "results": [
+    {
+      "id": "CUTIN_01",
+      "passed": true,
+      "duration_s": 0.067,
+      "min_d_m": 11.987,
+      "min_ttc_s": 2.138,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "CUTIN_02",
+      "passed": true,
+      "duration_s": 0.067,
+      "min_d_m": 12.691,
+      "min_ttc_s": 2.138,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "CUTIN_03",
+      "passed": true,
+      "duration_s": 0.066,
+      "min_d_m": 10.302,
+      "min_ttc_s": 2.138,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "CUTIN_04",
+      "passed": true,
+      "duration_s": 0.069,
+      "min_d_m": 10.302,
+      "min_ttc_s": 2.138,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "CUTIN_05",
+      "passed": true,
+      "duration_s": 0.066,
+      "min_d_m": 10.995,
+      "min_ttc_s": 2.138,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "CUTIN_06",
+      "passed": true,
+      "duration_s": 0.067,
+      "min_d_m": 10.302,
+      "min_ttc_s": 2.138,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "CUTIN_07",
+      "passed": true,
+      "duration_s": 0.081,
+      "min_d_m": 14.849,
+      "min_ttc_s": 2.138,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "CUTIN_08",
+      "passed": true,
+      "duration_s": 0.066,
+      "min_d_m": 10.302,
+      "min_ttc_s": 2.138,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "CUTIN_09",
+      "passed": true,
+      "duration_s": 0.059,
+      "min_d_m": 10.302,
+      "min_ttc_s": 2.138,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "CUTIN_10",
+      "passed": true,
+      "duration_s": 0.054,
+      "min_d_m": 11.86,
+      "min_ttc_s": 2.138,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "CUTIN_11",
+      "passed": true,
+      "duration_s": 0.061,
+      "min_d_m": 10.302,
+      "min_ttc_s": 2.138,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "CUTIN_12",
+      "passed": true,
+      "duration_s": 0.064,
+      "min_d_m": 13.793,
+      "min_ttc_s": 2.138,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "CUTIN_13",
+      "passed": true,
+      "duration_s": 0.069,
+      "min_d_m": 10.995,
+      "min_ttc_s": 2.138,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "CUTIN_14",
+      "passed": true,
+      "duration_s": 0.091,
+      "min_d_m": 14.849,
+      "min_ttc_s": 2.138,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "CUTIN_15",
+      "passed": true,
+      "duration_s": 0.067,
+      "min_d_m": 10.904,
+      "min_ttc_s": 2.138,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "CUTIN_16",
+      "passed": true,
+      "duration_s": 0.066,
+      "min_d_m": 10.302,
+      "min_ttc_s": 2.138,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "CUTIN_17",
+      "passed": true,
+      "duration_s": 0.054,
+      "min_d_m": 10.302,
+      "min_ttc_s": 2.138,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "CUTIN_18",
+      "passed": true,
+      "duration_s": 0.056,
+      "min_d_m": 10.302,
+      "min_ttc_s": 2.138,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "CUTIN_19",
+      "passed": true,
+      "duration_s": 0.067,
+      "min_d_m": 12.894,
+      "min_ttc_s": 2.138,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "CUTIN_20",
+      "passed": true,
+      "duration_s": 0.056,
+      "min_d_m": 10.302,
+      "min_ttc_s": 2.138,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "EMERG_01",
+      "passed": true,
+      "duration_s": 0.049,
+      "min_d_m": 11.867,
+      "min_ttc_s": 2.536,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "EMERG_02",
+      "passed": true,
+      "duration_s": 0.059,
+      "min_d_m": 11.867,
+      "min_ttc_s": 2.536,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "EMERG_03",
+      "passed": true,
+      "duration_s": 0.049,
+      "min_d_m": 11.867,
+      "min_ttc_s": 2.536,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "EMERG_04",
+      "passed": true,
+      "duration_s": 0.05,
+      "min_d_m": 11.867,
+      "min_ttc_s": 2.536,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "EMERG_05",
+      "passed": true,
+      "duration_s": 0.052,
+      "min_d_m": 11.867,
+      "min_ttc_s": 2.536,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "EMERG_06",
+      "passed": true,
+      "duration_s": 0.052,
+      "min_d_m": 11.867,
+      "min_ttc_s": 2.536,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "EMERG_07",
+      "passed": true,
+      "duration_s": 0.05,
+      "min_d_m": 11.867,
+      "min_ttc_s": 2.536,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "EMERG_08",
+      "passed": true,
+      "duration_s": 0.052,
+      "min_d_m": 11.867,
+      "min_ttc_s": 2.536,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "EMERG_09",
+      "passed": true,
+      "duration_s": 0.051,
+      "min_d_m": 11.867,
+      "min_ttc_s": 2.536,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "EMERG_10",
+      "passed": true,
+      "duration_s": 0.051,
+      "min_d_m": 11.867,
+      "min_ttc_s": 2.536,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "EMERG_11",
+      "passed": true,
+      "duration_s": 0.052,
+      "min_d_m": 11.867,
+      "min_ttc_s": 2.536,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "EMERG_12",
+      "passed": true,
+      "duration_s": 0.053,
+      "min_d_m": 11.867,
+      "min_ttc_s": 2.536,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "EMERG_13",
+      "passed": true,
+      "duration_s": 0.051,
+      "min_d_m": 11.867,
+      "min_ttc_s": 2.536,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "EMERG_14",
+      "passed": true,
+      "duration_s": 0.051,
+      "min_d_m": 11.867,
+      "min_ttc_s": 2.536,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "EMERG_15",
+      "passed": true,
+      "duration_s": 0.052,
+      "min_d_m": 11.867,
+      "min_ttc_s": 2.536,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "EMERG_16",
+      "passed": true,
+      "duration_s": 0.052,
+      "min_d_m": 11.867,
+      "min_ttc_s": 2.536,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "LANE_01",
+      "passed": true,
+      "duration_s": 0.046,
+      "min_d_m": 14.507,
+      "min_ttc_s": 3.15,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "LANE_02",
+      "passed": true,
+      "duration_s": 0.046,
+      "min_d_m": 14.507,
+      "min_ttc_s": 3.15,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "LANE_03",
+      "passed": true,
+      "duration_s": 0.046,
+      "min_d_m": 14.507,
+      "min_ttc_s": 3.15,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "LANE_04",
+      "passed": true,
+      "duration_s": 0.045,
+      "min_d_m": 14.507,
+      "min_ttc_s": 3.15,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "LANE_05",
+      "passed": true,
+      "duration_s": 0.045,
+      "min_d_m": 14.507,
+      "min_ttc_s": 3.15,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "LANE_06",
+      "passed": true,
+      "duration_s": 0.046,
+      "min_d_m": 14.507,
+      "min_ttc_s": 3.15,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "LANE_07",
+      "passed": true,
+      "duration_s": 0.049,
+      "min_d_m": 14.507,
+      "min_ttc_s": 3.15,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "LANE_08",
+      "passed": true,
+      "duration_s": 0.049,
+      "min_d_m": 14.507,
+      "min_ttc_s": 3.15,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "LANE_09",
+      "passed": true,
+      "duration_s": 0.047,
+      "min_d_m": 14.507,
+      "min_ttc_s": 3.15,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "LANE_10",
+      "passed": true,
+      "duration_s": 0.047,
+      "min_d_m": 14.507,
+      "min_ttc_s": 3.15,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "LANE_11",
+      "passed": true,
+      "duration_s": 0.045,
+      "min_d_m": 14.507,
+      "min_ttc_s": 3.15,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "LANE_12",
+      "passed": true,
+      "duration_s": 0.046,
+      "min_d_m": 14.507,
+      "min_ttc_s": 3.15,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "LANE_13",
+      "passed": true,
+      "duration_s": 0.046,
+      "min_d_m": 14.507,
+      "min_ttc_s": 3.15,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "LANE_14",
+      "passed": true,
+      "duration_s": 0.052,
+      "min_d_m": 14.507,
+      "min_ttc_s": 3.15,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "LANE_15",
+      "passed": true,
+      "duration_s": 0.054,
+      "min_d_m": 14.507,
+      "min_ttc_s": 3.15,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "OBS_01",
+      "passed": true,
+      "duration_s": 0.049,
+      "min_d_m": 11.506,
+      "min_ttc_s": 2.61,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "OBS_02",
+      "passed": true,
+      "duration_s": 0.045,
+      "min_d_m": 11.506,
+      "min_ttc_s": 2.61,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "OBS_03",
+      "passed": true,
+      "duration_s": 0.045,
+      "min_d_m": 11.506,
+      "min_ttc_s": 2.61,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "OBS_04",
+      "passed": true,
+      "duration_s": 0.044,
+      "min_d_m": 11.506,
+      "min_ttc_s": 2.61,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "OBS_05",
+      "passed": true,
+      "duration_s": 0.043,
+      "min_d_m": 11.506,
+      "min_ttc_s": 2.61,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "OBS_06",
+      "passed": true,
+      "duration_s": 0.045,
+      "min_d_m": 11.506,
+      "min_ttc_s": 2.61,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "OBS_07",
+      "passed": true,
+      "duration_s": 0.045,
+      "min_d_m": 11.506,
+      "min_ttc_s": 2.61,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "OBS_08",
+      "passed": true,
+      "duration_s": 0.046,
+      "min_d_m": 11.506,
+      "min_ttc_s": 2.61,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "OBS_09",
+      "passed": true,
+      "duration_s": 0.045,
+      "min_d_m": 11.506,
+      "min_ttc_s": 2.61,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "OBS_10",
+      "passed": true,
+      "duration_s": 0.045,
+      "min_d_m": 11.506,
+      "min_ttc_s": 2.61,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "OBS_11",
+      "passed": true,
+      "duration_s": 0.045,
+      "min_d_m": 11.506,
+      "min_ttc_s": 2.61,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "OBS_12",
+      "passed": true,
+      "duration_s": 0.046,
+      "min_d_m": 11.506,
+      "min_ttc_s": 2.61,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "OBS_13",
+      "passed": true,
+      "duration_s": 0.044,
+      "min_d_m": 11.506,
+      "min_ttc_s": 2.61,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "OBS_14",
+      "passed": true,
+      "duration_s": 0.046,
+      "min_d_m": 11.506,
+      "min_ttc_s": 2.61,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "OBS_15",
+      "passed": true,
+      "duration_s": 0.046,
+      "min_d_m": 11.506,
+      "min_ttc_s": 2.61,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "PED_01",
+      "passed": true,
+      "duration_s": 0.045,
+      "min_d_m": 7.245,
+      "min_ttc_s": 1.89,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "PED_02",
+      "passed": true,
+      "duration_s": 0.045,
+      "min_d_m": 8.159,
+      "min_ttc_s": 1.976,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "PED_03",
+      "passed": true,
+      "duration_s": 0.046,
+      "min_d_m": 8.006,
+      "min_ttc_s": 2.062,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "PED_04",
+      "passed": true,
+      "duration_s": 0.045,
+      "min_d_m": 8.711,
+      "min_ttc_s": 2.149,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "PED_05",
+      "passed": true,
+      "duration_s": 0.045,
+      "min_d_m": 9.247,
+      "min_ttc_s": 2.235,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "PED_06",
+      "passed": true,
+      "duration_s": 0.044,
+      "min_d_m": 9.669,
+      "min_ttc_s": 2.323,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "PED_07",
+      "passed": true,
+      "duration_s": 0.044,
+      "min_d_m": 10.505,
+      "min_ttc_s": 2.41,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "PED_08",
+      "passed": true,
+      "duration_s": 0.044,
+      "min_d_m": 10.982,
+      "min_ttc_s": 2.497,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "PED_09",
+      "passed": true,
+      "duration_s": 0.044,
+      "min_d_m": 11.329,
+      "min_ttc_s": 2.585,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "PED_10",
+      "passed": true,
+      "duration_s": 0.046,
+      "min_d_m": 11.942,
+      "min_ttc_s": 2.673,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "PED_11",
+      "passed": true,
+      "duration_s": 0.047,
+      "min_d_m": 12.425,
+      "min_ttc_s": 2.761,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "PED_12",
+      "passed": true,
+      "duration_s": 0.046,
+      "min_d_m": 12.908,
+      "min_ttc_s": 2.849,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "PED_13",
+      "passed": true,
+      "duration_s": 0.045,
+      "min_d_m": 13.006,
+      "min_ttc_s": 2.937,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "PED_14",
+      "passed": true,
+      "duration_s": 0.045,
+      "min_d_m": 13.879,
+      "min_ttc_s": 3.025,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "PED_15",
+      "passed": true,
+      "duration_s": 0.047,
+      "min_d_m": 14.366,
+      "min_ttc_s": 3.114,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "PED_16",
+      "passed": true,
+      "duration_s": 0.045,
+      "min_d_m": 14.854,
+      "min_ttc_s": 3.202,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "PED_17",
+      "passed": true,
+      "duration_s": 0.045,
+      "min_d_m": 15.107,
+      "min_ttc_s": 3.291,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "PED_18",
+      "passed": true,
+      "duration_s": 0.048,
+      "min_d_m": 15.396,
+      "min_ttc_s": 3.379,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "PED_19",
+      "passed": true,
+      "duration_s": 0.05,
+      "min_d_m": 15.64,
+      "min_ttc_s": 3.468,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "PED_20",
+      "passed": true,
+      "duration_s": 0.053,
+      "min_d_m": 15.897,
+      "min_ttc_s": 3.557,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "WTH_01",
+      "passed": true,
+      "duration_s": 0.121,
+      "min_d_m": Infinity,
+      "min_ttc_s": Infinity,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "WTH_02",
+      "passed": true,
+      "duration_s": 0.119,
+      "min_d_m": Infinity,
+      "min_ttc_s": Infinity,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "WTH_03",
+      "passed": true,
+      "duration_s": 0.118,
+      "min_d_m": Infinity,
+      "min_ttc_s": Infinity,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "WTH_04",
+      "passed": true,
+      "duration_s": 0.118,
+      "min_d_m": Infinity,
+      "min_ttc_s": Infinity,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "WTH_05",
+      "passed": true,
+      "duration_s": 0.118,
+      "min_d_m": Infinity,
+      "min_ttc_s": Infinity,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "WTH_06",
+      "passed": true,
+      "duration_s": 0.12,
+      "min_d_m": Infinity,
+      "min_ttc_s": Infinity,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "WTH_07",
+      "passed": true,
+      "duration_s": 0.117,
+      "min_d_m": Infinity,
+      "min_ttc_s": Infinity,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "WTH_08",
+      "passed": true,
+      "duration_s": 0.115,
+      "min_d_m": Infinity,
+      "min_ttc_s": Infinity,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "WTH_09",
+      "passed": true,
+      "duration_s": 0.117,
+      "min_d_m": Infinity,
+      "min_ttc_s": Infinity,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "WTH_10",
+      "passed": true,
+      "duration_s": 0.119,
+      "min_d_m": Infinity,
+      "min_ttc_s": Infinity,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "WTH_11",
+      "passed": true,
+      "duration_s": 0.136,
+      "min_d_m": Infinity,
+      "min_ttc_s": Infinity,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "WTH_12",
+      "passed": true,
+      "duration_s": 0.119,
+      "min_d_m": Infinity,
+      "min_ttc_s": Infinity,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "WTH_13",
+      "passed": true,
+      "duration_s": 0.121,
+      "min_d_m": Infinity,
+      "min_ttc_s": Infinity,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "WTH_14",
+      "passed": true,
+      "duration_s": 0.138,
+      "min_d_m": Infinity,
+      "min_ttc_s": Infinity,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    },
+    {
+      "id": "WTH_15",
+      "passed": true,
+      "duration_s": 0.134,
+      "min_d_m": Infinity,
+      "min_ttc_s": Infinity,
+      "max_dev_m": 0.0,
+      "collision": false,
+      "reasons": []
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "version": "1.0.0",
+  "total_samples": 10,
+  "generation_duration_sec": 0.25,
+  "throughput_fps": 39.7,
+  "throughput_frames_per_hour": 142842.0,
+  "target_met": true,
+  "classes": {
+    "0": "background",
+    "1": "road",
+    "2": "lane_marking",
+    "3": "vehicle",
+    "4": "pedestrian",
+    "5": "obstacle"
+  },
+  "split_distribution": {
+    "train": 7,
+    "val": 3,
+    "test": 0
+  }
+}

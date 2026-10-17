@@ -197,12 +197,23 @@ class TrajectoryPredictor:
         tti_warning_threshold_s: float = 2.5,
         tti_critical_threshold_s: float = 1.0,
         lane_corridor_half_width_m: float = 1.0,
+        horizon_s: Optional[float] = None,
+        warning_tti_s: Optional[float] = None,
+        critical_tti_s: Optional[float] = None,
+        ego_lane_width_m: Optional[float] = None,
     ) -> None:
         cfg = self._load_config(config_or_path)
-        self.horizon_seconds = float(cfg.get("horizon_seconds", horizon_seconds))
-        self.tti_warning_threshold_s = float(cfg.get("tti_warning_threshold_s", tti_warning_threshold_s))
-        self.tti_critical_threshold_s = float(cfg.get("tti_critical_threshold_s", tti_critical_threshold_s))
-        self.corridor_w = float(cfg.get("lane_corridor_half_width_m", lane_corridor_half_width_m))
+        h_s = horizon_s if horizon_s is not None else cfg.get("horizon_seconds", horizon_seconds)
+        self.horizon_seconds = float(h_s)
+
+        w_tti = warning_tti_s if warning_tti_s is not None else cfg.get("tti_warning_threshold_s", tti_warning_threshold_s)
+        self.tti_warning_threshold_s = float(w_tti)
+
+        c_tti = critical_tti_s if critical_tti_s is not None else cfg.get("tti_critical_threshold_s", tti_critical_threshold_s)
+        self.tti_critical_threshold_s = float(c_tti)
+
+        half_w = (ego_lane_width_m / 2.0) if ego_lane_width_m is not None else cfg.get("lane_corridor_half_width_m", lane_corridor_half_width_m)
+        self.corridor_w = float(half_w)
 
         self.forecast_horizons = [0.5, 1.0, 2.0, 3.0]
 
@@ -230,6 +241,7 @@ class TrajectoryPredictor:
         tracked_objects: List[TrackedObject],
         ego_speed_mps: float = 0.0,
         lane_bounds: Optional[Tuple[float, float]] = None,
+        timestamp_s: Optional[float] = None,
     ) -> TrajectoryReport:
         """
         Compute future trajectories, TTI, and collision risks for all tracked objects.

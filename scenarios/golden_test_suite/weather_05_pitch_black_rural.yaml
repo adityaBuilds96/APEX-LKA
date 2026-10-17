@@ -1,0 +1,15 @@
+scenario_id: WTH_05
+category: WEATHER_SCENARIOS
+description: Headlights-only driving with zero ambient lighting
+map: college_campus
+weather: night_pitch_black
+seed: 405
+duration_sec: 12.0
+ego_vehicle:
+  spawn_x: 120.5
+  spawn_y: 48.2
+  initial_speed_kmh: 22.0
+actors: []
+success_criteria:
+  collision: false
+  max_path_deviation_m: 0.9
