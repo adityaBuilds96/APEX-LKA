@@ -1,0 +1,188 @@
+# ==============================================================================
+# APEX-Vision Core v4.0 — Phase 7B Master Perception Configuration
+# Section 1: Lane Perception Precision Engine ("The Repair Engine")
+# Configuration File: lane_keeping_safety_config.yaml
+# ==============================================================================
+# Universal Branding: APEX-Vision | Real-Time ADAS & Autonomous Lane Perception Platform
+# Autonomy Rating:    driver-supervised SAE Level 2
+# Safety Standard:    ISO 26262-style process; ASIL-B aligned; not independently assessed
+# Strict Mandate:     horizontal_flip=False; Zero-tolerance boundary envelope violations
+# Mission Goal:       Flawless Lane Centering & Zero Boundary Crossing Enforcement
+# ==============================================================================
+
+version: "4.0.0"
+schema_name: "apex_lane_keeping_safety_config"
+timestamp_created_utc: "2026-10-27T00:00:00Z"
+target_vehicle: "Steer-by-Wire Automotive Chassis / LKA Electronic Actuation"
+
+# ------------------------------------------------------------------------------
+# 1. Non-Negotiable Safety Safeguards Overview
+# ------------------------------------------------------------------------------
+safety_mandates:
+  dual_boundary_parallel_projection_enabled: true
+  virtual_safety_envelope_enforced: true
+  ekf_temporal_smoothing_outlier_rejection: true
+  zero_tolerance_lateral_error_drive: true
+  graceful_degradation_relay_interlock: true
+
+# ------------------------------------------------------------------------------
+# 2. Virtual Safety Envelope & Buffer Dimensioning
+# ------------------------------------------------------------------------------
+virtual_guardrail_envelope:
+  nominal_inner_safety_buffer_m: 0.30
+  minimum_permitted_clearance_m: 0.10
+  boundary_class_associations:
+    left_boundary_class: 2 # Class 2: Left Lane Boundary
+    right_boundary_class: 3 # Class 3: Right Lane Boundary
+  dynamic_buffer_scaling:
+    enabled: true
+    scene_dependent_buffers:
+      HIGHWAY:
+        buffer_width_m: 0.20
+        description: "Narrower buffer on high-speed open highways to prevent false alarms"
+      URBAN:
+        buffer_width_m: 0.50
+        description: "Wider safety buffer in dense urban zones to protect cyclists and curbs"
+      RURAL:
+        buffer_width_m: 0.30
+        description: "Standard safety margin for irregular uncurbed rural roads"
+      TUNNEL:
+        buffer_width_m: 0.25
+        description: "Tight envelope for confined tunnel walls and concrete barriers"
+      NIGHT:
+        buffer_width_m: 0.35
+        description: "Enhanced margin of safety during limited-visibility nighttime conditions"
+      RAIN:
+        buffer_width_m: 0.35
+        description: "Compensates for reduced tire-road friction and hydroplaning risks"
+
+# ------------------------------------------------------------------------------
+# 3. Forward Trajectory Projection & Kinematics
+# ------------------------------------------------------------------------------
+trajectory_projection:
+  forward_lookahead_time_sec: 1.50
+  integration_time_step_sec: 0.05 # 30 discrete trajectory evaluation waypoints
+  kinematic_bicycle_model:
+    wheelbase_m: 2.75
+    steer_ratio: 15.2
+    max_steering_angle_deg: 32.0
+    max_steering_rate_deg_per_sec: 450.0
+    understeer_gradient_rad_per_g: 0.035
+  motion_sources:
+    speed_source: "WHEEL_SPEED_CAN_0x200"
+    yaw_rate_source: "MTI680_CAN_0x140"
+    lateral_accel_source: "MTI680_CAN_0x141"
+
+# ------------------------------------------------------------------------------
+# 4. Stanley Controller Gain Scheduling Matrix
+# ------------------------------------------------------------------------------
+stanley_controller:
+  nominal_cross_track_gain_k: 1.25
+  nominal_softening_speed_m_s: 1.50
+  heading_gain_k_yaw: 1.00
+  speed_scheduled_gains:
+    - speed_mps: 5.0
+      cross_track_gain: 1.60
+      softening_speed: 1.00
+    - speed_mps: 15.0
+      cross_track_gain: 1.35
+      softening_speed: 1.50
+    - speed_mps: 25.0
+      cross_track_gain: 1.15
+      softening_speed: 2.00
+    - speed_mps: 35.0
+      cross_track_gain: 0.95
+      softening_speed: 2.50
+  max_steering_angle_command_deg: 28.0
+  max_steering_torque_nm: 4.50
+
+# ------------------------------------------------------------------------------
+# 5. Guardrail Violation Severity Tiers & Actuation Policies
+# ------------------------------------------------------------------------------
+violation_escalation:
+  severity_1_warning:
+    trigger_envelope_distance_m: 0.30
+    haptic_steering_wheel_vibration: true
+    audio_chime_frequency_hz: 850
+    stanley_lateral_gain_multiplier: 1.50
+    description: "Trajectory enters 0.3m inner buffer; proactive gain boost to center vehicle"
+  severity_2_critical:
+    trigger_envelope_distance_m: 0.15
+    stanley_lateral_gain_multiplier: 2.50
+    max_corrective_counter_steer_torque_nm: 3.50
+    driver_takeover_visual_alert: true
+    description: "Trajectory enters 0.15m critical boundary; max allowable counter-steer torque"
+  severity_3_emergency:
+    trigger_envelope_distance_m: 0.00 # Actual line breach or crossing
+    emergency_brake_assist_request: true
+    deceleration_demand_m_s2: -3.50
+    can_risk_arbitration_id: "0x150"
+    can_publish_rate_hz: 50.0
+    description: "Physical boundary violation imminent/occurring; immediate CAN 0x150 priority stop"
+
+# ------------------------------------------------------------------------------
+# 6. Time-To-Lane-Departure (TTLD) Pre-emptive Predictor
+# ------------------------------------------------------------------------------
+ttld_predictor:
+  enabled: true
+  warning_threshold_sec: 2.00
+  critical_threshold_sec: 1.00
+  emergency_threshold_sec: 0.50
+  min_lateral_velocity_threshold_m_s: 0.12
+  lateral_acceleration_fusion_weight: 0.40
+  prediction_smoothing_window_frames: 5
+  suppress_alert_on_turn_signal: true
+  turn_signal_can_id: "0x180"
+
+# ------------------------------------------------------------------------------
+# 7. Driver Hands-On & Override Detection
+# ------------------------------------------------------------------------------
+driver_override:
+  hands_off_detection_timeout_sec: 15.0
+  steering_torque_override_threshold_nm: 2.20
+  brake_pedal_override_threshold_pct: 5.0
+  accelerator_kickdown_override_threshold_pct: 85.0
+  override_cooldown_period_sec: 2.50
+
+# ------------------------------------------------------------------------------
+# 8. Dual-Boundary Parallel Projection Safeguard
+# ------------------------------------------------------------------------------
+dual_boundary_projection:
+  nominal_lane_width_m: 3.70
+  lane_width_tolerance_m: 0.60
+  parallel_hallucination_mode: "STRICT_PARALLEL_TRANSLATION"
+  mirror_curvature_exact: true
+  mirror_heading_exact: true
+  max_continuous_hallucination_frames: 20
+  confidence_penalty_per_frame: 0.08
+  forced_takeover_on_max_frames: true
+
+# ------------------------------------------------------------------------------
+# 9. Hardware Safety Relay & Graceful Degradation Interlock
+# ------------------------------------------------------------------------------
+hardware_relay_interlock:
+  quality_metric_threshold: 0.35
+  consecutive_low_quality_frame_limit: 5
+  physical_relay_pin: 7
+  arduino_comm_channel:
+    port: "COM3"
+    baud_rate: 115200
+    timeout_sec: 0.05
+    heartbeat_frequency_hz: 20.0
+  safe_state_actions:
+    disengage_steering_motor_clutch: true
+    kill_can_actuation_frames: true
+    emit_takeover_warning_can_frame: true
+    takeover_can_id: "0x155"
+
+# ------------------------------------------------------------------------------
+# 10. ISO 26262 ASIL-B Audit & Logging Infrastructure
+# ------------------------------------------------------------------------------
+safety_audit:
+  log_level: "INFO"
+  blackbox_recorder_enabled: true
+  blackbox_buffer_seconds: 10.0
+  export_csv_summary: true
+  csv_output_path: "docs/phase7b/BENCHMARKS/section1/lane_keeping_safety.csv"
+  markdown_report_path: "docs/phase7b/BENCHMARKS/section1/lane_keeping_safety.md"
+  telemetry_rate_hz: 20.0

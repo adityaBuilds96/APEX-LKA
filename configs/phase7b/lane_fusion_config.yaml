@@ -1,0 +1,266 @@
+# ==============================================================================
+# APEX-Vision Core v4.0 — Phase 7B Master Perception Configuration
+# Section 1: Lane Perception Precision Engine ("The Repair Engine")
+# Configuration File: lane_fusion_config.yaml
+# ==============================================================================
+# Universal Branding: APEX-Vision | Real-Time ADAS & Autonomous Lane Perception Platform
+# Autonomy Rating:    driver-supervised SAE Level 2
+# Safety Standard:    ISO 26262-style process; ASIL-B aligned; not independently assessed
+# Strict Mandate:     horizontal_flip=False; Zero-tolerance boundary envelope violations
+# Mission Goal:       Lane Detection Accuracy >= 95.5%, Zero Boundary Crossings
+# ==============================================================================
+
+version: "4.0.0"
+schema_name: "apex_lane_fusion_master_config"
+timestamp_created_utc: "2026-10-27T00:00:00Z"
+target_hardware: "NVIDIA Jetson Orin Nano / RTX Edge Series"
+
+# ------------------------------------------------------------------------------
+# 1. Camera Intrinsics and Extrinsics Baseline
+# ------------------------------------------------------------------------------
+camera_baseline:
+  image_width_px: 640
+  image_height_px: 360
+  focal_length_x_px: 450.0
+  focal_length_y_px: 450.0
+  principal_point_x_px: 320.0
+  principal_point_y_px: 180.0
+  camera_height_above_ground_m: 1.20
+  nominal_camera_pitch_deg: 5.0
+  pitch_compensation_filter:
+    enabled: true
+    source: "MTi-680 IMU"
+    kalman_gain: 0.08
+    min_pitch_deg: -12.0
+    max_pitch_deg: 18.0
+    drift_rejection_window_sec: 2.0
+  optical_axis_yaw_deg: 0.0
+  optical_axis_roll_deg: 0.0
+  distortion_coefficients:
+    k1: 0.0
+    k2: 0.0
+    p1: 0.0
+    p2: 0.0
+    k3: 0.0
+
+# ------------------------------------------------------------------------------
+# 2. Semantic Class Segmentation Mapping (Fixed 4-Class Architecture)
+# ------------------------------------------------------------------------------
+segmentation_mask_schema:
+  classes:
+    - id: 0
+      name: "BACKGROUND"
+      color_rgb: [0, 0, 0]
+      loss_weight: 0.30
+      description: "Non-road terrain, sky, infrastructure, and non-drivable regions"
+    - id: 1
+      name: "DRIVABLE_CORRIDOR"
+      color_rgb: [0, 255, 0]
+      loss_weight: 1.00
+      description: "Center drivable vehicle path bounded by left and right lines"
+    - id: 2
+      name: "LEFT_LANE_BOUNDARY"
+      color_rgb: [255, 0, 0]
+      loss_weight: 2.50
+      description: "Ego lane left marking; critical boundary for virtual guardrails"
+    - id: 3
+      name: "RIGHT_LANE_BOUNDARY"
+      color_rgb: [0, 0, 255]
+      loss_weight: 2.50
+      description: "Ego lane right marking; critical boundary for virtual guardrails"
+
+# ------------------------------------------------------------------------------
+# 3. Bird's-Eye-View (BEV) Inverse Perspective Mapping (IPM)
+# ------------------------------------------------------------------------------
+inverse_perspective_mapping:
+  enabled: true
+  bev_width_px: 640
+  bev_height_px: 720
+  longitudinal_forward_min_m: 2.0
+  longitudinal_forward_max_m: 45.0
+  lateral_reach_left_m: -5.0
+  lateral_reach_right_m: 5.0
+  meters_per_pixel_lateral: 0.015625      # 10.0m / 640px
+  meters_per_pixel_longitudinal: 0.059722  # 43.0m / 720px
+  bilinear_interpolation: true
+  ground_plane_homography_cache: true
+
+# ------------------------------------------------------------------------------
+# 4. Classical Computer Vision Pipeline Configuration
+# ------------------------------------------------------------------------------
+classical_pipeline:
+  enabled: true
+  color_spaces:
+    hls_yellow_white:
+      h_low: 15
+      h_high: 38
+      l_low: 110
+      l_high: 255
+      s_low: 75
+      s_high: 255
+    lab_yellow_boost:
+      b_low: 140
+      b_high: 255
+      l_low: 120
+      l_high: 255
+    yuv_white_luminance:
+      y_low: 195
+      y_high: 255
+  edge_detection:
+    algorithm: "CANNY_SOBEL_HYBRID"
+    sobel_kernel_size: 3
+    canny_low_threshold: 45
+    canny_high_threshold: 135
+    gradient_orientation_min_deg: 25.0
+    gradient_orientation_max_deg: 85.0
+  sliding_window_tracker:
+    num_windows_vertical: 12
+    window_half_width_px: 36
+    min_pixels_to_recenter: 45
+    ransac_max_iterations: 150
+    ransac_inlier_distance_px: 12.0
+    polynomial_order: 2
+
+# ------------------------------------------------------------------------------
+# 5. Deep Learning Ensemble Configuration
+# ------------------------------------------------------------------------------
+deep_learning_ensemble:
+  enabled: true
+  backend: "PYTORCH_CUDA_FP16"
+  use_amp: true
+  input_resolution: [640, 360]
+  models:
+    erfnet:
+      enabled: true
+      weights_path: "checkpoints/phase7b/erfnet_best.pt"
+      encoder_dropout: 0.1
+      decoder_dropout: 0.1
+      input_channels: 3
+      num_classes: 4
+      inference_batch_size: 1
+    unet:
+      enabled: true
+      weights_path: "checkpoints/phase7b/unet_best.pt"
+      backbone: "resnet34"
+      pretrained_encoder: false
+      input_channels: 3
+      num_classes: 4
+      inference_batch_size: 1
+    fusion_head:
+      enabled: true
+      weights_path: "checkpoints/phase7b/fusion_head.pt"
+      strategy: "CONFIDENCE_GATED_WEIGHTED_SUM"
+      learned_temperature: 1.25
+
+# ------------------------------------------------------------------------------
+# 6. Hybrid Fusion Engine & Dynamic Weight Scheduling
+# ------------------------------------------------------------------------------
+hybrid_fusion:
+  base_deep_learning_weight_alpha: 0.65
+  base_classical_cv_weight: 0.35
+  scene_weight_biases:
+    HIGHWAY: 0.65
+    URBAN: 0.60
+    RURAL: 0.70
+    TUNNEL: 0.75
+    NIGHT: 0.85
+    RAIN: 0.85
+  confidence_adaptation:
+    slope_factor: 1.5
+    min_alpha: 0.15
+    max_alpha: 0.90
+  polynomial_agreement_filter:
+    max_lateral_offset_delta_m: 0.35
+    max_heading_delta_rad: 0.08
+    max_curvature_delta_inv_m: 0.0015
+    agreement_threshold_to_blend: 0.60
+
+# ------------------------------------------------------------------------------
+# 7. Geometric Boundary Hallucination (Dual-Boundary Parallel Projection)
+# ------------------------------------------------------------------------------
+dual_boundary_projection:
+  enabled: true
+  nominal_lane_width_m: 3.70
+  min_permitted_lane_width_m: 2.80
+  max_permitted_lane_width_m: 4.60
+  parallel_curvature_lock: true
+  parallel_heading_lock: true
+  hallucination_confidence_decay: 0.92
+  max_continuous_hallucination_frames: 20
+  asymmetric_recovery_policy: "MIRROR_HIGH_CONFIDENCE_POLY"
+
+# ------------------------------------------------------------------------------
+# 8. 8-State Extended Kalman Filter (EKF) Temporal Smoothing
+# ------------------------------------------------------------------------------
+temporal_smoother:
+  enabled: true
+  state_dimension: 8 # [A_L, B_L, C_L, A_R, B_R, C_R, w_lane, theta_e]
+  rolling_history_window: 10
+  outlier_mahalanobis_threshold: 5.991 # Chi-squared 95% 2-DOF
+  outlier_sigma_limit: 2.0
+  lane_width_consistency_sigma: 2.0
+  numerical_stability: "JOSEPH_COVARIANCE_FORM"
+  imu_motion_compensation:
+    enabled: true
+    velocity_dead_reckoning: true
+    yaw_rate_heading_integration: true
+    time_delta_clamping_sec: [0.01, 0.10]
+  process_noise_diag: [1.0e-7, 1.0e-5, 1.0e-3, 1.0e-7, 1.0e-5, 1.0e-3, 1.0e-4, 1.0e-4]
+  measurement_noise_diag: [1.0e-5, 1.0e-3, 5.0e-2, 1.0e-5, 1.0e-3, 5.0e-2, 2.0e-2, 1.0e-2]
+
+# ------------------------------------------------------------------------------
+# 9. Virtual Guardrail & Lane Departure Safety Envelopes
+# ------------------------------------------------------------------------------
+virtual_guardrail:
+  enabled: true
+  inner_safety_buffer_nominal_m: 0.30
+  inner_safety_buffer_highway_m: 0.20
+  inner_safety_buffer_urban_m: 0.50
+  trajectory_forward_lookahead_time_sec: 1.50
+  stanley_controller_counter_steer:
+    proportional_gain_k: 1.20
+    softening_velocity_m_s: 1.50
+    warning_severity_gain_boost: 1.50
+    critical_counter_steer_torque_nm: 3.50
+  severity_tiers:
+    severity_1_warning_distance_m: 0.30
+    severity_2_critical_distance_m: 0.15
+    severity_3_emergency_boundary_cross_m: 0.00
+  can_emergency_alert:
+    can_arbitration_id: "0x150"
+    priority: "HIGHEST"
+    rate_hz: 50.0
+
+# ------------------------------------------------------------------------------
+# 10. Graceful Degradation Interlocks & Quality Scorer
+# ------------------------------------------------------------------------------
+graceful_degradation:
+  quality_metric_threshold_q_min: 0.35
+  consecutive_low_quality_frame_limit: 5
+  hardware_relay_cutoff_pin: 7
+  arduino_serial_port: "COM3"
+  baud_rate: 115200
+  takeover_warning_audio_chime: true
+  auto_reengagement_frame_count: 10
+  quality_weights:
+    ransac_inlier_density: 0.30
+    polynomial_fit_residual: 0.25
+    lane_width_stability: 0.20
+    scene_confidence: 0.10
+    ensemble_consensus: 0.15
+
+# ------------------------------------------------------------------------------
+# 11. Diagnostic HUD & Telemetry Logging
+# ------------------------------------------------------------------------------
+diagnostics:
+  log_level: "INFO"
+  fps_telemetry_interval_frames: 30
+  save_annotated_video: false
+  render_hud_overlay: true
+  hud_elements:
+    show_polynomial_curves: true
+    show_virtual_guardrails: true
+    show_drivable_corridor: true
+    show_confidence_bars: true
+    show_ttld_countdown: true
+    show_scene_tag: true

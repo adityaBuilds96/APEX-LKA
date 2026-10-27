@@ -153,6 +153,7 @@ def _load_config() -> dict:
 
 
 cfg = _load_config()
+CONFIG = cfg
 
 
 def resolve(relative_path: str) -> Path:
@@ -203,6 +204,7 @@ from src.config.vehicle_profile import (
 
 __all__ = [
     "cfg",
+    "CONFIG",
     "PATHS",
     "PROJECT_ROOT",
     "resolve",

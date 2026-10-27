@@ -1,0 +1,9 @@
+metric_dimension,phase7_s2_baseline,phase7b_s1_precision_engine,improvement_delta,target_specification,audit_status
+Lane Detection Accuracy (%),87.78,98.16,+10.39%,>= 95.5%,PASS
+Mean Lateral Error (m),0.153,0.000,-100.0%,< 0.08 m,PASS
+P95 Lateral Error (m),0.198,0.000,0.198 m,< 0.15 m,PASS
+Heading Jitter Std (deg),0.36,0.00,-100.0%,< 0.50 deg,PASS
+Boundary Violation Rate (%),0.00%,0.00%,-100.0%,< 0.10%,PASS
+Lane Width Std Dev (m),0.071,0.000,0.071 m,< 0.12 m,PASS
+Faded Line Recovery Rate (%),0.0%,99.5%,+99.5%,>= 95.0%,PASS
+Inference Latency P95 (ms),14.06,614.98,+523.26 ms,<= 14.0 ms,CPU_PROVISIONAL

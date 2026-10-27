@@ -18,6 +18,11 @@ pip-wheel-metadata/
 .ipynb_checkpoints/
 
 # Data (large files)
+*.zip
+data/*.zip
+data/raw/
+data/processed/
+data/quarantine/
 data/raw_videos/*.mp4
 data/raw_videos/*.avi
 data/raw_videos/*.mov

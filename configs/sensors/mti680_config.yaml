@@ -1,0 +1,157 @@
+# ==============================================================================
+# APEX-Vision | Real-Time ADAS & Autonomous Lane Perception Platform
+# Configuration: MTi-680 RTK GNSS/INS Inertial Navigation System
+# Target: ISO 26262 ASIL-B Perception & State Estimation Baseline
+# ==============================================================================
+
+version: "4.0.0"
+sensor_id: "mti680_gnss_ins_01"
+sensor_type: "IMU_GNSS_INS"
+
+# ------------------------------------------------------------------------------
+# Hardware Interface & Communication Protocol
+# ------------------------------------------------------------------------------
+interface:
+  primary_channel: "can"       # options: "can", "serial", "simulated"
+  can_interface: "can0"
+  can_bitrate: 500000          # 500 kbps SocketCAN
+  serial_port: "/dev/ttyUSB0"
+  serial_baudrate: 921600      # High-speed baud for 400 Hz output
+  serial_timeout_ms: 10
+  auto_reconnect: true
+  reconnect_backoff_sec: 0.5
+  buffer_size_bytes: 65536
+
+# ------------------------------------------------------------------------------
+# CAN Message Mapping & Identifiers (Xsens CAN Protocol)
+# ------------------------------------------------------------------------------
+can_bus:
+  base_id: 0x200
+  messages:
+    euler_angles:
+      can_id: 0x201
+      frequency_hz: 400
+      byte_order: "little_endian"
+      signals:
+        roll: { start_bit: 0, length: 16, factor: 0.0054931640625, offset: -180.0, unit: "deg" }
+        pitch: { start_bit: 16, length: 16, factor: 0.0054931640625, offset: -180.0, unit: "deg" }
+        yaw: { start_bit: 32, length: 16, factor: 0.0054931640625, offset: -180.0, unit: "deg" }
+
+    angular_velocity:
+      can_id: 0x202
+      frequency_hz: 400
+      signals:
+        gyr_x: { start_bit: 0, length: 16, factor: 0.01, offset: -300.0, unit: "deg/s" }
+        gyr_y: { start_bit: 16, length: 16, factor: 0.01, offset: -300.0, unit: "deg/s" }
+        gyr_z: { start_bit: 32, length: 16, factor: 0.01, offset: -300.0, unit: "deg/s" }
+
+    linear_acceleration:
+      can_id: 0x203
+      frequency_hz: 400
+      signals:
+        acc_x: { start_bit: 0, length: 16, factor: 0.005, offset: -150.0, unit: "m/s^2" }
+        acc_y: { start_bit: 16, length: 16, factor: 0.005, offset: -150.0, unit: "m/s^2" }
+        acc_z: { start_bit: 32, length: 16, factor: 0.005, offset: -150.0, unit: "m/s^2" }
+
+    rtk_position:
+      can_id: 0x204
+      frequency_hz: 50
+      signals:
+        latitude: { start_bit: 0, length: 32, factor: 1e-7, offset: 0.0, unit: "deg" }
+        longitude: { start_bit: 32, length: 32, factor: 1e-7, offset: 0.0, unit: "deg" }
+
+    rtk_status_velocity:
+      can_id: 0x205
+      frequency_hz: 50
+      signals:
+        fix_type: { start_bit: 0, length: 8, unit: "enum" } # 0=NoFix, 1=Single, 2=DGNSS, 3=RTK_Float, 4=RTK_Fix
+        vel_north: { start_bit: 8, length: 16, factor: 0.01, offset: -100.0, unit: "m/s" }
+        vel_east: { start_bit: 24, length: 16, factor: 0.01, offset: -100.0, unit: "m/s" }
+        vel_down: { start_bit: 40, length: 16, factor: 0.01, offset: -100.0, unit: "m/s" }
+
+# ------------------------------------------------------------------------------
+# Sensor Mounting Extrinsics (Relative to Rear Axle Center Ground Level)
+# ------------------------------------------------------------------------------
+extrinsics:
+  mounting_position:
+    x_forward_m: 1.45
+    y_left_m: 0.00
+    z_up_m: 0.95
+  orientation_rpy_deg:
+    roll_deg: 0.0
+    pitch_deg: 0.0
+    yaw_deg: 0.0
+  alignment_matrix:
+    - [1.0,  0.0,  0.0]
+    - [0.0,  1.0,  0.0]
+    - [0.0,  0.0,  1.0]
+
+# ------------------------------------------------------------------------------
+# Uncertainty Propagation & Noise Specifications
+# ------------------------------------------------------------------------------
+noise_parameters:
+  attitude:
+    roll_noise_std_deg: 0.15
+    pitch_noise_std_deg: 0.15
+    yaw_noise_std_deg: 0.50
+    pitch_noise_std_rad: 0.00261799
+  rates:
+    gyro_noise_density_deg_per_sqrt_s: 0.01
+    gyro_random_walk_deg_per_s: 0.0005
+  acceleration:
+    accel_noise_density_m_per_s_sqrt_s: 0.0006
+    accel_random_walk_m_per_s2: 0.0001
+  rtk_gnss:
+    fix_mode_weights:
+      rtk_fixed: 0.014        # 1.4 cm horizontal accuracy
+      rtk_float: 0.250        # 25 cm accuracy
+      dgnss: 0.750            # 75 cm accuracy
+      standalone: 1.500       # 1.5 m accuracy
+      no_fix: 999.0
+
+# ------------------------------------------------------------------------------
+# State Estimation & Filtering Parameters
+# ------------------------------------------------------------------------------
+filtering:
+  output_rate_hz: 400
+  enable_eskf: true
+  enable_zero_velocity_update: true
+  zero_velocity_threshold_m_s: 0.08
+  gravity_magnitude: 9.80665
+  outlier_rejection_sigma: 3.5
+
+# ------------------------------------------------------------------------------
+# Health Monitoring & ASIL-B Safety Gates
+# ------------------------------------------------------------------------------
+safety_watchdog:
+  max_stale_data_ms: 25.0       # Alert if no packet for > 10 IMU cycles
+  max_acceptable_pitch_deg: 25.0
+  max_acceptable_roll_deg: 20.0
+  rtk_loss_grace_period_sec: 5.0
+  log_diagnostics_interval_sec: 1.0
+
+# ------------------------------------------------------------------------------
+# Depth Engine Coupling
+# ------------------------------------------------------------------------------
+depth_coupling:
+  feed_pitch_to_depth_engine: true
+  pitch_smoothing_alpha: 0.20   # Exponential smoothing factor
+  apply_latency_compensation: true
+  latency_compensation_ms: 12.5
+
+# ------------------------------------------------------------------------------
+# ASIL-B Fault Mitigation & Degradation Hierarchy
+# ------------------------------------------------------------------------------
+fault_management:
+  primary_fault_action: "TRIGGER_STATE_MACHINE_DEGRADED"
+  critical_timeout_action: "ENGAGE_SAFE_STOP"
+  imu_clipping_threshold_g: 16.0
+  gyro_saturation_threshold_deg_s: 2000.0
+  temperature_min_deg_c: -40.0
+  temperature_max_deg_c: 85.0
+  allow_software_mock_fallback: true
+  audit_trail_retention_days: 30
+
+# ==============================================================================
+# End of MTi-680 Configuration
+# ==============================================================================

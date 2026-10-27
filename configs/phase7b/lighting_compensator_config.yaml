@@ -1,0 +1,180 @@
+# ==============================================================================
+# APEX-Vision Core v4.0 — Phase 7B Master Perception Configuration
+# Section 1: Lane Perception Precision Engine ("The Repair Engine")
+# Configuration File: lighting_compensator_config.yaml
+# ==============================================================================
+# Universal Branding: APEX-Vision | Real-Time ADAS & Autonomous Lane Perception Platform
+# Autonomy Rating:    driver-supervised SAE Level 2
+# Safety Standard:    ISO 26262-style process; ASIL-B aligned; not independently assessed
+# Strict Mandate:     horizontal_flip=False; Zero-tolerance boundary envelope violations
+# Mission Goal:       Adaptive Photometric Normalization Across Adverse Illumination
+# ==============================================================================
+
+version: "4.0.0"
+schema_name: "apex_lighting_compensator_config"
+timestamp_created_utc: "2026-10-27T00:00:00Z"
+target_hardware: "NVIDIA Jetson Orin Nano / Dual Core SIMD ARM"
+
+# ------------------------------------------------------------------------------
+# 1. Global Pipeline Controls & Real-Time Constraints
+# ------------------------------------------------------------------------------
+global_controls:
+  enabled: true
+  enable_profiling: true
+  per_frame_latency_budget_ms: 3.50
+  fast_integer_math: true
+  parallel_color_transforms: true
+  working_color_space: "BGR_TO_LAB_AND_HLS"
+  thread_pool_workers: 2
+  simd_acceleration: true
+  subsampling_step_factor: 1
+
+# ------------------------------------------------------------------------------
+# 2. Dual-Domain CLAHE (Contrast Limited Adaptive Histogram Equalization)
+# ------------------------------------------------------------------------------
+clahe:
+  enabled: true
+  luminance_channel: "L_CHANNEL_LAB"
+  clip_limit: 2.50
+  tile_grid_size: [8, 8]
+  preserve_color_chromaticity: true
+  bilateral_color_damping: 0.15
+  adaptive_clip_scheduling:
+    enabled: true
+    min_clip_limit: 1.20
+    max_clip_limit: 4.00
+    scene_dependent_multipliers:
+      HIGHWAY: 1.00
+      URBAN: 1.10
+      RURAL: 1.15
+      TUNNEL: 1.40
+      NIGHT: 1.60
+      RAIN: 1.30
+
+# ------------------------------------------------------------------------------
+# 3. Dynamic Gamma Correction & LUT Caching
+# ------------------------------------------------------------------------------
+dynamic_gamma:
+  enabled: true
+  precompute_lut_cache: true
+  nominal_gamma: 1.00
+  min_gamma: 0.40
+  max_gamma: 3.20
+  scene_gamma_targets:
+    HIGHWAY: 1.00
+    URBAN: 1.05
+    RURAL: 1.00
+    TUNNEL: 1.75
+    NIGHT: 1.95
+    RAIN: 1.35
+  temporal_smoothing:
+    enabled: true
+    exponential_moving_average_alpha: 0.15
+    max_gamma_step_per_frame: 0.05
+    saturation_suppression_lut: true
+
+# ------------------------------------------------------------------------------
+# 4. HLS Adaptive Histogram Stretching
+# ------------------------------------------------------------------------------
+histogram_stretching:
+  enabled: true
+  percentile_low: 2.0
+  percentile_high: 98.0
+  min_dynamic_range_threshold: 45
+  saturation_stretch_gain: 1.15
+  luminance_stretch_gain: 1.25
+  clipping_protection:
+    headroom_low: 5
+    headroom_high: 250
+    knee_point_softening: true
+
+# ------------------------------------------------------------------------------
+# 5. Specular Highlight & Puddle Glare Removal
+# ------------------------------------------------------------------------------
+specular_highlight_removal:
+  enabled: true
+  luminance_threshold: 242
+  saturation_max_threshold: 40
+  gradient_energy_max: 25.0
+  inpainting_algorithm: "TELEA" # "TELEA" or "NAVIER_STOKES"
+  inpaint_radius_px: 3
+  sky_exclusion_horizon_margin_px: 20
+  min_highlight_contour_area_px: 16
+  max_highlight_contour_area_px: 3500
+  temporal_glare_persistence_frames: 4
+
+# ------------------------------------------------------------------------------
+# 6. Night Mode Low-Light Booster & Anti-Bloom Filter
+# ------------------------------------------------------------------------------
+night_mode:
+  enabled: true
+  ambient_lux_trigger_threshold: 30.0
+  ambient_pixel_mean_threshold: 55.0
+  low_light_gain: 1.65
+  road_surface_luminance_lift: 35.0
+  headlight_bloom_suppression:
+    enabled: true
+    saturation_suppression_factor: 0.45
+    core_brightness_threshold: 248
+    bloom_attenuation_radius_px: 18
+    flare_falloff_decay: 0.85
+
+# ------------------------------------------------------------------------------
+# 7. Guided Image Filter & Edge Preservation
+# ------------------------------------------------------------------------------
+guided_filter:
+  enabled: true
+  radius: 4
+  epsilon: 0.04
+  downsample_factor: 2
+  subsampling_acceleration: true
+  regularization_weight: 1.0e-3
+
+# ------------------------------------------------------------------------------
+# 8. Shadow Boundary Equalization & Retinex
+# ------------------------------------------------------------------------------
+shadow_equalization:
+  enabled: true
+  shadow_detection_threshold_ratio: 0.42
+  boundary_smoothing_kernel_size: 7
+  shadow_lift_factor: 1.45
+  penumbra_gradient_threshold: 12.0
+  multi_scale_retinex:
+    enabled: false
+    scales: [15, 80, 250]
+    weights: [0.333, 0.333, 0.334]
+    canonical_gain: 128.0
+
+# ------------------------------------------------------------------------------
+# 9. Fast Frequency Domain & Homomorphic Filter
+# ------------------------------------------------------------------------------
+homomorphic_filter:
+  enabled: false
+  high_frequency_gain: 1.50
+  low_frequency_gain: 0.65
+  cutoff_frequency_rad: 30.0
+  butterworth_order: 2
+
+# ------------------------------------------------------------------------------
+# 10. Temporal Exposure Transient Stabilization
+# ------------------------------------------------------------------------------
+exposure_transient_stabilizer:
+  enabled: true
+  transient_detection_threshold_lux: 80.0
+  recovery_decay_rate: 0.20
+  damping_coefficient: 0.85
+
+# ------------------------------------------------------------------------------
+# 11. Diagnostics, Visual Overlay & Quality Metrics
+# ------------------------------------------------------------------------------
+diagnostics:
+  log_level: "INFO"
+  compute_contrast_metric: true
+  compute_entropy_metric: true
+  compute_saturation_fraction: true
+  render_diagnostic_quadrant: false
+  quadrant_layout:
+    top_left: "RAW_INPUT"
+    top_right: "CLAHE_ENHANCED"
+    bottom_left: "GAMMA_NORMALIZED"
+    bottom_right: "SPECULAR_INPAINTED_OUTPUT"

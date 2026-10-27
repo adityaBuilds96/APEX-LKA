@@ -1,0 +1,7 @@
+clip_id,scenario_type,total_frames,mean_lce_m,max_lce_m,p95_lce_m,boundary_violations,bvr_pct,ttld_alerts,mean_ttld_lat_ms,faded_frames,faded_recovery_pct,relay_tripped,lce_compliant,bvr_compliant,clip_safety_passed
+TUSimple\train_set\clips\0530\clip_000,TUSIMPLE_HIGHWAY,1,0.000,0.000,0.000,0,0.000,0,12.5,0,100.0,True,True,True,True
+stress_curve_r120m,STRESS_CURVE_R120M,5,0.000,0.000,0.000,0,0.000,0,12.5,0,100.0,True,True,True,True
+stress_crosswind_gust,STRESS_CROSSWIND_GUST,5,0.000,0.000,0.000,0,0.000,0,12.5,0,100.0,True,True,True,True
+stress_faded_right_line,STRESS_FADED_RIGHT_LINE,5,0.294,0.333,0.331,5,100.000,5,440.0,5,0.0,True,False,False,False
+stress_faded_left_line,STRESS_FADED_LEFT_LINE,5,0.269,0.312,0.309,5,100.000,5,440.5,5,0.0,True,False,False,False
+stress_relay_cutoff_low_q,STRESS_RELAY_CUTOFF_LOW_Q,5,0.000,0.000,0.000,0,0.000,0,12.5,0,100.0,True,True,True,True

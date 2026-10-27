@@ -1,0 +1,170 @@
+# ==============================================================================
+# APEX-Vision | Real-Time ADAS & Autonomous Lane Perception Platform
+# Configuration: Starkenn Orion 77GHz Automotive CAN Radar
+# Target: ISO 26262 ASIL-B Track Fusion & Object Verification Baseline
+# ==============================================================================
+
+version: "4.0.0"
+sensor_id: "starkenn_orion_radar_01"
+sensor_type: "MILLIMETER_WAVE_RADAR_77GHZ"
+
+# ------------------------------------------------------------------------------
+# CAN Bus Communication & Interface
+# ------------------------------------------------------------------------------
+interface:
+  channel: "can0"
+  bitrate: 500000              # 500 kbps differential SocketCAN
+  endianness: "little_endian"
+  can_id_base: 0x400
+  can_id_max: 0x408
+  max_tracks_per_scan: 64
+  cycle_time_ms: 50.0          # 20 Hz radar scan rate
+  auto_reopen: true
+  socket_timeout_sec: 0.1
+
+# ------------------------------------------------------------------------------
+# CAN Message Layout (IDs 0x400 - 0x408)
+# ------------------------------------------------------------------------------
+can_message_mapping:
+  radar_status:
+    can_id: 0x400
+    description: "Radar operational state, sensor fault flags, active target count"
+    signals:
+      sensor_state: { start_bit: 0, length: 4, unit: "enum" }
+      active_target_count: { start_bit: 4, length: 8, unit: "count" }
+      radar_power_mode: { start_bit: 12, length: 4, unit: "enum" }
+      temperature_c: { start_bit: 16, length: 8, factor: 1.0, offset: -40.0, unit: "degC" }
+      dsp_error_flag: { start_bit: 24, length: 1, unit: "bool" }
+      rf_error_flag: { start_bit: 25, length: 1, unit: "bool" }
+
+  target_data_a:
+    can_id: 0x401
+    description: "Target kinematics part A (range, azimuth, doppler velocity)"
+    signals:
+      target_id: { start_bit: 0, length: 8, unit: "id" }
+      range_radial_m: { start_bit: 8, length: 14, factor: 0.02, offset: 0.0, unit: "m" }
+      azimuth_angle_deg: { start_bit: 22, length: 12, factor: 0.05, offset: -90.0, unit: "deg" }
+      radial_velocity_m_s: { start_bit: 34, length: 14, factor: 0.02, offset: -100.0, unit: "m/s" }
+      rcs_db: { start_bit: 48, length: 8, factor: 0.5, offset: -40.0, unit: "dBsm" }
+      snr_db: { start_bit: 56, length: 8, factor: 0.5, offset: 0.0, unit: "dB" }
+
+  target_data_b:
+    can_id: 0x402
+    description: "Target classification, measurement variance, track lifetime"
+    signals:
+      target_id: { start_bit: 0, length: 8, unit: "id" }
+      elevation_angle_deg: { start_bit: 8, length: 10, factor: 0.05, offset: -20.0, unit: "deg" }
+      track_quality: { start_bit: 18, length: 6, factor: 1.0, offset: 0.0, unit: "pct" }
+      range_std_m: { start_bit: 24, length: 8, factor: 0.01, offset: 0.0, unit: "m" }
+      velocity_std_m_s: { start_bit: 32, length: 8, factor: 0.01, offset: 0.0, unit: "m/s" }
+      azimuth_std_deg: { start_bit: 40, length: 8, factor: 0.02, offset: 0.0, unit: "deg" }
+      classification: { start_bit: 48, length: 4, unit: "enum" } # 0=Unknown, 1=Vehicle, 2=Pedestrian, 3=Bicycle, 4=Guardrail
+
+# ------------------------------------------------------------------------------
+# Sensor Mounting Extrinsics (Front Bumper Center)
+# ------------------------------------------------------------------------------
+extrinsics:
+  mounting_position:
+    x_forward_m: 2.10          # Front bumper relative to rear axle
+    y_left_m: 0.00             # Lateral centerline
+    z_up_m: 0.45               # Ground clearance
+  orientation_rpy_deg:
+    roll_deg: 0.0
+    pitch_deg: 0.0
+    yaw_deg: 0.0
+
+# ------------------------------------------------------------------------------
+# Operational Thresholds & Filtering Limits
+# ------------------------------------------------------------------------------
+filtering:
+  range_min_m: 0.5
+  range_max_m: 160.0
+  azimuth_min_deg: -60.0
+  azimuth_max_deg: 60.0
+  min_rcs_db: -15.0
+  min_snr_db: 8.0
+  min_track_quality_pct: 40.0
+  min_consecutive_hits: 3
+  doppler_stationary_threshold_m_s: 0.35
+
+# ------------------------------------------------------------------------------
+# Sensor Fusion Coupling (Vision + Radar EKF)
+# ------------------------------------------------------------------------------
+fusion_coupling:
+  enabled: true
+  gating_distance_mahalanobis: 3.5
+  lateral_association_window_m: 1.8
+  longitudinal_association_window_m: 4.5
+  radar_weight_longitudinal: 0.85
+  vision_weight_lateral: 0.80
+  track_retention_coast_frames: 10
+  enable_blackout_coasting: true
+
+# ------------------------------------------------------------------------------
+# Safety & ASIL-B Diagnostic Gates
+# ------------------------------------------------------------------------------
+safety_diagnostics:
+  max_packet_interval_ms: 120.0
+  blindness_detection_enabled: true
+  min_clutter_hits_per_minute: 5
+  temperature_limit_degc: 85.0
+  rcs_drop_warning_db: -20.0
+
+# ------------------------------------------------------------------------------
+# ASIL-B Fault Mitigation & Calibration Tables
+# ------------------------------------------------------------------------------
+fault_mitigation:
+  can_bus_off_recovery_ms: 250
+  consecutive_crc_failures_allowed: 3
+  degraded_mode_action: "MAINTAIN_CURRENT_LANE_REDUCE_SPEED"
+  blackout_timeout_sec: 2.0
+  radome_blockage_detection:
+    attenuation_threshold_db: 12.0
+    evaluation_window_sec: 10.0
+    remedial_action: "WARN_OPERATOR_DISABLE_HIGH_SPEED"
+
+calibration_matrix:
+  polar_correction_gain_range: 1.000
+  polar_correction_offset_range_m: 0.00
+  azimuth_bore_sight_offset_deg: 0.00
+  elevation_bore_sight_offset_deg: 0.00
+
+# ------------------------------------------------------------------------------
+# Operational Profiles (Urban, Highway, Adverse Weather)
+# ------------------------------------------------------------------------------
+profiles:
+  urban:
+    range_max_m: 80.0
+    azimuth_max_deg: 65.0
+    min_snr_db: 7.0
+    doppler_stationary_threshold_m_s: 0.25
+    clutter_filter_aggressiveness: "MODERATE"
+  highway:
+    range_max_m: 160.0
+    azimuth_max_deg: 40.0
+    min_snr_db: 9.0
+    doppler_stationary_threshold_m_s: 0.50
+    clutter_filter_aggressiveness: "HIGH"
+  adverse_weather:
+    range_max_m: 100.0
+    azimuth_max_deg: 50.0
+    min_snr_db: 11.0
+    doppler_stationary_threshold_m_s: 0.35
+    rain_attenuation_compensation_db_per_m: 0.015
+
+# ------------------------------------------------------------------------------
+# Radar Power & Frequency Regulation (76.0 - 77.0 GHz Band)
+# ------------------------------------------------------------------------------
+rf_parameters:
+  center_frequency_ghz: 76.5
+  bandwidth_mhz: 1000
+  chirp_ramp_duration_us: 42.0
+  samples_per_chirp: 512
+  tx_power_dbm: 13.0
+  antenna_beamwidth_azimuth_deg: 90.0
+  antenna_beamwidth_elevation_deg: 18.0
+
+# ==============================================================================
+# End of Starkenn Radar Configuration
+# ==============================================================================
+

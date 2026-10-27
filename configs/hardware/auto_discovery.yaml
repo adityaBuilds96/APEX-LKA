@@ -1,0 +1,357 @@
+# APEX-LKA v4.0 — Hardware Auto-Discovery Configuration
+# =======================================================
+# Hardware inventory mapping, vendor IDs, product IDs, expected CAN message IDs,
+# sample rates, thermal safety thresholds, and fallback hierarchies.
+#
+# This file is loaded at runtime by AutoDiscoveryEngine.
+# Changes take effect on the next engine restart.
+
+# ============================================================
+# Global Engine Settings
+# ============================================================
+engine:
+  scan_interval_ms: 500           # Topology scan period (500 ms)
+  stale_threshold_s: 2.0          # Device considered stale after 2 missed scans
+  degraded_threshold_s: 5.0       # Device degraded after 5 s of absence
+  disconnected_threshold_s: 15.0  # Device lost after 15 s
+  enable_driver_reinit: true       # Auto-reinit drivers on reconnect
+  enable_hud_notifications: true   # Publish events to Streamlit HUD
+  hud_queue_size: 100              # Maximum pending HUD notifications
+  event_log_size: 1000             # Maximum events in memory log
+
+# ============================================================
+# Thermal Safety Thresholds (Jetson Orin NX)
+# ============================================================
+thermal:
+  # CPU/GPU target operating temperature
+  warning_temp_c: 70.0        # Issue warning above this
+  critical_temp_c: 80.0       # Trigger thermal throttle alarm above this
+  shutdown_temp_c: 95.0       # Emergency shutdown above this
+
+  # Power budget monitoring
+  max_total_power_w: 25.0     # Jetson Orin NX 10W/15W/25W module
+  max_cpu_power_w: 12.0
+  max_gpu_power_w: 12.0
+
+  # Thermal zones to monitor (Linux sysfs paths)
+  zones:
+    - id: cpu
+      path: /sys/class/thermal/thermal_zone0/temp
+      type: cpu
+      limit_c: 80.0
+    - id: gpu
+      path: /sys/class/thermal/thermal_zone1/temp
+      type: gpu
+      limit_c: 80.0
+    - id: soc
+      path: /sys/class/thermal/thermal_zone2/temp
+      type: soc
+      limit_c: 85.0
+    - id: cv
+      path: /sys/class/thermal/thermal_zone3/temp
+      type: cv_core
+      limit_c: 80.0
+    - id: board
+      path: /sys/class/thermal/thermal_zone4/temp
+      type: board
+      limit_c: 60.0
+
+# ============================================================
+# CAN Bus Interfaces (SocketCAN)
+# ============================================================
+can_interfaces:
+  required:
+    - name: can0
+      bitrate: 500000
+      type: socketcan
+      fallback: [slcan0, vcan0]
+      health_check:
+        min_rx_hz: 10            # Minimum frame rate to consider healthy
+        max_error_rate: 0.05     # Maximum 5% frame error rate
+        staleness_timeout_ms: 500
+
+  optional:
+    - name: vcan0
+      bitrate: 500000
+      type: virtual
+      purpose: simulation_fallback
+
+    - name: slcan0
+      bitrate: 500000
+      type: serial_can
+      purpose: USB-CAN adapter fallback
+
+  # Expected messages on the bus (for health validation)
+  expected_messages:
+    - can_id: 0x050
+      name: Heartbeat
+      min_rate_hz: 80          # Expect > 80 Hz (100 Hz nominal)
+      max_age_ms: 15           # Alert if > 15 ms since last frame
+      transmitter: JETSON_ORIN
+
+    - can_id: 0x100
+      name: Steering_Primary
+      min_rate_hz: 25          # Expect > 25 Hz (30 Hz nominal)
+      max_age_ms: 50
+      transmitter: JETSON_ORIN
+      safety_critical: true
+
+    - can_id: 0x150
+      name: Priority_Risk
+      min_rate_hz: 25
+      max_age_ms: 50
+      transmitter: JETSON_ORIN
+
+    - can_id: 0x160
+      name: Spatial_State
+      min_rate_hz: 25
+      max_age_ms: 50
+      transmitter: JETSON_ORIN
+
+    - can_id: 0x180
+      name: Vehicle_Kinematics
+      min_rate_hz: 80
+      max_age_ms: 15
+      transmitter: JETSON_ORIN
+
+    - can_id: 0x320
+      name: MTi680_Orientation
+      min_rate_hz: 80
+      max_age_ms: 15
+      transmitter: INS_MTI680
+
+    - can_id: 0x321
+      name: MTi680_Velocity
+      min_rate_hz: 80
+      max_age_ms: 15
+      transmitter: INS_MTI680
+
+    - can_id: 0x400
+      name: Starkenn_Radar_Header
+      min_rate_hz: 15
+      max_age_ms: 80
+      transmitter: RADAR_STARKENN
+
+# ============================================================
+# Arduino Mega 2560 Devices
+# ============================================================
+arduino_devices:
+  baud_rate: 921600              # High-speed serial bridge
+  fallback_baud_rate: 115200    # Fallback if 921600 fails
+  watchdog_timeout_ms: 500      # Hardware watchdog period
+  steering_timeout_ms: 200      # Relay opens if no steering frame within 200 ms
+
+  primary:
+    device_id: ARDUINO_PRIMARY
+    role: steering_primary
+    preferred_port: /dev/ttyACM0
+    can_ids_expected: [0x050, 0x100, 0x150, 0x160, 0x180, 0x190]
+    failsafe_pin: 13             # Relay interlock output pin
+    usb_ids:
+      - vendor_id: "2341"
+        product_id: "0042"
+        description: "Arduino Mega 2560"
+      - vendor_id: "2341"
+        product_id: "0010"
+        description: "Arduino Mega 2560 (old bootloader)"
+      - vendor_id: "1A86"
+        product_id: "7523"
+        description: "Arduino clone with CH340"
+    health_check:
+      max_crc_error_rate: 0.02  # Max 2% CRC errors
+      min_rx_hz: 10             # Minimum serial frames from Arduino
+      heartbeat_timeout_ms: 300
+
+  secondary:
+    device_id: ARDUINO_SECONDARY
+    role: steering_redundant
+    preferred_port: /dev/ttyACM1
+    can_ids_expected: [0x050, 0x100, 0x180]
+    failsafe_pin: 13
+    usb_ids:
+      - vendor_id: "2341"
+        product_id: "0042"
+        description: "Arduino Mega 2560"
+      - vendor_id: "2341"
+        product_id: "0010"
+        description: "Arduino Mega 2560 (old bootloader)"
+    health_check:
+      max_crc_error_rate: 0.02
+      min_rx_hz: 5
+      heartbeat_timeout_ms: 500
+
+# ============================================================
+# Xsens MTi-680 GNSS/INS
+# ============================================================
+mti680:
+  device_id: INS_MTI680
+  interface: can            # Primary: CAN bus (500 kbps)
+  fallback_interface: usb   # Fallback: USB serial
+
+  # CAN interface
+  can:
+    node_id: 5
+    can_ids: [0x320, 0x321]
+    output_rate_hz: 100
+    expected_min_rate_hz: 80
+
+  # USB fallback
+  usb:
+    baud_rate: 921600
+    preferred_port: /dev/ttyUSB0
+    usb_ids:
+      - vendor_id: "10C4"
+        product_id: "EA60"
+        description: "Xsens MTi-680 CP210x"
+      - vendor_id: "0403"
+        product_id: "6001"
+        description: "Xsens MTi-680 FTDI"
+
+  # Quality requirements
+  quality:
+    min_fix_type: 3          # Minimum: DGPS (3). Prefer RTK_FIXED (5)
+    max_rtk_loss_s: 5.0      # Alert if RTK lost > 5 s
+    dead_reckoning_max_s: 30.0  # Max DR duration before GNSS_DEGRADED flag
+    pitch_range_deg: [-15, 15]  # Valid pitch range for horizon calibration
+    roll_range_deg: [-30, 30]   # Valid roll range
+
+  health_check:
+    max_age_ms: 25            # Data older than 25 ms is stale (2.5 frames @ 100 Hz)
+    min_position_accuracy_m: 2.0
+
+# ============================================================
+# Starkenn Orion 77GHz Radar
+# ============================================================
+starkenn_radar:
+  device_id: RADAR_STARKENN
+  interface: can
+  model: "Orion_77GHz"
+  frequency_ghz: 77.0
+
+  can:
+    header_id: 0x400
+    track_ids: [0x401, 0x402, 0x403, 0x404, 0x405, 0x406, 0x407, 0x408]
+    output_rate_hz: 20
+    expected_min_rate_hz: 15
+    max_tracks: 8
+
+  # Filtering thresholds
+  filtering:
+    min_rcs_dbm: -15.0        # Tracks below this RCS are filtered
+    min_confidence_pct: 60.0  # Tracks below this confidence are filtered
+    min_range_x_m: 0.5        # Minimum forward range
+    max_range_x_m: 150.0      # Maximum useful forward range (far mode)
+    min_range_y_m: -6.0       # Lateral range limits
+    max_range_y_m: 6.0
+
+  # Operating modes
+  modes:
+    default: combined
+    available: [standby, near, far, combined, calibration]
+
+  health_check:
+    max_age_ms: 100           # Alert if header older than 100 ms (2 frames @ 20 Hz)
+    max_sensor_temp_c: 85.0   # Radar sensor thermal limit
+    min_status_flags: 0b0001  # SENSOR_OK bit must be set
+
+# ============================================================
+# Camera Devices (USB / CSI)
+# ============================================================
+cameras:
+  scan_paths:
+    - /dev/video*
+    - /dev/v4l/by-id/*
+    - /sys/class/video4linux/
+
+  # Expected cameras (at least one must be connected)
+  required_cameras: 1
+  preferred_cameras: 2
+
+  known_devices:
+    - device_id: camera_front
+      description: "Primary forward-facing camera"
+      preferred_path: /dev/video0
+      usb_ids:
+        - vendor_id: "05A3"
+          product_id: "9230"
+          description: "OV9734 USB Camera"
+        - vendor_id: "0C45"
+          product_id: "6366"
+          description: "Microdia USB Camera"
+      expected_width: 1920
+      expected_height: 1080
+      expected_fps: 30
+      health_check:
+        min_frame_rate_hz: 25
+        max_latency_ms: 50
+
+    - device_id: camera_wide
+      description: "Wide-angle secondary camera"
+      preferred_path: /dev/video1
+      usb_ids:
+        - vendor_id: "32E4"
+          product_id: "9422"
+          description: "CSI Camera Module"
+      expected_width: 1280
+      expected_height: 720
+      expected_fps: 60
+
+# ============================================================
+# Fallback Hierarchy
+# ============================================================
+fallback_hierarchy:
+  # Order of interface preference for CAN bus
+  can_bus:
+    - interface: socketcan
+      channel: can0
+      priority: 1
+    - interface: socketcan
+      channel: slcan0
+      priority: 2
+    - interface: serial
+      port: /dev/ttyACM0
+      priority: 3    # Arduino primary serial bridge
+    - interface: serial
+      port: /dev/ttyACM1
+      priority: 4    # Arduino secondary serial bridge
+
+  # Arduino failover
+  arduino:
+    primary: /dev/ttyACM0
+    secondary: /dev/ttyACM1
+    switchover_trigger:
+      - crc_error_rate_gt: 0.05
+      - no_heartbeat_for_ms: 500
+      - relay_trip_count_gt: 5
+
+  # INS/GNSS fallback
+  ins:
+    primary: can_bus_0x320_0x321
+    fallback: usb_mti680
+    degraded_mode: dead_reckoning  # Use IMU-only if GNSS lost
+
+# ============================================================
+# HUD Notification Formatting
+# ============================================================
+hud_notifications:
+  max_queue_size: 100
+  auto_dismiss_after_s: 10.0
+
+  severity_map:
+    thermal_critical: error
+    thermal_warning: warning
+    device_disconnected: warning
+    device_degraded: warning
+    device_connected: success
+    device_recovered: success
+    driver_reinit: info
+    can_bus_fallback: error
+    serial_fallback: warning
+
+  icons:
+    camera: "📷"
+    can: "🔌"
+    arduino: "⚡"
+    mti680: "🛰️"
+    radar: "📡"
+    thermal: "🌡️"

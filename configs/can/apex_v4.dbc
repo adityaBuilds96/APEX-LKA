@@ -1,0 +1,365 @@
+VERSION "APEX_LKA_v4.0"
+
+NS_ :
+    NS_DESC_
+    CM_
+    BA_DEF_
+    BA_
+    VAL_
+    CAT_DEF_
+    CAT_
+    FILTER
+    BA_DEF_DEF_
+    EV_DATA_
+    ENVVAR_DATA_
+    SGTYPE_
+    SGTYPE_VAL_
+    BA_DEF_SGTYPE_
+    BA_DEF_SGTYPE_VAL_
+    BA_DEF_REL_
+    BA_DEF_DEF_REL_
+    BA_REL_
+    BA_SGTYPE_REL_
+    BU_SG_REL_
+    BU_EV_REL_
+    BU_BO_REL_
+    SG_MUL_VAL_
+
+BS_ : 500000
+
+BU_ : JETSON_ORIN ARDUINO_PRIMARY ARDUINO_SECONDARY RADAR_STARKENN INS_MTI680
+
+BO_ 80 Heartbeat: 8 JETSON_ORIN
+ SG_ NodeID : 0|8@1+ (1,0) [0|255] "" ARDUINO_PRIMARY,ARDUINO_SECONDARY,RADAR_STARKENN,INS_MTI680
+ SG_ SystemState : 8|8@1+ (1,0) [0|255] "" ARDUINO_PRIMARY,ARDUINO_SECONDARY,RADAR_STARKENN,INS_MTI680
+ SG_ ErrorFlags : 16|16@1+ (1,0) [0|65535] "" ARDUINO_PRIMARY,ARDUINO_SECONDARY,RADAR_STARKENN,INS_MTI680
+ SG_ WatchdogCounter : 32|8@1+ (1,0) [0|255] "" ARDUINO_PRIMARY,ARDUINO_SECONDARY
+ SG_ Reserved0 : 40|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ CRC8 : 48|8@1+ (1,0) [0|255] "" ARDUINO_PRIMARY,ARDUINO_SECONDARY
+ SG_ Counter : 56|4@1+ (1,0) [0|15] "" ARDUINO_PRIMARY,ARDUINO_SECONDARY
+
+BO_ 256 Steering_Primary: 8 JETSON_ORIN
+ SG_ TargetSteeringAngle : 0|16@1+ (0.001,-28.0) [-28.0|28.0] "deg" ARDUINO_PRIMARY,ARDUINO_SECONDARY
+ SG_ AngularVelocityLimit : 16|12@1+ (0.1,0.0) [0.0|200.0] "deg/s" ARDUINO_PRIMARY
+ SG_ TorqueCommand : 28|12@1+ (0.01,-10.0) [-10.0|10.0] "Nm" ARDUINO_PRIMARY
+ SG_ SteeringMode : 40|4@1+ (1,0) [0|15] "" ARDUINO_PRIMARY
+ SG_ Reserved1 : 44|4@1+ (1,0) [0|15] "" Vector__XXX
+ SG_ CRC8 : 48|8@1+ (1,0) [0|255] "" ARDUINO_PRIMARY
+ SG_ Counter : 56|4@1+ (1,0) [0|15] "" ARDUINO_PRIMARY
+ SG_ Reserved2 : 60|4@1+ (1,0) [0|15] "" Vector__XXX
+
+BO_ 336 Priority_Risk: 8 JETSON_ORIN
+ SG_ DynamicRiskLevel : 0|8@1+ (1,0) [0|255] "" ARDUINO_PRIMARY,ARDUINO_SECONDARY
+ SG_ TTC : 8|16@1+ (0.001,0.0) [0.0|10.0] "s" ARDUINO_PRIMARY
+ SG_ EmergencyBrakeFlag : 24|1@1+ (1,0) [0|1] "" ARDUINO_PRIMARY,ARDUINO_SECONDARY
+ SG_ RiskZoneID : 25|4@1+ (1,0) [0|15] "" ARDUINO_PRIMARY
+ SG_ Reserved3 : 29|3@1+ (1,0) [0|7] "" Vector__XXX
+ SG_ RiskConfidence : 32|8@1+ (0.392,0.0) [0.0|100.0] "%" ARDUINO_PRIMARY
+ SG_ CRC8 : 48|8@1+ (1,0) [0|255] "" ARDUINO_PRIMARY
+ SG_ Counter : 56|4@1+ (1,0) [0|15] "" ARDUINO_PRIMARY
+ SG_ Reserved4 : 60|4@1+ (1,0) [0|15] "" Vector__XXX
+
+BO_ 352 Spatial_State: 8 JETSON_ORIN
+ SG_ HeadingError : 0|16@1+ (0.01,-180.0) [-180.0|180.0] "deg" ARDUINO_PRIMARY
+ SG_ LateralError : 16|16@1+ (0.001,-16.0) [-16.0|16.0] "m" ARDUINO_PRIMARY
+ SG_ PathCurvature : 32|12@1+ (0.0001,-0.2) [-0.2|0.2] "1/m" ARDUINO_PRIMARY
+ SG_ Reserved5 : 44|4@1+ (1,0) [0|15] "" Vector__XXX
+ SG_ CRC8 : 48|8@1+ (1,0) [0|255] "" ARDUINO_PRIMARY
+ SG_ Counter : 56|4@1+ (1,0) [0|15] "" ARDUINO_PRIMARY
+ SG_ Reserved6 : 60|4@1+ (1,0) [0|15] "" Vector__XXX
+
+BO_ 368 Trajectory_Poly: 8 JETSON_ORIN
+ SG_ PolyCoeffA : 0|10@1+ (0.001,-0.5) [-0.5|0.5] "" ARDUINO_PRIMARY
+ SG_ PolyCoeffB : 10|10@1+ (0.001,-0.5) [-0.5|0.5] "" ARDUINO_PRIMARY
+ SG_ PolyCoeffC : 20|10@1+ (0.001,-0.5) [-0.5|0.5] "" ARDUINO_PRIMARY
+ SG_ PolyCoeffD : 30|10@1+ (0.01,-5.0) [-5.0|5.0] "m" ARDUINO_PRIMARY
+ SG_ Reserved7 : 40|8@1+ (1,0) [0|255] "" Vector__XXX
+ SG_ CRC8 : 48|8@1+ (1,0) [0|255] "" ARDUINO_PRIMARY
+ SG_ Counter : 56|4@1+ (1,0) [0|15] "" ARDUINO_PRIMARY
+ SG_ Reserved8 : 60|4@1+ (1,0) [0|15] "" Vector__XXX
+
+BO_ 384 Vehicle_Kinematics: 8 JETSON_ORIN
+ SG_ WheelSpeed : 0|16@1+ (0.01,0.0) [0.0|250.0] "km/h" ARDUINO_PRIMARY,ARDUINO_SECONDARY
+ SG_ YawRate : 16|12@1+ (0.01,-20.48) [-20.48|20.47] "deg/s" ARDUINO_PRIMARY
+ SG_ LongitudinalAccel : 28|10@1+ (0.01,-5.12) [-5.12|5.11] "m/s2" ARDUINO_PRIMARY
+ SG_ LateralAccel : 38|10@1+ (0.01,-5.12) [-5.12|5.11] "m/s2" ARDUINO_PRIMARY
+ SG_ CRC8 : 48|8@1+ (1,0) [0|255] "" ARDUINO_PRIMARY
+ SG_ Counter : 56|4@1+ (1,0) [0|15] "" ARDUINO_PRIMARY
+ SG_ KinFlags : 60|4@1+ (1,0) [0|15] "" ARDUINO_PRIMARY
+
+BO_ 400 Plan_Control_Status: 8 JETSON_ORIN
+ SG_ ControllerMode : 0|4@1+ (1,0) [0|15] "" ARDUINO_PRIMARY,ARDUINO_SECONDARY
+ SG_ HealthBitmask : 4|20@1+ (1,0) [0|1048575] "" ARDUINO_PRIMARY,ARDUINO_SECONDARY
+ SG_ FailsafeLevel : 24|4@1+ (1,0) [0|15] "" ARDUINO_PRIMARY,ARDUINO_SECONDARY
+ SG_ LoopLatencyUs : 28|16@1+ (1,0) [0|65535] "us" ARDUINO_PRIMARY
+ SG_ Reserved10 : 44|4@1+ (1,0) [0|15] "" Vector__XXX
+ SG_ CRC8 : 48|8@1+ (1,0) [0|255] "" ARDUINO_PRIMARY
+ SG_ Counter : 56|4@1+ (1,0) [0|15] "" ARDUINO_PRIMARY
+ SG_ Reserved11 : 60|4@1+ (1,0) [0|15] "" Vector__XXX
+
+BO_ 800 MTi680_Orientation: 8 INS_MTI680
+ SG_ Roll : 0|16@1+ (0.01,-180.0) [-180.0|180.0] "deg" JETSON_ORIN
+ SG_ Pitch : 16|16@1+ (0.01,-90.0) [-90.0|90.0] "deg" JETSON_ORIN
+ SG_ Yaw : 32|16@1+ (0.01,0.0) [0.0|360.0] "deg" JETSON_ORIN
+ SG_ CRC8 : 48|8@1+ (1,0) [0|255] "" JETSON_ORIN
+ SG_ Counter : 56|4@1+ (1,0) [0|15] "" JETSON_ORIN
+ SG_ InsStatus : 60|4@1+ (1,0) [0|15] "" JETSON_ORIN
+
+BO_ 801 MTi680_Velocity: 8 INS_MTI680
+ SG_ VelocityEast : 0|16@1+ (0.01,-327.68) [-327.68|327.67] "m/s" JETSON_ORIN
+ SG_ VelocityNorth : 16|16@1+ (0.01,-327.68) [-327.68|327.67] "m/s" JETSON_ORIN
+ SG_ VelocityDown : 32|12@1+ (0.01,-20.48) [-20.48|20.47] "m/s" JETSON_ORIN
+ SG_ GnssFixType : 44|4@1+ (1,0) [0|15] "" JETSON_ORIN
+ SG_ CRC8 : 48|8@1+ (1,0) [0|255] "" JETSON_ORIN
+ SG_ Counter : 56|4@1+ (1,0) [0|15] "" JETSON_ORIN
+ SG_ VelFlags : 60|4@1+ (1,0) [0|15] "" JETSON_ORIN
+
+BO_ 1024 Starkenn_Radar_Header: 8 RADAR_STARKENN
+ SG_ TargetCount : 0|5@1+ (1,0) [0|8] "" JETSON_ORIN
+ SG_ BusLoad : 5|7@1+ (1,0) [0|100] "%" JETSON_ORIN
+ SG_ StatusFlags : 12|12@1+ (1,0) [0|4095] "" JETSON_ORIN
+ SG_ RadarMode : 24|4@1+ (1,0) [0|15] "" JETSON_ORIN
+ SG_ SensorTemp : 28|8@1+ (1,-40) [-40|90] "degC" JETSON_ORIN
+ SG_ FrameID : 36|12@1+ (1,0) [0|4095] "" JETSON_ORIN
+ SG_ CRC8 : 48|8@1+ (1,0) [0|255] "" JETSON_ORIN
+ SG_ Counter : 56|4@1+ (1,0) [0|15] "" JETSON_ORIN
+ SG_ Reserved12 : 60|4@1+ (1,0) [0|15] "" Vector__XXX
+
+BO_ 1025 Starkenn_Radar_Track1: 8 RADAR_STARKENN
+ SG_ TrackID : 0|4@1+ (1,0) [0|15] "" JETSON_ORIN
+ SG_ RangeX : 4|12@1+ (0.05,-50.0) [-50.0|154.75] "m" JETSON_ORIN
+ SG_ RangeY : 16|12@1+ (0.05,-25.0) [-25.0|179.75] "m" JETSON_ORIN
+ SG_ RelVelX : 28|10@1+ (0.01,-25.6) [-25.6|25.58] "m/s" JETSON_ORIN
+ SG_ RelVelY : 38|8@1+ (0.01,-6.4) [-6.4|6.42] "m/s" JETSON_ORIN
+ SG_ RCS_Flag : 46|1@1+ (1,0) [0|1] "" JETSON_ORIN
+ SG_ ConfFlag : 47|1@1+ (1,0) [0|1] "" JETSON_ORIN
+ SG_ CRC8 : 48|8@1+ (1,0) [0|255] "" JETSON_ORIN
+ SG_ Counter : 56|4@1+ (1,0) [0|15] "" JETSON_ORIN
+ SG_ TrackStatus : 60|4@1+ (1,0) [0|15] "" JETSON_ORIN
+
+BO_ 1026 Starkenn_Radar_Track2: 8 RADAR_STARKENN
+ SG_ TrackID : 0|4@1+ (1,0) [0|15] "" JETSON_ORIN
+ SG_ RangeX : 4|12@1+ (0.05,-50.0) [-50.0|154.75] "m" JETSON_ORIN
+ SG_ RangeY : 16|12@1+ (0.05,-25.0) [-25.0|179.75] "m" JETSON_ORIN
+ SG_ RelVelX : 28|10@1+ (0.01,-25.6) [-25.6|25.58] "m/s" JETSON_ORIN
+ SG_ RelVelY : 38|8@1+ (0.01,-6.4) [-6.4|6.42] "m/s" JETSON_ORIN
+ SG_ RCS_Flag : 46|1@1+ (1,0) [0|1] "" JETSON_ORIN
+ SG_ ConfFlag : 47|1@1+ (1,0) [0|1] "" JETSON_ORIN
+ SG_ CRC8 : 48|8@1+ (1,0) [0|255] "" JETSON_ORIN
+ SG_ Counter : 56|4@1+ (1,0) [0|15] "" JETSON_ORIN
+ SG_ TrackStatus : 60|4@1+ (1,0) [0|15] "" JETSON_ORIN
+
+BO_ 1027 Starkenn_Radar_Track3: 8 RADAR_STARKENN
+ SG_ TrackID : 0|4@1+ (1,0) [0|15] "" JETSON_ORIN
+ SG_ RangeX : 4|12@1+ (0.05,-50.0) [-50.0|154.75] "m" JETSON_ORIN
+ SG_ RangeY : 16|12@1+ (0.05,-25.0) [-25.0|179.75] "m" JETSON_ORIN
+ SG_ RelVelX : 28|10@1+ (0.01,-25.6) [-25.6|25.58] "m/s" JETSON_ORIN
+ SG_ RelVelY : 38|8@1+ (0.01,-6.4) [-6.4|6.42] "m/s" JETSON_ORIN
+ SG_ RCS_Flag : 46|1@1+ (1,0) [0|1] "" JETSON_ORIN
+ SG_ ConfFlag : 47|1@1+ (1,0) [0|1] "" JETSON_ORIN
+ SG_ CRC8 : 48|8@1+ (1,0) [0|255] "" JETSON_ORIN
+ SG_ Counter : 56|4@1+ (1,0) [0|15] "" JETSON_ORIN
+ SG_ TrackStatus : 60|4@1+ (1,0) [0|15] "" JETSON_ORIN
+
+BO_ 1028 Starkenn_Radar_Track4: 8 RADAR_STARKENN
+ SG_ TrackID : 0|4@1+ (1,0) [0|15] "" JETSON_ORIN
+ SG_ RangeX : 4|12@1+ (0.05,-50.0) [-50.0|154.75] "m" JETSON_ORIN
+ SG_ RangeY : 16|12@1+ (0.05,-25.0) [-25.0|179.75] "m" JETSON_ORIN
+ SG_ RelVelX : 28|10@1+ (0.01,-25.6) [-25.6|25.58] "m/s" JETSON_ORIN
+ SG_ RelVelY : 38|8@1+ (0.01,-6.4) [-6.4|6.42] "m/s" JETSON_ORIN
+ SG_ RCS_Flag : 46|1@1+ (1,0) [0|1] "" JETSON_ORIN
+ SG_ ConfFlag : 47|1@1+ (1,0) [0|1] "" JETSON_ORIN
+ SG_ CRC8 : 48|8@1+ (1,0) [0|255] "" JETSON_ORIN
+ SG_ Counter : 56|4@1+ (1,0) [0|15] "" JETSON_ORIN
+ SG_ TrackStatus : 60|4@1+ (1,0) [0|15] "" JETSON_ORIN
+
+BO_ 1029 Starkenn_Radar_Track5: 8 RADAR_STARKENN
+ SG_ TrackID : 0|4@1+ (1,0) [0|15] "" JETSON_ORIN
+ SG_ RangeX : 4|12@1+ (0.05,-50.0) [-50.0|154.75] "m" JETSON_ORIN
+ SG_ RangeY : 16|12@1+ (0.05,-25.0) [-25.0|179.75] "m" JETSON_ORIN
+ SG_ RelVelX : 28|10@1+ (0.01,-25.6) [-25.6|25.58] "m/s" JETSON_ORIN
+ SG_ RelVelY : 38|8@1+ (0.01,-6.4) [-6.4|6.42] "m/s" JETSON_ORIN
+ SG_ RCS_Flag : 46|1@1+ (1,0) [0|1] "" JETSON_ORIN
+ SG_ ConfFlag : 47|1@1+ (1,0) [0|1] "" JETSON_ORIN
+ SG_ CRC8 : 48|8@1+ (1,0) [0|255] "" JETSON_ORIN
+ SG_ Counter : 56|4@1+ (1,0) [0|15] "" JETSON_ORIN
+ SG_ TrackStatus : 60|4@1+ (1,0) [0|15] "" JETSON_ORIN
+
+BO_ 1030 Starkenn_Radar_Track6: 8 RADAR_STARKENN
+ SG_ TrackID : 0|4@1+ (1,0) [0|15] "" JETSON_ORIN
+ SG_ RangeX : 4|12@1+ (0.05,-50.0) [-50.0|154.75] "m" JETSON_ORIN
+ SG_ RangeY : 16|12@1+ (0.05,-25.0) [-25.0|179.75] "m" JETSON_ORIN
+ SG_ RelVelX : 28|10@1+ (0.01,-25.6) [-25.6|25.58] "m/s" JETSON_ORIN
+ SG_ RelVelY : 38|8@1+ (0.01,-6.4) [-6.4|6.42] "m/s" JETSON_ORIN
+ SG_ RCS_Flag : 46|1@1+ (1,0) [0|1] "" JETSON_ORIN
+ SG_ ConfFlag : 47|1@1+ (1,0) [0|1] "" JETSON_ORIN
+ SG_ CRC8 : 48|8@1+ (1,0) [0|255] "" JETSON_ORIN
+ SG_ Counter : 56|4@1+ (1,0) [0|15] "" JETSON_ORIN
+ SG_ TrackStatus : 60|4@1+ (1,0) [0|15] "" JETSON_ORIN
+
+BO_ 1031 Starkenn_Radar_Track7: 8 RADAR_STARKENN
+ SG_ TrackID : 0|4@1+ (1,0) [0|15] "" JETSON_ORIN
+ SG_ RangeX : 4|12@1+ (0.05,-50.0) [-50.0|154.75] "m" JETSON_ORIN
+ SG_ RangeY : 16|12@1+ (0.05,-25.0) [-25.0|179.75] "m" JETSON_ORIN
+ SG_ RelVelX : 28|10@1+ (0.01,-25.6) [-25.6|25.58] "m/s" JETSON_ORIN
+ SG_ RelVelY : 38|8@1+ (0.01,-6.4) [-6.4|6.42] "m/s" JETSON_ORIN
+ SG_ RCS_Flag : 46|1@1+ (1,0) [0|1] "" JETSON_ORIN
+ SG_ ConfFlag : 47|1@1+ (1,0) [0|1] "" JETSON_ORIN
+ SG_ CRC8 : 48|8@1+ (1,0) [0|255] "" JETSON_ORIN
+ SG_ Counter : 56|4@1+ (1,0) [0|15] "" JETSON_ORIN
+ SG_ TrackStatus : 60|4@1+ (1,0) [0|15] "" JETSON_ORIN
+
+BO_ 1032 Starkenn_Radar_Track8: 8 RADAR_STARKENN
+ SG_ TrackID : 0|4@1+ (1,0) [0|15] "" JETSON_ORIN
+ SG_ RangeX : 4|12@1+ (0.05,-50.0) [-50.0|154.75] "m" JETSON_ORIN
+ SG_ RangeY : 16|12@1+ (0.05,-25.0) [-25.0|179.75] "m" JETSON_ORIN
+ SG_ RelVelX : 28|10@1+ (0.01,-25.6) [-25.6|25.58] "m/s" JETSON_ORIN
+ SG_ RelVelY : 38|8@1+ (0.01,-6.4) [-6.4|6.42] "m/s" JETSON_ORIN
+ SG_ RCS_Flag : 46|1@1+ (1,0) [0|1] "" JETSON_ORIN
+ SG_ ConfFlag : 47|1@1+ (1,0) [0|1] "" JETSON_ORIN
+ SG_ CRC8 : 48|8@1+ (1,0) [0|255] "" JETSON_ORIN
+ SG_ Counter : 56|4@1+ (1,0) [0|15] "" JETSON_ORIN
+ SG_ TrackStatus : 60|4@1+ (1,0) [0|15] "" JETSON_ORIN
+
+CM_ BU_ JETSON_ORIN "NVIDIA Jetson Orin NX — Primary compute node running APEX-LKA autonomy stack at 500 kbps.";
+CM_ BU_ ARDUINO_PRIMARY "Arduino Mega 2560 #1 — Primary SPI MCP2515 CAN bridge. Handles steering actuation and safety relay.";
+CM_ BU_ ARDUINO_SECONDARY "Arduino Mega 2560 #2 — Redundant CAN bridge node. Secondary safety interlock and fallback.";
+CM_ BU_ RADAR_STARKENN "Starkenn Orion 77GHz FMCW Radar — Forward obstacle detection sensor. 8 simultaneous target tracks.";
+CM_ BU_ INS_MTI680 "Xsens MTi-680 GNSS/INS — Dual-antenna RTK GPS + IMU inertial navigation system at 100 Hz.";
+
+CM_ BO_ 80 "Heartbeat: 100 Hz by JETSON_ORIN. All nodes must receive this within 15ms to remain active.";
+CM_ BO_ 256 "Steering primary command: 30 Hz. TargetSteeringAngle range +-28.0 degrees. Safety-critical frame.";
+CM_ BO_ 336 "Priority risk: 30 Hz. TTC range 0-10.0 seconds. EmergencyBrakeFlag triggers relay interlock.";
+CM_ BO_ 352 "Spatial state: 30 Hz. HeadingError, LateralError, PathCurvature from planning module.";
+CM_ BO_ 368 "Trajectory polynomial: 30 Hz. Cubic path coefficients A,B,C,D for lateral prediction.";
+CM_ BO_ 384 "Vehicle kinematics: 100 Hz. WheelSpeed, YawRate, LongitudinalAccel, LateralAccel.";
+CM_ BO_ 400 "Plan/control status: 30 Hz. ControllerMode, HealthBitmask, failsafe level, loop latency.";
+CM_ BO_ 800 "MTi-680 Euler orientation: 100 Hz. Roll, Pitch, Yaw at 0.01 deg resolution from INS_MTI680.";
+CM_ BO_ 801 "MTi-680 velocity: 100 Hz. East, North, Down velocity. GnssFixType indicates RTK quality.";
+CM_ BO_ 1024 "Starkenn radar header: 20 Hz. TargetCount, BusLoad, StatusFlags, RadarMode, SensorTemp, FrameID.";
+CM_ BO_ 1025 "Starkenn radar track 1 of 8: 20 Hz. RangeX/Y 0.05m, RelVelX/Y 0.01 m/s, RCS, Confidence.";
+CM_ BO_ 1026 "Starkenn radar track 2 of 8. Same structure as Track1.";
+CM_ BO_ 1027 "Starkenn radar track 3 of 8. Same structure as Track1.";
+CM_ BO_ 1028 "Starkenn radar track 4 of 8. Same structure as Track1.";
+CM_ BO_ 1029 "Starkenn radar track 5 of 8. Same structure as Track1.";
+CM_ BO_ 1030 "Starkenn radar track 6 of 8. Same structure as Track1.";
+CM_ BO_ 1031 "Starkenn radar track 7 of 8. Same structure as Track1.";
+CM_ BO_ 1032 "Starkenn radar track 8 of 8. Same structure as Track1.";
+
+CM_ SG_ 80 NodeID "Node identifier. 0x01=Jetson, 0x02=Arduino_Primary, 0x03=Arduino_Secondary.";
+CM_ SG_ 80 SystemState "System state. 0=INIT, 1=STANDBY, 2=ACTIVE, 3=DEGRADED, 4=FAILSAFE, 5=SHUTDOWN.";
+CM_ SG_ 80 ErrorFlags "16-bit error bitmask. Bit0=CAN_ERR, Bit1=IMU_ERR, Bit2=RADAR_ERR, Bit3=STEERING_ERR.";
+CM_ SG_ 80 WatchdogCounter "Rolling watchdog counter. Arduino resets relay if stalls > 200ms.";
+CM_ SG_ 80 CRC8 "SAE J1850 CRC-8 polynomial 0x1D checksum over bytes 0-5.";
+CM_ SG_ 80 Counter "4-bit rolling frame counter 0-15 for sequence validation.";
+CM_ SG_ 256 TargetSteeringAngle "Target steering angle. Range -28.0 to +28.0 deg. Scale 0.001 deg/LSB.";
+CM_ SG_ 256 AngularVelocityLimit "Max angular velocity 0-200.0 deg/s. Scale 0.1 deg/s/LSB.";
+CM_ SG_ 256 TorqueCommand "Direct torque -10.0 to +10.0 Nm. Scale 0.01 Nm/LSB.";
+CM_ SG_ 256 SteeringMode "0=DISABLE, 1=ANGLE_CTRL, 2=TORQUE_CTRL, 3=EMERGENCY, 4=MANUAL.";
+CM_ SG_ 336 DynamicRiskLevel "Risk 0-255. 0=CLEAR, 85=LOW, 170=MEDIUM, 220=HIGH, 255=CRITICAL_STOP.";
+CM_ SG_ 336 TTC "Time-to-collision 0.0-10.0 s. Scale 0.001 s/LSB. 65535=no target.";
+CM_ SG_ 336 EmergencyBrakeFlag "1 = engage full braking and relay interlock.";
+CM_ SG_ 336 RiskConfidence "Risk confidence 0-100%. Scale 0.392%/LSB.";
+CM_ SG_ 352 HeadingError "Heading error -180.0 to +180.0 deg. Scale 0.01 deg/LSB.";
+CM_ SG_ 352 LateralError "Lateral deviation -16.0 to +16.0 m. Scale 0.001 m/LSB.";
+CM_ SG_ 352 PathCurvature "Path curvature -0.2 to +0.2 1/m. Scale 0.0001 1/m/LSB.";
+CM_ SG_ 368 PolyCoeffA "Cubic trajectory polynomial A (cubic term). Range -0.5 to +0.5.";
+CM_ SG_ 368 PolyCoeffB "Cubic trajectory polynomial B (quadratic term). Range -0.5 to +0.5.";
+CM_ SG_ 368 PolyCoeffC "Cubic trajectory polynomial C (linear term). Range -0.5 to +0.5.";
+CM_ SG_ 368 PolyCoeffD "Cubic trajectory polynomial D (offset). Range -5.0 to +5.0 m.";
+CM_ SG_ 384 WheelSpeed "Wheel speed 0-250 km/h. Scale 0.01 km/h/LSB.";
+CM_ SG_ 384 YawRate "Yaw rate -20.48 to +20.47 deg/s. Scale 0.01 deg/s/LSB.";
+CM_ SG_ 384 LongitudinalAccel "Longitudinal accel -5.12 to +5.11 m/s2. Scale 0.01 m/s2/LSB.";
+CM_ SG_ 384 LateralAccel "Lateral accel -5.12 to +5.11 m/s2. Scale 0.01 m/s2/LSB.";
+CM_ SG_ 400 ControllerMode "0=OFF, 1=STANDBY, 2=ACTIVE, 3=OVERRIDE, 4=FAILSAFE.";
+CM_ SG_ 400 HealthBitmask "20-bit subsystem health. 0=OK, 1=FAULT per module bit.";
+CM_ SG_ 400 FailsafeLevel "0=NOMINAL, 1=WARN, 2=DEGRADE, 3=FAILSAFE, 4=SHUTDOWN.";
+CM_ SG_ 400 LoopLatencyUs "Main loop latency us. Target < 1500. Alert > 5000.";
+CM_ SG_ 800 Roll "Roll angle -180 to +180 deg. Scale 0.01 deg/LSB.";
+CM_ SG_ 800 Pitch "Pitch angle -90 to +90 deg. Scale 0.01 deg/LSB.";
+CM_ SG_ 800 Yaw "True-North heading 0-360 deg. Scale 0.1 deg/LSB.";
+CM_ SG_ 800 InsStatus "0=INIT, 1=COARSE, 2=FINE, 3=RTK_FLOAT, 4=RTK_FIXED, 5=DEAD_RECK.";
+CM_ SG_ 801 VelocityEast "ECEF East velocity -327.68 to +327.67 m/s. Scale 0.01 m/s/LSB.";
+CM_ SG_ 801 VelocityNorth "ECEF North velocity -327.68 to +327.67 m/s. Scale 0.01 m/s/LSB.";
+CM_ SG_ 801 VelocityDown "ECEF Down velocity -20.48 to +20.47 m/s. Scale 0.01 m/s/LSB.";
+CM_ SG_ 801 GnssFixType "0=NO_FIX, 1=SINGLE, 2=SBAS, 3=DGPS, 4=RTK_FLOAT, 5=RTK_FIXED, 6=PPP.";
+CM_ SG_ 1024 TargetCount "Number of valid radar tracks in this scan. Range 0-8.";
+CM_ SG_ 1024 BusLoad "Estimated CAN bus load 0-100%.";
+CM_ SG_ 1024 StatusFlags "Bit0=SENSOR_OK, Bit1=TEMP_OK, Bit2=BLOCKER_FREE, Bit3=ALIGN_OK.";
+CM_ SG_ 1024 RadarMode "0=STANDBY, 1=NEAR, 2=FAR, 3=COMBINED, 4=CALIBRATION.";
+CM_ SG_ 1024 SensorTemp "Radar board temperature -40 to +90 degC.";
+CM_ SG_ 1025 TrackID "Track object ID 0-15. Persistent across frames until track lost.";
+CM_ SG_ 1025 RangeX "Longitudinal range -50.0 to +154.75 m. Scale 0.05 m/LSB.";
+CM_ SG_ 1025 RangeY "Lateral range -25.0 to +179.75 m. Scale 0.05 m/LSB.";
+CM_ SG_ 1025 RelVelX "Relative longitudinal velocity -25.6 to +25.58 m/s. Scale 0.01 m/s/LSB.";
+CM_ SG_ 1025 RelVelY "Relative lateral velocity -6.4 to +6.42 m/s. Scale 0.01 m/s/LSB.";
+CM_ SG_ 1025 RCS_Flag "RCS above -15 dBm flag. 0=below, 1=above threshold.";
+CM_ SG_ 1025 ConfFlag "Track confidence above 60% flag. 0=low, 1=high confidence.";
+
+BA_DEF_ BO_ "GenMsgCycleTime" INT 0 10000;
+BA_DEF_ BO_ "GenMsgSendType" STRING;
+BA_DEF_ BU_ "NmStationAddress" INT 0 255;
+BA_DEF_ BU_ "ILUsed" STRING;
+
+BA_DEF_DEF_ "GenMsgCycleTime" 0;
+BA_DEF_DEF_ "GenMsgSendType" "NoMsgSendType";
+BA_DEF_DEF_ "NmStationAddress" 0;
+BA_DEF_DEF_ "ILUsed" "No";
+
+BA_ "GenMsgCycleTime" BO_ 80 10;
+BA_ "GenMsgCycleTime" BO_ 256 33;
+BA_ "GenMsgCycleTime" BO_ 336 33;
+BA_ "GenMsgCycleTime" BO_ 352 33;
+BA_ "GenMsgCycleTime" BO_ 368 33;
+BA_ "GenMsgCycleTime" BO_ 384 10;
+BA_ "GenMsgCycleTime" BO_ 400 33;
+BA_ "GenMsgCycleTime" BO_ 800 10;
+BA_ "GenMsgCycleTime" BO_ 801 10;
+BA_ "GenMsgCycleTime" BO_ 1024 50;
+BA_ "GenMsgCycleTime" BO_ 1025 50;
+BA_ "GenMsgCycleTime" BO_ 1026 50;
+BA_ "GenMsgCycleTime" BO_ 1027 50;
+BA_ "GenMsgCycleTime" BO_ 1028 50;
+BA_ "GenMsgCycleTime" BO_ 1029 50;
+BA_ "GenMsgCycleTime" BO_ 1030 50;
+BA_ "GenMsgCycleTime" BO_ 1031 50;
+BA_ "GenMsgCycleTime" BO_ 1032 50;
+
+BA_ "GenMsgSendType" BO_ 80 "Cyclic";
+BA_ "GenMsgSendType" BO_ 256 "Cyclic";
+BA_ "GenMsgSendType" BO_ 336 "Cyclic";
+BA_ "GenMsgSendType" BO_ 352 "Cyclic";
+BA_ "GenMsgSendType" BO_ 368 "Cyclic";
+BA_ "GenMsgSendType" BO_ 384 "Cyclic";
+BA_ "GenMsgSendType" BO_ 400 "Cyclic";
+BA_ "GenMsgSendType" BO_ 800 "Cyclic";
+BA_ "GenMsgSendType" BO_ 801 "Cyclic";
+BA_ "GenMsgSendType" BO_ 1024 "Cyclic";
+BA_ "GenMsgSendType" BO_ 1025 "Cyclic";
+BA_ "GenMsgSendType" BO_ 1026 "Cyclic";
+BA_ "GenMsgSendType" BO_ 1027 "Cyclic";
+BA_ "GenMsgSendType" BO_ 1028 "Cyclic";
+BA_ "GenMsgSendType" BO_ 1029 "Cyclic";
+BA_ "GenMsgSendType" BO_ 1030 "Cyclic";
+BA_ "GenMsgSendType" BO_ 1031 "Cyclic";
+BA_ "GenMsgSendType" BO_ 1032 "Cyclic";
+
+BA_ "NmStationAddress" BU_ JETSON_ORIN 1;
+BA_ "NmStationAddress" BU_ ARDUINO_PRIMARY 2;
+BA_ "NmStationAddress" BU_ ARDUINO_SECONDARY 3;
+BA_ "NmStationAddress" BU_ RADAR_STARKENN 4;
+BA_ "NmStationAddress" BU_ INS_MTI680 5;
+
+BA_ "ILUsed" BU_ JETSON_ORIN "Yes";
+BA_ "ILUsed" BU_ ARDUINO_PRIMARY "Yes";
+BA_ "ILUsed" BU_ ARDUINO_SECONDARY "Yes";
+BA_ "ILUsed" BU_ RADAR_STARKENN "Yes";
+BA_ "ILUsed" BU_ INS_MTI680 "Yes";
+
+VAL_ 80 SystemState 0 "INIT" 1 "STANDBY" 2 "ACTIVE" 3 "DEGRADED" 4 "FAILSAFE" 5 "SHUTDOWN" ;
+VAL_ 256 SteeringMode 0 "DISABLE" 1 "ANGLE_CTRL" 2 "TORQUE_CTRL" 3 "EMERGENCY" 4 "MANUAL" ;
+VAL_ 400 ControllerMode 0 "OFF" 1 "STANDBY" 2 "ACTIVE" 3 "OVERRIDE" 4 "FAILSAFE" ;
+VAL_ 400 FailsafeLevel 0 "NOMINAL" 1 "WARN" 2 "DEGRADE" 3 "FAILSAFE" 4 "SHUTDOWN" ;
+VAL_ 800 InsStatus 0 "INIT" 1 "COARSE_ALIGN" 2 "FINE_ALIGN" 3 "RTK_FLOAT" 4 "RTK_FIXED" 5 "DEAD_RECK" ;
+VAL_ 801 GnssFixType 0 "NO_FIX" 1 "SINGLE" 2 "SBAS" 3 "DGPS" 4 "RTK_FLOAT" 5 "RTK_FIXED" 6 "PPP" ;
+VAL_ 1024 RadarMode 0 "STANDBY" 1 "NEAR" 2 "FAR" 3 "COMBINED" 4 "CALIBRATION" ;

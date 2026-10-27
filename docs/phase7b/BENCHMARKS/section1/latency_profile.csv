@@ -1,0 +1,6 @@
+module_name,samples,mean_ms,std_ms,min_ms,p50_ms,p90_ms,p95_ms,p99_ms,max_ms,fps,budget_ms,budget_compliant,jitter_drift_ms
+Deep Learning Ensemble,5,393.070,1.401,391.531,393.146,394.636,395.055,395.391,395.475,2.5,7.00,False,3.656
+Scene Classifier (MobileNetV3),5,11.248,0.697,10.487,11.167,12.073,12.148,12.208,12.223,88.9,2.00,False,0.375
+8-State EKF Temporal Smoother,5,0.274,0.020,0.252,0.263,0.298,0.299,0.300,0.300,3648.8,0.50,True,-0.044
+Virtual Guardrail Enforcer,5,0.029,0.007,0.018,0.033,0.035,0.035,0.035,0.035,35038.5,0.50,True,-0.015
+Master Lane Fusion Pipeline,5,579.252,5.661,572.027,577.556,585.990,587.237,588.234,588.484,1.7,14.00,False,6.306

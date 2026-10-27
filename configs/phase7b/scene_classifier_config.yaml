@@ -1,0 +1,196 @@
+# ==============================================================================
+# APEX-Vision Core v4.0 — Phase 7B Master Perception Configuration
+# Section 1: Lane Perception Precision Engine ("The Repair Engine")
+# Configuration File: scene_classifier_config.yaml
+# ==============================================================================
+# Universal Branding: APEX-Vision | Real-Time ADAS & Autonomous Lane Perception Platform
+# Autonomy Rating:    driver-supervised SAE Level 2
+# Safety Standard:    ISO 26262-style process; ASIL-B aligned; not independently assessed
+# Strict Mandate:     horizontal_flip=False; Zero-tolerance boundary envelope violations
+# Mission Goal:       Scene-Adaptive Tuning, Environmental Awareness at 10 Hz
+# ==============================================================================
+
+version: "4.0.0"
+schema_name: "apex_scene_classifier_config"
+timestamp_created_utc: "2026-10-27T00:00:00Z"
+target_architecture: "MobileNetV3-Small / Squeeze-and-Excitation / Hard-Swish"
+
+# ------------------------------------------------------------------------------
+# 1. Output Scene Classes & Semantic Profiles
+# ------------------------------------------------------------------------------
+scene_classes:
+  num_classes: 6
+  class_names:
+    - "HIGHWAY"
+    - "URBAN"
+    - "RURAL"
+    - "TUNNEL"
+    - "NIGHT"
+    - "RAIN"
+  class_metadata:
+    HIGHWAY:
+      id: 0
+      description: "Divided multilane highway, high speed, well-marked road boundaries"
+      default_confidence_prior: 0.35
+      hysteresis_hold_frames: 10
+      dl_weight_alpha: 0.65
+      guardrail_inner_envelope_m: 0.20
+    URBAN:
+      id: 1
+      description: "City street with crosswalks, intersections, stop-and-go clutter"
+      default_confidence_prior: 0.20
+      hysteresis_hold_frames: 15
+      dl_weight_alpha: 0.60
+      guardrail_inner_envelope_m: 0.50
+    RURAL:
+      id: 2
+      description: "Undivided two-lane road, undulating terrain, irregular or worn edges"
+      default_confidence_prior: 0.15
+      hysteresis_hold_frames: 12
+      dl_weight_alpha: 0.70
+      guardrail_inner_envelope_m: 0.30
+    TUNNEL:
+      id: 3
+      description: "Enclosed subterranean roadway, sodium/LED lighting, sudden exposure transitions"
+      default_confidence_prior: 0.05
+      hysteresis_hold_frames: 20
+      dl_weight_alpha: 0.75
+      guardrail_inner_envelope_m: 0.25
+    NIGHT:
+      id: 4
+      description: "Low-ambient darkness, headlight illumination cone, high contrast glare"
+      default_confidence_prior: 0.10
+      hysteresis_hold_frames: 18
+      dl_weight_alpha: 0.85
+      guardrail_inner_envelope_m: 0.35
+    RAIN:
+      id: 5
+      description: "Precipitation, specular road puddle reflections, water droplets, wiper occlusion"
+      default_confidence_prior: 0.15
+      hysteresis_hold_frames: 15
+      dl_weight_alpha: 0.85
+      guardrail_inner_envelope_m: 0.35
+
+# ------------------------------------------------------------------------------
+# 2. Model Backbone & Inference Architecture
+# ------------------------------------------------------------------------------
+model_architecture:
+  backbone_type: "mobilenet_v3_small"
+  input_resolution:
+    width_px: 224
+    height_px: 224
+    channels: 3
+    color_format: "RGB"
+  normalization:
+    mean: [0.485, 0.456, 0.406]
+    std: [0.229, 0.224, 0.225]
+  feature_dimension: 576
+  dropout_rate: 0.20
+  activation_function: "HardSwish"
+  use_squeeze_and_excitation: true
+  se_reduction_ratio: 4
+  classifier_head:
+    hidden_units: 1024
+    num_classes: 6
+
+# ------------------------------------------------------------------------------
+# 3. Model Checkpoints & Execution Hardware
+# ------------------------------------------------------------------------------
+runtime_deployment:
+  weights_path_best: "checkpoints/phase7b/scene_classifier_best.pt"
+  weights_path_latest: "checkpoints/phase7b/scene_classifier_latest.pt"
+  device_primary: "cuda:0"
+  device_fallback: "cpu"
+  precision: "fp16" # "fp32" or "fp16"
+  enable_tensorrt: false
+  thread_execution:
+    async_background_runner: true
+    target_frequency_hz: 10.0
+    max_latency_allowed_ms: 15.0
+    buffer_history_size: 15
+    smoothing_filter: "EXPONENTIAL_MOVING_AVERAGE"
+    ema_alpha: 0.25
+
+# ------------------------------------------------------------------------------
+# 4. Calibration & Temperature Scaling
+# ------------------------------------------------------------------------------
+calibration:
+  temperature_scaling:
+    enabled: true
+    calibrated_temperature: 1.18
+  minimum_confidence_threshold: 0.40
+  entropy_uncertainty_threshold: 1.45
+  entropy_rejection_policy: "FALLBACK_TO_PREVIOUS_STABLE_SCENE"
+  hysteresis:
+    state_switch_confirmation_frames: 3
+    confidence_delta_required_for_switch: 0.18
+
+# ------------------------------------------------------------------------------
+# 5. Training Hyperparameters & Optimization
+# ------------------------------------------------------------------------------
+training:
+  dataset_source_zip: "data/raw/lane_dataset.zip"
+  tagged_metadata_path: "data/processed/scene_annotations.json"
+  train_val_split_ratio: 0.85
+  batch_size: 32
+  num_workers: 4
+  epochs: 30
+  optimizer:
+    name: "AdamW"
+    learning_rate: 1.0e-3
+    weight_decay: 1.0e-4
+    betas: [0.9, 0.999]
+    eps: 1.0e-8
+  learning_rate_scheduler:
+    name: "CosineAnnealingLR"
+    t_max_epochs: 30
+    min_learning_rate: 1.0e-6
+    warmup_epochs: 3
+    warmup_start_lr: 1.0e-5
+  loss_function:
+    name: "LabelSmoothingCrossEntropy"
+    label_smoothing: 0.10
+    class_weights:
+      HIGHWAY: 1.0
+      URBAN: 1.2
+      RURAL: 1.5
+      TUNNEL: 2.0
+      NIGHT: 1.8
+      RAIN: 1.8
+  gradient_clipping:
+    enabled: true
+    max_norm: 5.0
+  early_stopping:
+    patience_epochs: 7
+    min_delta: 0.002
+
+# ------------------------------------------------------------------------------
+# 6. Data Augmentations (Adversarial Robustness)
+# ------------------------------------------------------------------------------
+augmentations:
+  horizontal_flip: false # NON-NEGOTIABLE SAFETY MANDATE
+  random_crop_scale: [0.85, 1.0]
+  color_jitter:
+    brightness: 0.30
+    contrast: 0.30
+    saturation: 0.25
+    hue: 0.05
+  gaussian_blur:
+    kernel_size: 5
+    sigma_range: [0.1, 2.0]
+    probability: 0.30
+  random_erasing:
+    probability: 0.20
+    scale: [0.02, 0.20]
+    ratio: [0.3, 3.3]
+
+# ------------------------------------------------------------------------------
+# 7. Telemetry & Audit Logging
+# ------------------------------------------------------------------------------
+telemetry:
+  log_level: "INFO"
+  emit_metrics_to_can: true
+  can_message_id: "0x170"
+  can_publish_interval_ms: 100
+  export_confusion_matrix: true
+  confusion_matrix_dir: "docs/phase7b/BENCHMARKS/section1/"

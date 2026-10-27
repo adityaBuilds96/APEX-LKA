@@ -1,0 +1,2 @@
+clip_id,raw_file,correct_points,total_gt_points,accuracy,false_positives,false_negatives,gt_lanes,pred_lanes,mean_pixel_error,latency_ms,scene_tag,confidence_score,guardrail_safe
+clip_0000,clips/0000/20.jpg,0,40,0.0000,2,2,2,2,0.00,693.67,HIGHWAY,0.853,True
